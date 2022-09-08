@@ -1,8 +1,11 @@
 cmake_minimum_required (VERSION 3.10)
 project(ViSenz_AT)
 
+option(AT_TEST "Build AT UnitTest" ON)
+option(SUBMODULE_TEST "Build AT Submodule's UnitTest" OFF)
+
+# 1. Load dependent library
 if (${TARGET_PLATFORM} MATCHES "imx8mini")
-    set(TARGET_ARCHITECTURE "arm64-v8a")
     # Eigen3
     set(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     find_package(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
@@ -13,7 +16,6 @@ if (${TARGET_PLATFORM} MATCHES "imx8mini")
     include(modules/ViSenzProd_AR/Barcode.cmake)
     load_barcode("/opt/libs_aarch64/Barcode_mini8_0.21.0")
 elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
-    set(TARGET_ARCHITECTURE "arm64-v8a")
     # Eigen3
     set(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     find_package(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
@@ -23,23 +25,20 @@ elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
     # Barcode
     include(modules/auto_recognition/Barcode.cmake)
     load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.23.0_rc2")
-else()
-    find_package(OpenCV REQUIRED)
-    find_package(Eigen3 REQUIRED)
 endif()
 
-option(MODULE_TEST OFF)
+# 2. Build AT submodule
 add_subdirectory(modules/auto_lights)
 add_subdirectory(modules/auto_exposure)
 add_subdirectory(modules/auto_focus)
 add_subdirectory(modules/auto_recognition)
 
-file(GLOB AT_SRC_LIST ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
-file(GLOB AT_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
+# 3. Build AT library
+file(GLOB AT_SRC_LIST "src/*.cpp")
 add_library(AT SHARED ${AT_SRC_LIST})
-target_include_directories(AT PUBLIC ${AT_INCLUDE_DIRS})
-target_link_libraries(AT PUBLIC AL AF AE AR)
-target_link_libraries(AT PRIVATE ${OpenCV_LIBS} Eigen3::Eigen)
+target_include_directories(AT PUBLIC "include")
+target_link_libraries(AT PUBLIC AL AF AE AR ${OpenCV_LIBS})
 
-add_subdirectory(test)
+if (${AT_TEST})
+    add_subdirectory(test)
+endif()
