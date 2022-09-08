@@ -1,29 +1,28 @@
 cmake_minimum_required (VERSION 3.10)
 project(ViSenz_AT)
 
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
-
 if (${TARGET_PLATFORM} MATCHES "imx8mini")
     set(TARGET_ARCHITECTURE "arm64-v8a")
-    set(OpenCV_DIR "/opt/libs_aarch64/mier_opencv//lib/cmake/opencv4")
+    # Eigen3
+    set(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
+    find_package(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
+    # OpenCV
+    set(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
     find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
-    find_package(Eigen3 REQUIRED)
-
+    # Barcode
     include(modules/ViSenzProd_AR/Barcode.cmake)
-    set(Barcode_DIR "/opt/libs_aarch64/Barcode_mini8_0.21.0")
-    load_barcode(${Barcode_DIR})
+    load_barcode("/opt/libs_aarch64/Barcode_mini8_0.21.0")
 elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
     set(TARGET_ARCHITECTURE "arm64-v8a")
+    # Eigen3
     set(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
-    set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
     find_package(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
+    # OpenCV
+    set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
     find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
-
+    # Barcode
     include(modules/auto_recognition/Barcode.cmake)
-    set(Barcode_DIR "/opt/libs_aarch64/Barcode_8plus_dl_0.23.0_rc2")
-    load_barcode(${Barcode_DIR})
+    load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.23.0_rc2")
 else()
     find_package(OpenCV REQUIRED)
     find_package(Eigen3 REQUIRED)
