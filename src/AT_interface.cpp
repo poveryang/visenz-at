@@ -236,7 +236,7 @@ namespace at {
 
     void ATInterface::setDevice(std::string &dev_name) {
         dev_name_ = dev_name;
-        if (dev_name == "VS1000PRO" | dev_name == "VS2000") {
+        if (dev_name == "VS1000PRO") {
             cam_conf_ = {
                     .MIN_INTENSITY = 1,
                     .MAX_INTENSITY = 24,
@@ -245,11 +245,26 @@ namespace at {
                     .MAX_ET = 10000,
                     .MIN_EG = 1,
                     .MAX_EG = 255,
-                    .START_POS = 10,
-                    .END_POS = 409,
+                    .START_POS = 0,
+                    .END_POS = 410,
                     .STEP_SIZE = 30
             };
-        } else if (dev_name == "VS800" | dev_name == "VN800") {
+        }
+        else if (dev_name == "VS2000"){
+            cam_conf_ = {
+                    .MIN_INTENSITY = 1,
+                    .MAX_INTENSITY = 24,
+                    .MODE = 0,
+                    .MIN_ET = 0,
+                    .MAX_ET = 10000,
+                    .MIN_EG = 1,
+                    .MAX_EG = 255,
+                    .START_POS = 0,
+                    .END_POS = 410,
+                    .STEP_SIZE = 30
+            };
+        }
+        else if (dev_name == "VS800" | dev_name == "VN800") {
             cam_conf_ = {
                     .MIN_INTENSITY = 24,
                     .MAX_INTENSITY = 24,
