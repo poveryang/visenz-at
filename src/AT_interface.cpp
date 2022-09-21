@@ -224,7 +224,6 @@ namespace at {
         }
 
         if (en_af) {
-            at_impl_->af_obj.cur_et = m_config.hardware.exposure;
             m_config.hardware.motor = at_impl_->af_obj.next_pos;
         }
 
@@ -312,12 +311,6 @@ namespace at {
                 m_config.hardware.lights[3] = m_config.best_lights[3];
             }
         } else if (cur_phase == AF) {
-            at_impl_->af_obj.next_et = std::max(cam_conf_.MIN_ET,at_impl_->af_obj.next_et);
-            at_impl_->af_obj.next_et = std::min(cam_conf_.MAX_ET,at_impl_->af_obj.next_et);
-            if (at_impl_->af_obj.next_et > 0) {
-                m_config.hardware.exposure = at_impl_->af_obj.next_et;
-                at_impl_->ae_obj.ResetParams(at_impl_->af_obj.next_et);
-            }
             if (!at_impl_->af_obj.end_iter) {
                 m_config.hardware.motor = at_impl_->af_obj.next_pos;
             } else {
