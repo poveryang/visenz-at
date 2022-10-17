@@ -1,6 +1,9 @@
 cmake_minimum_required (VERSION 3.10)
 project(ViSenz_AT)
 
+set(CMAKE_C_COMPILER_WORKS 1)
+set(CMAKE_CXX_COMPILER_WORKS 1)
+
 option(AT_TEST "Build AT UnitTest" ON)
 option(SUBMODULE_TEST "Build AT Submodule's UnitTest" OFF)
 
