@@ -8,11 +8,8 @@
 namespace at {
     class ATInterface::ATImpl {
     public:
-        bool end_iter;
-        bool at_fine_tune;
-        bool al_fine_tune;
-        bool af_fine_tune;
-        bool ae_fine_tune;
+        bool end_iter= false;
+
         al::ALInterface al_obj;
         ae::AEInterface ae_obj;
         af::AFInterface af_obj;
@@ -20,16 +17,9 @@ namespace at {
 
         cv::Rect2i full_roi = {0, 0, 1280, 800};
         cv::Rect2i at_patch = full_roi;
-        std::vector<cv::Rect2i> at_patches{};
         std::map<double, CamParams, std::greater<>> at_param_scores;
 
-        ATImpl() {
-            end_iter = false;
-            at_fine_tune = false;
-            al_fine_tune = false;
-            af_fine_tune = false;
-            ae_fine_tune = false;
-        }
+        ATImpl() = default;
 
         ~ATImpl() = default;
 
@@ -37,33 +27,15 @@ namespace at {
             switch (phase) {
                 case AL:
                     std::cout << "[==>ViSenz-AL is in progress ] ";
-                    if (al_fine_tune){
-                        al_obj.FineTune(image(at_patch));
-                    } else {
-                        al_obj.Run(image(at_patch));
-                    }
+                    al_obj.Run(image(at_patch));
                     break;
                 case AF:
                     std::cout << "[==>ViSenz-AF is in progress ] ";
-                    if (af_fine_tune){
-                        af_obj.FineTune(image(at_patch));
-                    } else {
-                        af_obj.Run(image(at_patch));
-                    }
+                    af_obj.Run(image(at_patch));
                     break;
                 case AE:
                     std::cout << "[==>ViSenz-AE is in progress ] ";
-                    if (ae_fine_tune){
-                        bool decode_success = false;
-                        ar_obj.GetInfo(image, config.ar_config);
-                        ar_obj.end_iter = false;
-                        if (ar_obj.score > 0) {
-                            decode_success = true;
-                        }
-                        ae_obj.FineTune(image(at_patch), decode_success);
-                    } else {
-                        ae_obj.Run(image(at_patch));
-                    }
+                    ae_obj.Run(image(at_patch));
                     break;
                 case AR:
                     std::cout << "[==>ViSenz-AR is in progress ] ";
@@ -77,41 +49,22 @@ namespace at {
         void ResetAT(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar, CamConf cam_conf, ATConfig &at_config) {
             if (enable_al) {
                 al_obj.end_iter = false;
-                if (al_fine_tune){
-                    al_obj.Init(al_obj.best_intensity);
-                }else{
-                    al_obj.Init(cam_conf.MIN_INTENSITY, cam_conf.MAX_INTENSITY);
-                }
-                at_config.hardware.lights = {al_obj.next_intensity, al_obj.next_intensity,
-                                            al_obj.next_intensity, al_obj.next_intensity};
+                al_obj.Init(cam_conf.MIN_INTENSITY, cam_conf.MAX_INTENSITY);
             } else {
                 al_obj.end_iter = true;
             }
 
             if (enable_af) {
                 af_obj.end_iter = false;
-                if (af_fine_tune){
-                    af_obj.Init(af_obj.best_pos, cam_conf.START_POS, cam_conf.END_POS, 3);
-                } else {
-                    af_obj.Init(cam_conf.START_POS, cam_conf.END_POS, cam_conf.STEP_SIZE);
-                }
-                at_config.hardware.motor = af_obj.next_pos;
-
+                af_obj.Init(cam_conf.START_POS, cam_conf.END_POS, cam_conf.STEP_SIZE);
             } else {
                 af_obj.end_iter = true;
             }
 
             if (enable_ae) {
                 ae_obj.end_iter = false;
-                if (ae_fine_tune){
-                    ae_obj.Init(ae_obj.best_et, ae_obj.best_eg,
+                ae_obj.Init(cam_conf.MODE,
                                 cam_conf.MIN_ET, cam_conf.MAX_ET, cam_conf.MIN_EG, cam_conf.MAX_EG);
-                } else {
-                    ae_obj.Init(cam_conf.MODE,
-                                cam_conf.MIN_ET, cam_conf.MAX_ET, cam_conf.MIN_EG, cam_conf.MAX_EG);
-                }
-                at_config.hardware.exposure = ae_obj.next_et;
-                at_config.hardware.gain = ae_obj.next_eg;
             } else {
                 ae_obj.end_iter = true;
             }
@@ -138,31 +91,7 @@ namespace at {
             at_impl_->Run(image, cur_phase, m_config);
             UpdateNextParams();
         } else {
-            double best_score = at_impl_->at_param_scores.begin()->first;
-            if (!at_impl_->at_patches.empty() && best_score <=0) {
-                at_impl_->at_patch = at_impl_->at_patches.front();
-                at_impl_->at_patches.erase(at_impl_->at_patches.begin());
-
-                at_impl_->af_fine_tune = true;
-                at_impl_->ResetAT(en_al, en_af, en_ae, en_ar, cam_conf_, m_config);
-            } else if (at_impl_->at_fine_tune && m_config.ar_config.rect!=at_impl_->full_roi){
-                en_al = false;
-                en_ar = true;
-                at_impl_->al_fine_tune = false;
-                at_impl_->af_fine_tune = true;
-                at_impl_->ae_fine_tune = true;
-                at_impl_->at_patch = m_config.ar_config.rect;
-                std::cout << "====>finetune roi " << at_impl_->at_patch<< std::endl;
-                at_impl_->ResetAT(en_al, en_af, en_ae, en_ar, cam_conf_, m_config);
-                at_impl_->at_fine_tune = false;
-            } else{
-                CamParams best_res = at_impl_->at_param_scores.begin()->second;//mark
-                m_config.best_lights = best_res.lights;
-                m_config.best_exposure = best_res.exposure_time;
-                m_config.best_gain = best_res.exposure_gain;
-                m_config.best_motor = best_res.focus_pos;
-                m_config._end_iteration = true;
-            }
+            m_config._end_iteration = true;
         }
     }
 
@@ -172,20 +101,6 @@ namespace at {
         en_ae = enable_ae;
         en_ar = enable_ar;
 
-        if (time == 0) {
-            at_impl_->at_patches = {};
-        } else {
-            en_ar = true;
-            at_impl_->at_fine_tune = true;
-            at_impl_->at_patches = {
-                cv::Rect(0, 0, 640, 400),
-                cv::Rect(640, 0, 640, 400),
-                cv::Rect(0, 400, 640, 400),
-                cv::Rect(640, 400, 640, 400),
-                cv::Rect(320, 200, 640, 400),
-            };
-
-        }
         at_impl_->ResetAT(en_al, en_af, en_ae, en_ar, cam_conf_, m_config);
     }
     
@@ -210,7 +125,6 @@ namespace at {
         m_config.hardware.roi = hw_config.hardware.roi;
         if (at_impl_->at_patch != hw_config.hardware.roi){
             at_impl_->at_patch = hw_config.hardware.roi;
-            at_impl_->at_patches.clear();
         }
 
         if (en_al) {
@@ -248,8 +162,7 @@ namespace at {
                     .END_POS = 410,
                     .STEP_SIZE = 30
             };
-        }
-        else if (dev_name == "VS2000"){
+        } else if (dev_name == "VS2000"){
             cam_conf_ = {
                     .MIN_INTENSITY = 1,
                     .MAX_INTENSITY = 24,
@@ -328,15 +241,7 @@ namespace at {
                 m_config.hardware.gain = m_config.best_gain;
             }
         } else if (cur_phase == AR) {
-            double score = at_impl_->ar_obj.score;
             printf("Score = %.2f", at_impl_->ar_obj.score);
-            CamParams at_param = {
-                    m_config.best_lights,
-                    m_config.best_motor,
-                    m_config.best_exposure,
-                    m_config.best_gain};
-
-            at_impl_->at_param_scores.insert(std::make_pair(score,at_param));
         }
     }
 
