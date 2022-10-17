@@ -8,8 +8,8 @@ SAVE_DIR=${HOME}/Desktop/AT_RES/$(date +%m%d%H%M)
 echo "$SAVE_DIR" && mkdir "$SAVE_DIR"
 
 # Scp execute file and lib to remote device
-scp ../build/libAT.so root@$DEV_IP:/tmp
-scp ../build/AT_TEST root@$DEV_IP:/tmp
+scp ../release/imx8plus/lib/libAT.so root@$DEV_IP:/tmp
+scp ../release/imx8plus/bin/AT_TEST root@$DEV_IP:/tmp
 
 # Connect to remote device(Scanner)
 ssh -tt root@$DEV_IP << remotessh

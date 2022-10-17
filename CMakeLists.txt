@@ -47,12 +47,16 @@ set(AT_PUBLIC_HEADER
         "${CMAKE_SOURCE_DIR}/modules/auto_recognition/include/ar_params.h"
         )
 
-if (${AT_TEST})
-    add_subdirectory(test)
-endif()
-
 install(TARGETS AT
         LIBRARY DESTINATION lib)
 
 install(FILES ${AT_PUBLIC_HEADER}
         DESTINATION include)
+
+
+if (${AT_TEST})
+    add_subdirectory(test)
+    install(TARGETS AT_TEST
+            DESTINATION bin)
+endif()
+
