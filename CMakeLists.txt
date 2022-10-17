@@ -16,7 +16,7 @@ if (${TARGET_PLATFORM} MATCHES "imx8mini")
     set(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
     find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
     # Barcode
-    include(modules/ViSenzProd_AR/Barcode.cmake)
+    include(modules/auto_recognition/Barcode.cmake)
     load_barcode("/opt/libs_aarch64/Barcode_mini8_0.24.0")
 elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
     # Eigen3

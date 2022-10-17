@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ ! -d "build/" ]; then
+if [ ! -d "build_8plus/" ]; then
 mkdir build_8plus
 else
 echo "dir build_8plus existed"
