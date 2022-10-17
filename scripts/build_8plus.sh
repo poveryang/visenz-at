@@ -16,5 +16,5 @@ cd build_8plus
 
 /usr/bin/cmake \
 --build . \
---target AT_TEST \
+--target install \
 -- -j 16
