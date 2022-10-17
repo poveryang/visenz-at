@@ -1,4 +1,4 @@
-#!/usr/bin/bash
+#!/bin/bash
 
 if [ ! -d "build_8mini/" ]; then
 mkdir build_8mini
