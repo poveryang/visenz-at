@@ -7,7 +7,7 @@ echo "dir build_8mini existed"
 fi
 cd build_8mini
 
-source /opt/myir-imx-xwayland/4.14-sumo/environment-setup-aarch64-poky-linux
+# source /opt/myir-imx-xwayland/4.14-sumo/environment-setup-aarch64-poky-linux
 
 /usr/bin/cmake \
 -DCMAKE_BUILD_TYPE=Release \
