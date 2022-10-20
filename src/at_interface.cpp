@@ -45,46 +45,16 @@ namespace at {
                     break;
             }
         }
-
-        void ResetAT(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar, CamConf cam_conf, ATConfig &at_config) {
-            if (enable_al) {
-                al_obj.end_iter = false;
-                al_obj.Init(cam_conf.MIN_INTENSITY, cam_conf.MAX_INTENSITY);
-            } else {
-                al_obj.end_iter = true;
-            }
-
-            if (enable_af) {
-                af_obj.end_iter = false;
-                af_obj.Init(cam_conf.START_POS, cam_conf.END_POS);
-            } else {
-                af_obj.end_iter = true;
-            }
-
-            if (enable_ae) {
-                ae_obj.end_iter = false;
-                ae_obj.Init(cam_conf.MIN_ET, cam_conf.MAX_ET, cam_conf.MIN_EG, cam_conf.MAX_EG);
-            } else {
-                ae_obj.end_iter = true;
-            }
-
-            if (enable_ar) {
-                ar_obj.score = 0;
-                ar_obj.end_iter = false;
-            } else {
-                ar_obj.end_iter = true;
-            }
-        }
     };
 
     ATInterface::ATInterface() {
         end_iter = false;
-        cur_phase = END;
+        cur_phase_ = END;
         en_al = en_af = en_ae = en_ar = false;
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
     }
 
-    void ATInterface::run(const cv::Mat &image) {
+    void ATInterface::Run(const cv::Mat &image) {
         UpdateCurPhase();
         if (cur_phase != END) {
             at_impl_->Run(image, cur_phase, m_config);
@@ -94,13 +64,61 @@ namespace at {
         }
     }
 
-    void ATInterface::init(bool enable_ae, bool enable_af, bool enable_al, bool enable_ar, int time) {
-        en_al = enable_al;
-        en_af = enable_af;
-        en_ae = enable_ae;
-        en_ar = enable_ar;
+    void ATInterface::SetDevice(std::string &dev_name, CamParams init_params) {
+        if (dev_name == "VS1000PRO" | "VS2000") {
+            cam_conf_ = {
+                    .MIN_INTENSITY = 1,
+                    .MAX_INTENSITY = 24,
+                    .MIN_ET = 0,
+                    .MAX_ET = 10000,
+                    .MIN_EG = 1,
+                    .MAX_EG = 255,
+                    .START_POS = 0,
+                    .END_POS = 410,
+                    .STEP_SIZE = 30
+            };
+        } else if (dev_name == "VS800") {
+            cam_conf_ = {
+                    .MIN_INTENSITY = 0,
+                    .MAX_INTENSITY = 1,
+                    .MIN_ET = 0,
+                    .MAX_ET = 10000,
+                    .MIN_EG = 1,
+                    .MAX_EG = 255,
+                    .START_POS = 0,
+                    .END_POS = 1023,
+            };
+        }
+    }
 
-        at_impl_->ResetAT(en_al, en_af, en_ae, en_ar, cam_conf_, m_config);
+    void ATInterface::Init(bool enable_ae, bool enable_af, bool enable_al, bool enable_ar) {
+        if (enable_al) {
+            al_obj.end_iter = false;
+            al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
+        } else {
+            al_obj.end_iter = true;
+        }
+
+        if (enable_af) {
+            af_obj.end_iter = false;
+            af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.STEP_SIZE);
+        } else {
+            af_obj.end_iter = true;
+        }
+
+        if (enable_ae) {
+            ae_obj.end_iter = false;
+            ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET, cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+        } else {
+            ae_obj.end_iter = true;
+        }
+
+        if (enable_ar) {
+            ar_obj.score = 0;
+            ar_obj.end_iter = false;
+        } else {
+            ar_obj.end_iter = true;
+        }
     }
     
     void ATInterface::init_hardware(at::ATConfig &hw_config) {
@@ -142,54 +160,6 @@ namespace at {
 
     }
 
-    void ATInterface::init_ae(int mode, int min_et, int max_et, int min_eg, int max_eg) {
-        at_impl_->ae_obj.Init(min_et, max_et, min_eg, max_eg);
-    }
-
-    void ATInterface::setDevice(std::string &dev_name) {
-        dev_name_ = dev_name;
-        if (dev_name == "VS1000PRO") {
-            cam_conf_ = {
-                    .MIN_INTENSITY = 1,
-                    .MAX_INTENSITY = 24,
-                    .MODE = 0,
-                    .MIN_ET = 0,
-                    .MAX_ET = 10000,
-                    .MIN_EG = 1,
-                    .MAX_EG = 255,
-                    .START_POS = 0,
-                    .END_POS = 410,
-                    .STEP_SIZE = 30
-            };
-        } else if (dev_name == "VS2000"){
-            cam_conf_ = {
-                    .MIN_INTENSITY = 1,
-                    .MAX_INTENSITY = 24,
-                    .MODE = 0,
-                    .MIN_ET = 0,
-                    .MAX_ET = 10000,
-                    .MIN_EG = 1,
-                    .MAX_EG = 255,
-                    .START_POS = 0,
-                    .END_POS = 410,
-                    .STEP_SIZE = 30
-            };
-        }
-        else if (dev_name == "VS800" | dev_name == "VN800") {
-            cam_conf_ = {
-                    .MIN_INTENSITY = 24,
-                    .MAX_INTENSITY = 24,
-                    .MODE = 0,
-                    .MIN_ET = 0,
-                    .MAX_ET = 10000,
-                    .MIN_EG = 1,
-                    .MAX_EG = 255,
-                    .START_POS = 0,
-                    .END_POS = 1023,
-                    .STEP_SIZE = 30
-            };
-        }
-    }
 
     void ATInterface::UpdateCurPhase() {
         if (!at_impl_->al_obj.end_iter) {
@@ -242,9 +212,5 @@ namespace at {
         } else if (cur_phase == AR) {
             printf("Score = %.2f", at_impl_->ar_obj.score);
         }
-    }
-
-    void ATInterface::setMetrics_Barcode(smartmore::barcode::Barcode &barcode_sdk) {
-        at_impl_->ar_obj.Init(barcode_sdk);
     }
 }
