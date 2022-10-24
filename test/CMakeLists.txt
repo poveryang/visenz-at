@@ -7,5 +7,5 @@ file(GLOB AT_TEST_SRC "./*.cpp")
 file(GLOB VCAP_SRC "./drivers/${DEVICE}/*.c*")
 
 add_executable(${PROJECT_NAME} ${AT_TEST_SRC} ${VCAP_SRC})
-target_include_directories(${PROJECT_NAME} PRIVATE ${INC_DIR})
-target_link_libraries(${PROJECT_NAME} PRIVATE AT ${OpenCV_LIBS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${INC_DIR} ${Barcode_INCLUDE_DIRS})
+target_link_libraries(${PROJECT_NAME} PRIVATE AT ${OpenCV_LIBS} ${Barcode_LIBRARIES})
