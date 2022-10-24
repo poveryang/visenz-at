@@ -34,17 +34,16 @@ endif()
 add_subdirectory(modules/auto_lights)
 add_subdirectory(modules/auto_exposure)
 add_subdirectory(modules/auto_focus)
-add_subdirectory(modules/auto_recognition)
+#add_subdirectory(modules/auto_recognition)
 
 # 3. Build AT library
 file(GLOB AT_SRC_LIST "src/*.cpp")
 add_library(AT SHARED ${AT_SRC_LIST})
 target_include_directories(AT PUBLIC "include")
-target_link_libraries(AT PUBLIC AL AF AE AR ${OpenCV_LIBS})
+target_link_libraries(AT PUBLIC AL AF AE ${OpenCV_LIBS})
 set(AT_PUBLIC_HEADER
-        "${CMAKE_SOURCE_DIR}/include/AT_interface.h"
-        "${CMAKE_SOURCE_DIR}/include/at_config.h"
-        "${CMAKE_SOURCE_DIR}/modules/auto_recognition/include/ar_params.h"
+        "${CMAKE_SOURCE_DIR}/include/at_interface.h"
+        "${CMAKE_SOURCE_DIR}/include/at_params.h"
         )
 
 install(TARGETS AT

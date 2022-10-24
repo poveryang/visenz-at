@@ -1,96 +1,230 @@
 #include <opencv2/core.hpp>
 
+#include "barcode.h"
+#include "at_interface.h"
+#include "at_params.h"
 #include "cap_image.h"
 
-#include "AT_interface.h"
-#include "at_config.h"
 
-void SaveImg(const cv::Mat& img, int iter, const std::string& phase, const std::string& save_dir="/tmp/at_res/");
+class BarcodeWrapper: public at::BarcodeWrapperBase{
+private:
+    smartmore::barcode::Barcode *barcode_sdk_;
+    
+public:
+    explicit BarcodeWrapper(smartmore::barcode::Barcode &barcode_sdk){
+        barcode_sdk_ = &barcode_sdk;
+    }
+    
+    void Reset() override{
+        barcode_sdk_->SetBarcodeType(smartmore::barcode::BarcodeType::kUnknown);
+        // Reset 1D code params
+        barcode_sdk_->SetPolarity1D(smartmore::barcode::Polarity::kAuto);
+        barcode_sdk_->SetRunningMode1D(smartmore::barcode::RunningMode::kAuto);
+        barcode_sdk_->SetNumsMaxOutput1D(10);
+        // Reset 2D code params
+        barcode_sdk_->SetPolarity2D(smartmore::barcode::Polarity::kAuto);
+        barcode_sdk_->SetMirrorType2D(smartmore::barcode::MirrorType::kAuto);
+        barcode_sdk_->SetRunningMode2D(smartmore::barcode::RunningMode::kAuto);
+        barcode_sdk_->SetQrDistortionType(smartmore::barcode::QrDistortionType::kAuto);
+        barcode_sdk_->SetDmEdgeType(smartmore::barcode::DMEdgeType::kAuto);
+        barcode_sdk_->SetDmShapeType(smartmore::barcode::DMShapeType::kAuto);
+        barcode_sdk_->SetCheckDigitEnableCode39(false);
+        barcode_sdk_->SetNumsMaxOutput2D(10);
+    };
+
+    std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams ar_params) override{
+        smartmore::barcode::BarcodeRequest input = {image};
+        smartmore::barcode::BarcodeResponse output;
+        bool status = barcode_sdk_->Run(input, output);
+
+        std::vector<cv::Rect> rects;
+        ar_params.reset(image);
+        bool first_1D_read = false;
+        bool first_2D_read = false;
+        bool first_DM_read = false;
+        if (!output.results.empty()){
+            int cur_count = output.results.size();
+            for (int i = 0; i < cur_count; i++){
+                smartmore::barcode::BarcodeInfo result = output.results[i];
+                // 没有解到码也有信息输出，也会返回results，这里需要判断是否解码成功
+                if (!result.succeed){continue;}
+                int top = image.rows;
+                int left = image.cols;
+                int bottom = 0;
+                int right = 0;
+                for (int point_i = 0; point_i < 4; point_i++){
+                    top = std::min(top, int(result.corner_boxes[point_i].y));
+                    bottom = std::max(bottom, int(result.corner_boxes[point_i].y));
+
+                    left = std::min(left, int(result.corner_boxes[point_i].x));
+                    right = std::max(right, int(result.corner_boxes[point_i].x));
+                }
+                top = std::max(0, top);
+                left = std::max(0, left);
+                right = std::min(image.cols, right);
+                bottom = std::min(image.rows,bottom);
+                cv::Rect rect = cv::Rect(left,top,std::max(0,right-left),std::max(0,bottom-top));
+                rects.push_back(rect);
+
+                //当前码是一维码还是二维码
+                bool read_1d = false;
+                bool read_2d = false;
+                bool read_dm = false;
+                if (result.type == smartmore::barcode::BarcodeType::kCode39){
+                    ar_params.number_1D++;
+                    ar_params.codelist[1] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kCode93){
+                    ar_params.number_1D++;
+                    ar_params.codelist[2] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kCode128){
+                    ar_params.number_1D++;
+                    ar_params.codelist[3] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kEan8){
+                    ar_params.number_1D++;
+                    ar_params.codelist[4] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kEan13){
+                    ar_params.number_1D++;
+                    ar_params.codelist[5] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kItf){
+                    ar_params.number_1D++;
+                    ar_params.codelist[6] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kUpcA){
+                    ar_params.number_1D++;
+                    ar_params.codelist[7] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kUpcE){
+                    ar_params.number_1D++;
+                    ar_params.codelist[8] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kUpcEanExtension){
+                    ar_params.number_1D++;
+                    ar_params.codelist[9] = true;
+                    read_1d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kQrcode){
+                    ar_params.number_2D++;
+                    ar_params.codelist[10] = true;
+                    read_2d = true;
+                }
+                if (result.type == smartmore::barcode::BarcodeType::kDmcode){
+                    ar_params.number_2D++;
+                    ar_params.codelist[11] = true;
+                    read_2d = true;
+                    read_dm = true;
+                }
+                //是否读到一维码
+                for (int index_1d = 1; index_1d <= 9; index_1d++)
+                {
+                    ar_params.read_1D = ar_params.codelist[index_1d] | ar_params.read_1D;
+                }
+                //一维码极性
+                if (!first_1D_read && read_1d){
+                    ar_params.polarity_1D = static_cast<int>(result.polarity);
+                    first_1D_read = true;
+                } else {
+                    if (ar_params.polarity_1D != static_cast<int>(result.polarity) && read_1d)
+                    {
+                        ar_params.polarity_1D = static_cast<int>(smartmore::barcode::Polarity::kAuto);
+                    }
+                }
+                //是否读到二维码
+                ar_params.read_2D = ar_params.codelist[10] | ar_params.codelist[11];
+                //二维码极性，镜像
+                if (!first_2D_read && read_2d){
+                    ar_params.mirror_2D = static_cast<int>(result.mirror);
+                    ar_params.polarity_2D = static_cast<int>(result.polarity);
+                    first_2D_read = true;
+                } else {
+                    if (ar_params.polarity_2D != static_cast<int>(result.polarity) && read_2d){
+                        ar_params.polarity_2D = static_cast<int>(smartmore::barcode::Polarity::kAuto);
+                    }
+                    if (ar_params.mirror_2D != static_cast<int>(result.mirror) && read_2d){
+                        ar_params.mirror_2D = static_cast<int>(smartmore::barcode::MirrorType::kAuto);
+                    }
+                }
+                //DM 码类型
+                if (!first_DM_read && read_dm){
+                    //第一次读到DM码
+                    //0 正方形 1 长方形 2 兼容模式
+                    if (result.version[0] == result.version[1])
+                        ar_params.DM_2D = 0;
+                    else
+                        ar_params.DM_2D = 1;
+                    first_DM_read = true;
+                } else {
+                    int dm_result = 0;
+                    if (result.version[0]!=result.version[1]) {
+                        dm_result = 1;
+                    }
+                    if (ar_params.DM_2D != dm_result && read_dm) {
+                        ar_params.DM_2D = 2;
+                    }
+                }
+            }
+        }
+        return rects;
+    };
+};
 
 void TestATOnline()
 {
-    // 1. Instantiate AT object and AT config
-    at::ATConfig at_config;
-    at::ATInterface at_obj;
-
-    // 2. Set device name
+    // 1. Set device name
     std::string dev_name = "VS1000PRO";
-    at_obj.setDevice(dev_name);
 
-    // 3. Initialization of AT object
+    // 2. Get the initial params from UI
+    at::CamParams cam_params;
+    cam_params.lights = {0, 0, 0, 0};
+    cam_params.exp_time = 150;
+    cam_params.exp_gain = 30;
+    cam_params.focus_pos = 60;
+    cam_params.roi = {0, 0, 1280, 800};
+
+    // 3. Set AR parameters and Barcode wrapper
+    at::ARParams ar_params;
+    smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
+    barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
+    BarcodeWrapper barcode_wrapper(barcode_sdk);
+
+    // 4. Initialization of AT object
+    at::ATInterface at_obj(dev_name, cam_params, barcode_wrapper);
+
     bool enable_al = true;
     bool enable_af = true;
     bool enable_ae = true;
     bool enable_ar = true;
-    int time = 0;  // This parameter will not be used
-    at_obj.init(enable_ae, enable_af, enable_al, enable_ar, time);
+    at_obj.Init(enable_ae, enable_af, enable_al, enable_ar);
 
-    // 4. Get the initial params from UI and init hardware
-    at_config.hardware.lights = {0, 0, 0, 0};
-    at_config.hardware.motor = 61;
-    at_config.hardware.exposure = 150;
-    at_config.hardware.gain = 30;
-    at_config.hardware.roi = {0, 0, 1280, 800};
-    at_obj.init_hardware(at_config);
+    // 5. This is the main loop of the AT algorithm
+    InitCap(cam_params);
 
-    // 4. Get the AE configuration from UI and init ae
-    if (enable_ae){
-        int mode = 0;  // Execution mode, 0/shutter priority, 1/gain priority, 2/comprehensive mode
-        int min_exposure = 20;  // Configurable minimum exposure time
-        int max_exposure = 10000;  // Configurable maximum exposure time
-        int min_gain = 1;  // Configurable minimum exposure gain
-        int max_gain = 255;  // Configurable maximum exposure gain
-        at_obj.init_ae(mode, min_exposure, max_exposure, min_gain, max_gain);
-    }
-
-    // 5. Load barcode sdk
-    smartmore::barcode::Barcode sdk("/usr/scanner/algorithm/");
-    sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
-    at_obj.setMetrics_Barcode(sdk);
-
-    /* This is the main loop of the AT algorithm.
-     * Capturing images from the camera, running the AT algorithm, and saving the images. */
-    cv::Mat img;
-    InitCap(at_config.hardware);
     std::cout << "\n\n>>>>>===== AT has been started <<<<<=====\n\n" << std::endl;
-    int iter = 0;
-    std::vector<std::string> at_phases = {"AL", "AF", "AE", "AR", "END"};
-    while (!at_obj.m_config._end_iteration) {
-        img = ATCapImg(at_obj.m_config.hardware);
-        at_obj.run(img);
-
-        if (at_obj.cur_phase != at::END){
-            cv::rectangle(img, at_obj.m_config.hardware.roi, 255, 3);
-            SaveImg(img, iter, at_phases[at_obj.cur_phase]);
-            iter += 1;
-        }
+    bool state = false;
+    while (!state) {
+        cam_params = at_obj.GetNextParams();
+        cv::Mat img = ATCapImg(cam_params);
+        state = at_obj.Run(img);
     }
-    at_obj.m_config.hardware.lights = at_obj.m_config.best_lights;
-    at_obj.m_config.hardware.exposure = at_obj.m_config.best_exposure;
-    at_obj.m_config.hardware.gain = at_obj.m_config.best_gain;
-    at_obj.m_config.hardware.motor = at_obj.m_config.best_motor;
-    cv::Mat final_img = ATCapImg(at_obj.m_config.hardware);
-    SaveImg(final_img, iter+1, "FINAL");
+
+    cam_params = at_obj.GetBestParams();
+    ar_params = at_obj.GetARParams();
+
+    cv::Mat final_img = ATCapImg(cam_params);
+    ar_params.print();
     std::cout << ">>>>>===== AT has been ended <<<<<=====\n\n " << std::endl;
-}
-
-void SaveImg(const cv::Mat& img, int iter, const std::string& phase, const std::string& save_dir){
-    V4L2Capture& vcap = V4L2Capture::getInstance();
-    sensorParam params = vcap.getCurrentFrameSensorParam();
-    uint lights = params.lightBright[0];
-    uint exp_time = params.exposure;
-    uint exp_gain = params.gain;
-    uint focus_pos = params.focus;
-
-    std::stringstream file_name;
-    file_name << save_dir << iter << "_" << phase
-              << "_l" << lights
-              << "_t" << exp_time
-              << "_g" << exp_gain
-              << "_f" << focus_pos
-              << ".png";
-
-    cv::imwrite(file_name.str(), img);
 }
 
 int main() {

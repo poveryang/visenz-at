@@ -1,216 +1,175 @@
-#include "AT_interface.h"
+#include "at_interface.h"
 #include "al_interface.h"
 #include "af_interface.h"
 #include "ae_interface.h"
 #include "ar_interface.h"
-#include <cstdio>
+#include "cam_config.h"
 
 namespace at {
     class ATInterface::ATImpl {
     public:
-        bool end_iter= false;
-
         al::ALInterface al_obj;
         ae::AEInterface ae_obj;
         af::AFInterface af_obj;
-        ar::ARInterface ar_obj;
-
-        cv::Rect2i full_roi = {0, 0, 1280, 800};
-        cv::Rect2i at_patch = full_roi;
-        std::map<double, CamParams, std::greater<>> at_param_scores;
+        at::ARInterface ar_obj;
 
         ATImpl() = default;
-
         ~ATImpl() = default;
-
-        void Run(const cv::Mat &image, ATPhase &phase, ATConfig &config) {
-            switch (phase) {
-                case AL:
-                    std::cout << "[==>ViSenz-AL is in progress ] ";
-                    al_obj.Run(image(at_patch));
-                    break;
-                case AF:
-                    std::cout << "[==>ViSenz-AF is in progress ] ";
-                    af_obj.Run(image(at_patch));
-                    break;
-                case AE:
-                    std::cout << "[==>ViSenz-AE is in progress ] ";
-                    ae_obj.Run(image(at_patch));
-                    break;
-                case AR:
-                    std::cout << "[==>ViSenz-AR is in progress ] ";
-                    ar_obj.GetInfo(image, config.ar_config);
-                    break;
-                case END:
-                    break;
-            }
-        }
     };
 
-    ATInterface::ATInterface() {
-        end_iter = false;
-        cur_phase_ = END;
-        en_al = en_af = en_ae = en_ar = false;
+    ATInterface::ATInterface(std::string &dev_name, CamParams &init_params, BarcodeWrapperBase &barcode_wrapper) {
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
-    }
-
-    void ATInterface::Run(const cv::Mat &image) {
-        UpdateCurPhase();
-        if (cur_phase != END) {
-            at_impl_->Run(image, cur_phase, m_config);
-            UpdateNextParams();
-        } else {
-            m_config._end_iteration = true;
-        }
-    }
-
-    void ATInterface::SetDevice(std::string &dev_name, CamParams init_params) {
-        if (dev_name == "VS1000PRO" | "VS2000") {
-            cam_conf_ = {
-                    .MIN_INTENSITY = 1,
-                    .MAX_INTENSITY = 24,
-                    .MIN_ET = 0,
-                    .MAX_ET = 10000,
-                    .MIN_EG = 1,
-                    .MAX_EG = 255,
-                    .START_POS = 0,
-                    .END_POS = 410,
-                    .STEP_SIZE = 30
-            };
-        } else if (dev_name == "VS800") {
-            cam_conf_ = {
-                    .MIN_INTENSITY = 0,
-                    .MAX_INTENSITY = 1,
-                    .MIN_ET = 0,
-                    .MAX_ET = 10000,
-                    .MIN_EG = 1,
-                    .MAX_EG = 255,
-                    .START_POS = 0,
-                    .END_POS = 1023,
-            };
-        }
+        cur_phase_ = END;
+        en_al_ = en_af_ = en_ae_ = en_ar_ = false;
+        barcode_wrapper_ = &barcode_wrapper;
+        SetDevice(dev_name, init_params);
     }
 
     void ATInterface::Init(bool enable_ae, bool enable_af, bool enable_al, bool enable_ar) {
         if (enable_al) {
-            al_obj.end_iter = false;
-            al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
+            at_impl_->al_obj.end_iter = false;
+            at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
         } else {
-            al_obj.end_iter = true;
+            at_impl_->al_obj.end_iter = true;
         }
 
         if (enable_af) {
-            af_obj.end_iter = false;
-            af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.STEP_SIZE);
+            at_impl_->af_obj.end_iter = false;
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS);
         } else {
-            af_obj.end_iter = true;
+            at_impl_->af_obj.end_iter = true;
         }
 
         if (enable_ae) {
-            ae_obj.end_iter = false;
-            ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET, cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+            at_impl_->ae_obj.end_iter = false;
+            at_impl_->ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+                                  cam_conf_.MIN_EG, cam_conf_.MAX_EG);
         } else {
-            ae_obj.end_iter = true;
+            at_impl_->ae_obj.end_iter = true;
         }
 
         if (enable_ar) {
-            ar_obj.score = 0;
-            ar_obj.end_iter = false;
+            at_impl_->ar_obj.end_iter = false;
+            at_impl_->ar_obj.Init(*barcode_wrapper_);
         } else {
-            ar_obj.end_iter = true;
+            at_impl_->ar_obj.end_iter = true;
         }
     }
-    
-    void ATInterface::init_hardware(at::ATConfig &hw_config) {
-        printf("[==>ViSenz-Init is in progress ] \n"
-               "Input Lights = %d, %d, %d, %d\n"
-               "Input Exp Time = %d\n"
-               "Input Exp Gain = %d\n"
-               "Input Focus Pos = %d\n",
-               hw_config.hardware.lights[0], hw_config.hardware.lights[1],
-               hw_config.hardware.lights[2], hw_config.hardware.lights[3],
-               hw_config.hardware.exposure, hw_config.hardware.gain, hw_config.hardware.motor);
 
-        m_config.best_lights[0] = m_config.hardware.lights[0] = hw_config.hardware.lights[0];
-        m_config.best_lights[1] = m_config.hardware.lights[1] = hw_config.hardware.lights[1];
-        m_config.best_lights[2] = m_config.hardware.lights[2] = hw_config.hardware.lights[2];
-        m_config.best_lights[3] = m_config.hardware.lights[3] = hw_config.hardware.lights[3];
-        m_config.best_motor = m_config.hardware.motor = hw_config.hardware.motor;
-        m_config.best_exposure = m_config.hardware.exposure = hw_config.hardware.exposure;
-        m_config.best_gain = m_config.hardware.gain = hw_config.hardware.gain;
-
-        m_config.hardware.roi = hw_config.hardware.roi;
-        if (at_impl_->at_patch != hw_config.hardware.roi){
-            at_impl_->at_patch = hw_config.hardware.roi;
+    bool ATInterface::Run(const cv::Mat &image) {
+        UpdateCurPhase();
+        if (cur_phase_ != END) {
+            SequentialExec(image);
+            UpdateNextParams();
+            return false;
         }
-
-        if (en_al) {
-            m_config.hardware.lights = {at_impl_->al_obj.next_intensity, at_impl_->al_obj.next_intensity,
-                                        at_impl_->al_obj.next_intensity, at_impl_->al_obj.next_intensity};
-        }
-
-        if (en_ae) {
-            m_config.hardware.exposure = at_impl_->ae_obj.next_et;
-            m_config.hardware.gain = at_impl_->ae_obj.next_eg;
-        }
-
-        if (en_af) {
-            m_config.hardware.motor = at_impl_->af_obj.next_pos;
-        }
-
+        return true;
     }
 
+    void ATInterface::SequentialExec(const cv::Mat &image){
+        switch (cur_phase_) {
+            case AL:
+                printf("[==>ViSenz-AL is in progress] ");
+                at_impl_->al_obj.Run(image(image_roi_));
+                break;
+            case AF:
+                printf("[==>ViSenz-AL is in progress] ");
+                at_impl_->af_obj.Run(image(image_roi_));
+                break;
+            case AE:
+                printf("[==>ViSenz-AL is in progress] ");
+                at_impl_->ae_obj.Run(image(image_roi_));
+                break;
+            case AR:
+                printf("[==>ViSenz-AL is in progress] ");
+                at_impl_->ar_obj.GetInfo(image, ar_params_);
+                break;
+            case END:
+                break;
+        }
+    }
+
+    CamParams ATInterface::GetNextParams() {
+        return next_params_;
+    }
+
+    CamParams ATInterface::GetBestParams() {
+        return best_params_;
+    }
+
+    ARParams ATInterface::GetARParams() {
+        return ar_params_;
+    }
+
+    void ATInterface::SetDevice(std::string &dev_name, CamParams &init_params) {
+        // Sets the camera device configuration
+        if (dev_name == "VS1000P") {
+            cam_conf_ = vs1000p_conf;
+        } else if (dev_name == "VS1000P@2M"){
+            cam_conf_ = vs1000p2m_conf;
+        } else if (dev_name == "VS800") {
+            cam_conf_ = vs800_conf;
+        } else if (dev_name == "VS2000"){
+            cam_conf_ = vs2000_conf;
+        }
+
+        // Loads init camera parameters
+        next_params_ = init_params;
+        best_params_ = init_params;
+        image_roi_ = init_params.roi;
+    }
 
     void ATInterface::UpdateCurPhase() {
         if (!at_impl_->al_obj.end_iter) {
-            cur_phase = AL;
+            cur_phase_ = AL;
         } else if (!at_impl_->af_obj.end_iter) {
-            cur_phase = AF;
+            cur_phase_ = AF;
         } else if (!at_impl_->ae_obj.end_iter) {
-            cur_phase = AE;
+            cur_phase_ = AE;
         } else if (!at_impl_->ar_obj.end_iter) {
-            cur_phase = AR;
+            cur_phase_ = AR;
         } else {
-            cur_phase = END;
+            cur_phase_ = END;
         }
     }
 
     void ATInterface::UpdateNextParams() {
-        if (cur_phase == AL) {
+        if (cur_phase_ == AL) {
             if (!at_impl_->al_obj.end_iter) {
-                m_config.hardware.lights[0] = at_impl_->al_obj.next_intensity;
-                m_config.hardware.lights[1] = at_impl_->al_obj.next_intensity;
-                m_config.hardware.lights[2] = at_impl_->al_obj.next_intensity;
-                m_config.hardware.lights[3] = at_impl_->al_obj.next_intensity;
+                next_params_.lights[0] = at_impl_->al_obj.next_intensity;
+                next_params_.lights[1] = at_impl_->al_obj.next_intensity;
+                next_params_.lights[2] = at_impl_->al_obj.next_intensity;
+                next_params_.lights[3] = at_impl_->al_obj.next_intensity;
             } else {
-                m_config.best_lights[0] = at_impl_->al_obj.best_intensity;
-                m_config.best_lights[1] = at_impl_->al_obj.best_intensity;
-                m_config.best_lights[2] = at_impl_->al_obj.best_intensity;
-                m_config.best_lights[3] = at_impl_->al_obj.best_intensity;
-                m_config.hardware.lights[0] = m_config.best_lights[0];
-                m_config.hardware.lights[1] = m_config.best_lights[1];
-                m_config.hardware.lights[2] = m_config.best_lights[2];
-                m_config.hardware.lights[3] = m_config.best_lights[3];
+                best_params_.lights[0] = at_impl_->al_obj.best_intensity;
+                best_params_.lights[1] = at_impl_->al_obj.best_intensity;
+                best_params_.lights[2] = at_impl_->al_obj.best_intensity;
+                best_params_.lights[3] = at_impl_->al_obj.best_intensity;
+                
+                next_params_.lights = best_params_.lights;
             }
-        } else if (cur_phase == AF) {
+        } else if (cur_phase_ == AF) {
             if (!at_impl_->af_obj.end_iter) {
-                m_config.hardware.motor = at_impl_->af_obj.next_pos;
+                next_params_.focus_pos = at_impl_->af_obj.next_pos;
             } else {
-                m_config.best_motor = at_impl_->af_obj.best_pos;
-                m_config.hardware.motor = m_config.best_motor;
+                best_params_.focus_pos = at_impl_->af_obj.best_pos;
+
+                next_params_.focus_pos = best_params_.focus_pos;
             }
-        } else if (cur_phase == AE) {
+        } else if (cur_phase_ == AE) {
             if (!at_impl_->ae_obj.end_iter) {
-                m_config.hardware.exposure = at_impl_->ae_obj.next_et;
-                m_config.hardware.gain = at_impl_->ae_obj.next_eg;
+                next_params_.exp_time = at_impl_->ae_obj.next_et;
+                next_params_.exp_gain = at_impl_->ae_obj.next_eg;
             } else {
-                m_config.best_exposure = at_impl_->ae_obj.best_et;
-                m_config.best_gain = at_impl_->ae_obj.best_eg;
-                m_config.hardware.exposure = m_config.best_exposure;
-                m_config.hardware.gain = m_config.best_gain;
+                best_params_.exp_time = at_impl_->ae_obj.best_et;
+                best_params_.exp_gain = at_impl_->ae_obj.best_eg;
+
+                next_params_.exp_time = best_params_.exp_time;
+                next_params_.exp_gain = best_params_.exp_gain;
             }
-        } else if (cur_phase == AR) {
-            printf("Score = %.2f", at_impl_->ar_obj.score);
+        } else if (cur_phase_ == AR) {
+            //todo: To be perfected
         }
     }
+
 }

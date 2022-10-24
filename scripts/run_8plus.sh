@@ -4,7 +4,7 @@
 DEV_IP=192.168.1.21
 
 # Clean local files
-SAVE_DIR=${HOME}/Desktop/AT_8Plus/$(date +%m%d%H%M)
+SAVE_DIR=${HOME}/Desktop/AT_Res/$(date +%m%d%H%M)
 echo "$SAVE_DIR" && mkdir "$SAVE_DIR"
 
 # Scp execute file and lib to remote device
