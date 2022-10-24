@@ -49,17 +49,16 @@ namespace at{
 
         void print()
         {
-            printf("number_1D : %d", number_1D);
-            printf("number_2D : %d", number_2D);
-            printf("polarity_1D : %d", polarity_1D);
-            printf("polarity_2D : %d", polarity_2D);
-            printf("DM_2D : %d", DM_2D);
-            printf("mirror_2D : %d", mirror_2D);
+            printf("number_1D : %d\n", number_1D);
+            printf("number_2D : %d\n", number_2D);
+            printf("polarity_1D : %d\n", polarity_1D);
+            printf("polarity_2D : %d\n", polarity_2D);
+            printf("DM_2D : %d\n", DM_2D);
+            printf("mirror_2D : %d\n", mirror_2D);
             for (int i = 1; i < sizeof(codelist); i++)
             {
-                printf("codelist[%d] : %d",i , codelist[i]);
+                printf("codelist[%d] : %d\n",i , codelist[i]);
             }
-            printf("[==>ViSenz-AR is done ]");
         }
     };
 }

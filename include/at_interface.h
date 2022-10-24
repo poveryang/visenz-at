@@ -46,14 +46,19 @@ namespace at {
     public:
         virtual void Reset() = 0;
 
-        virtual std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams ar_params) = 0;
+        virtual std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) = 0;
     };
 
     class ATInterface {
     public:
+        /**
+         *
+         * @param dev_name Device Name, Valid device names are as follows:
+         *                 VS800| VS1000P |VS1000P@2M | VS2000
+         * @param init_params Initial camera parameters
+         * @param barcode_wrapper The wrapper of the Barcode SDK
+         */
         ATInterface(std::string &dev_name, CamParams &init_params, BarcodeWrapperBase &barcode_wrapper);
-
-        ~ATInterface() = default;
 
         /**
          * The is the main function of the ATInterface class. It is called to run the AT algorithm
@@ -66,12 +71,12 @@ namespace at {
         /**
          * It initializes the ATInterface class.
          *
-         * @param enable_ae Enable/Disable Auto Exposure
-         * @param enable_af Enable/Disable Auto Focus
          * @param enable_al Enable/Disable Auto Light
+         * @param enable_af Enable/Disable Auto Focus
+         * @param enable_ae Enable/Disable Auto Exposure
          * @param enable_ar Enable/Disable Auto recognition
          */
-        void Init(bool enable_ae, bool enable_af, bool enable_al, bool enable_ar);
+        void Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar);
 
         /**
          * Used to get the next camera parameters.
@@ -93,6 +98,15 @@ namespace at {
          * @return best camera parameters.
          */
         ARParams GetARParams();
+
+
+        /**
+         * Used to get the version of the AT.
+         * @return the version of the AT
+         */
+        std::string GetVersion();
+
+        ~ATInterface() = default;
 
     private:
         /** The concrete implementation class of the AT object.*/
@@ -117,11 +131,18 @@ namespace at {
         // Variable that stores the best camera parameters.
         CamParams best_params_;
 
+        // Variable that stores the parameters of the AR module.
         ARParams ar_params_;
 
+        // A pointer to the BarcodeWrapperBase class.
         BarcodeWrapperBase *barcode_wrapper_;
 
     private:
+        /**
+         * The main function of the ATInterface class. It is called to run the AT algorithm.
+         */
+        void SequentialExec(const cv::Mat &image);
+
         /**
          * Update camera hardware parameters
          */
@@ -139,8 +160,6 @@ namespace at {
          * @param init_params The initial camera parameters.
          */
         void SetDevice(std::string &dev_name, CamParams &init_params);
-
-        void SequentialExec(const cv::Mat &image);
     };
 }
 

@@ -2,16 +2,43 @@
 #include "al_interface.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-#include "ar_interface.h"
 #include "cam_config.h"
 
 namespace at {
+    class ARInterface {
+    public:
+        ARInterface() = default;
+        ~ARInterface() = default;
+
+        void Init(BarcodeWrapperBase &barcode_wrapper){
+            barcode_wrapper_ = &barcode_wrapper;
+            barcode_wrapper_->Reset();
+        };
+
+        void GetInfo(const cv::Mat &image, at::ARParams &ar_params){
+            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params);
+            if (!rects.empty()) {
+                std::cout << "Recognized Barcode Info is as follows:" << std::endl;
+                ar_params.print();
+                ar_params.rect = rects[0];
+            } else {
+                std::cout << "[==>ViSenz-AR is done ] Barcode not recognized in image" << std::endl;
+            }
+            end_iter = true;
+        };
+
+        bool end_iter = false;
+
+    private:
+        BarcodeWrapperBase *barcode_wrapper_{};
+    };
+
     class ATInterface::ATImpl {
     public:
         al::ALInterface al_obj;
         ae::AEInterface ae_obj;
         af::AFInterface af_obj;
-        at::ARInterface ar_obj;
+        ARInterface ar_obj;
 
         ATImpl() = default;
         ~ATImpl() = default;
@@ -25,7 +52,8 @@ namespace at {
         SetDevice(dev_name, init_params);
     }
 
-    void ATInterface::Init(bool enable_ae, bool enable_af, bool enable_al, bool enable_ar) {
+    void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
+
         if (enable_al) {
             at_impl_->al_obj.end_iter = false;
             at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
@@ -73,15 +101,15 @@ namespace at {
                 at_impl_->al_obj.Run(image(image_roi_));
                 break;
             case AF:
-                printf("[==>ViSenz-AL is in progress] ");
+                printf("[==>ViSenz-AF is in progress] ");
                 at_impl_->af_obj.Run(image(image_roi_));
                 break;
             case AE:
-                printf("[==>ViSenz-AL is in progress] ");
+                printf("[==>ViSenz-AE is in progress] ");
                 at_impl_->ae_obj.Run(image(image_roi_));
                 break;
             case AR:
-                printf("[==>ViSenz-AL is in progress] ");
+                printf("[==>ViSenz-AR is in progress] ");
                 at_impl_->ar_obj.GetInfo(image, ar_params_);
                 break;
             case END:
@@ -168,8 +196,28 @@ namespace at {
                 next_params_.exp_gain = best_params_.exp_gain;
             }
         } else if (cur_phase_ == AR) {
-            //todo: To be perfected
+            printf("[==>ViSenz-AR is done ]\n\n");
         }
     }
 
+    std::string ATInterface::GetVersion() {
+        // Engineering Version Number
+        #define TRIA_VERSION_E_MAJOR 3
+        #define TRIA_VERSION_E_MINOR 3
+        #define TRIA_VERSION_E_PATCH 0
+        #define TRIA_VERSION_E_RC    1
+
+        #define AUX_STR_EXP(__A) #__A
+        #define AUX_STR(__A) AUX_STR_EXP(__A)
+        #define TRIA_VERSION_E                             \
+            "v" AUX_STR(TRIA_VERSION_E_MAJOR) "." AUX_STR( \
+                TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
+        #define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
+
+        std::string version = std::string(TRIA_VERSION_E);
+        if (TRIA_VERSION_E_RC != 0) {
+            version += TRIA_VERSION_RC;
+        }
+        return version;
+    }
 }

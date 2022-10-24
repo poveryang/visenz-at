@@ -7,7 +7,6 @@
 unsigned long frame_size ;
 
 void InitCap(at::CamParams &cam_params, int raw_bit){
-
     V4L2Capture& vcap = V4L2Capture::getInstance();
 
     vcap.openDevice();
@@ -36,9 +35,9 @@ cv::Mat ATCapImg(at::CamParams &cam_params, int raw_bit)
     vcap.setLightBright(2, cam_params.lights[2]);
     vcap.setLightBright(3, cam_params.lights[3]);
 
-    vcap.setLensFocus(cam_params.exp_time);
-    vcap.setExposure(cam_params.exp_gain);
-    vcap.setGain(cam_params.focus_pos);
+    vcap.setExposure(cam_params.exp_time);
+    vcap.setGain(cam_params.exp_gain);
+    vcap.setLensFocus(cam_params.focus_pos);
 
     while (true){
         int ret = vcap.getNewestFrame(reinterpret_cast<void **>(&frame_buf),

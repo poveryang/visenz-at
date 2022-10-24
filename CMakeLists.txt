@@ -52,7 +52,6 @@ install(TARGETS AT
 install(FILES ${AT_PUBLIC_HEADER}
         DESTINATION include)
 
-
 if (${AT_TEST})
     add_subdirectory(test)
     install(TARGETS AT_TEST
