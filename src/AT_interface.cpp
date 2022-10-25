@@ -56,15 +56,14 @@ namespace at {
 
             if (enable_af) {
                 af_obj.end_iter = false;
-                af_obj.Init(cam_conf.START_POS, cam_conf.END_POS, cam_conf.STEP_SIZE);
+                af_obj.Init(cam_conf.START_POS, cam_conf.END_POS);
             } else {
                 af_obj.end_iter = true;
             }
 
             if (enable_ae) {
                 ae_obj.end_iter = false;
-                ae_obj.Init(cam_conf.MODE,
-                                cam_conf.MIN_ET, cam_conf.MAX_ET, cam_conf.MIN_EG, cam_conf.MAX_EG);
+                ae_obj.Init(cam_conf.MIN_ET, cam_conf.MAX_ET, cam_conf.MIN_EG, cam_conf.MAX_EG);
             } else {
                 ae_obj.end_iter = true;
             }
@@ -144,7 +143,7 @@ namespace at {
     }
 
     void ATInterface::init_ae(int mode, int min_et, int max_et, int min_eg, int max_eg) {
-        at_impl_->ae_obj.Init(mode, min_et, max_et, min_eg, max_eg);
+        at_impl_->ae_obj.Init(min_et, max_et, min_eg, max_eg);
     }
 
     void ATInterface::setDevice(std::string &dev_name) {
