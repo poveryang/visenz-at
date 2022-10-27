@@ -42,7 +42,6 @@ void TestATOnline()
     // 5. This is the main loop of the AT algorithm
     bool end_iter = false;
     int iter = 0;
-    printf("before run");
     while (!end_iter) {
         cam_params = at_obj.GetNextParams();
         cv::Mat img = ATCapImg(cam_params);
