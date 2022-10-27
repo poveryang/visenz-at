@@ -189,6 +189,7 @@ namespace at {
                 next_params_.exp_time = at_impl_->ae4af_obj.next_et;
             } else {
                 next_params_.exp_time = at_impl_->ae4af_obj.best_et;
+                at_impl_->ae_obj.ResetParams(next_params_.exp_time);
                 cur_phase_++;
             }
         } else if (*cur_phase_ == AF) {
