@@ -21,10 +21,46 @@ namespace at {
                 std::cout << "Recognized Barcode Info is as follows:" << std::endl;
                 ar_params.print();
                 ar_params.rect = rects[0];
-            } else {
-                std::cout << "[==>ViSenz-AR is done ] Barcode not recognized in image" << std::endl;
             }
             end_iter = true;
+        };
+
+        double GetScore(const cv::Mat &image, at::ARParams &ar_params){
+            double score = 0;
+            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params);
+            for (const auto& rect: rects){
+                double tmp = CalcScore(image(rect));
+                score += tmp;
+            }
+            return score;
+        };
+
+        static double CalcScore(const cv::Mat &image) {
+            cv::Mat dst;
+            double thresh = cv::threshold(image, dst, 0, 255, cv::THRESH_BINARY | cv::THRESH_OTSU);
+            float low_histogram[256] = {0};
+            float high_histogram[256] = {0};
+            float mean_low_brightness = 0, mean_high_brightness = 0;
+            float low_nums = 0, high_nums = 0;
+            for (int i = 0; i < image.rows; ++i) {
+                for (int j = 0; j < image.cols; ++j) {
+                    auto pixel = image.ptr<uchar>(i)[j];
+                    if (pixel < thresh) {
+                        low_histogram[pixel]++;
+                    } else {
+                        high_histogram[pixel]++;
+                    }
+                }
+            }
+            for (int i = 0; i < 256; ++i) {
+                mean_low_brightness += (static_cast<float>(i) * low_histogram[i]);
+                mean_high_brightness += (static_cast<float>(i) * high_histogram[i]);
+                low_nums += low_histogram[i];
+                high_nums += high_histogram[i];
+            }
+            mean_low_brightness /= low_nums;
+            mean_high_brightness /= high_nums;
+            return mean_high_brightness - mean_low_brightness;
         };
 
         bool end_iter = false;
@@ -50,6 +86,7 @@ namespace at {
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
         en_al_ = en_af_ = en_ae_ = en_ar_ = false;
         barcode_wrapper_ = &barcode_wrapper;
+        at_impl_->ar_obj.Init(*barcode_wrapper_);
         SetDevice(dev_name, init_params);
     }
 
@@ -95,7 +132,6 @@ namespace at {
         if (enable_ar) {
             pipeline_.emplace_back(AR);
             at_impl_->ar_obj.end_iter = false;
-            at_impl_->ar_obj.Init(*barcode_wrapper_);
         } else {
             at_impl_->ar_obj.end_iter = true;
         }
@@ -110,6 +146,7 @@ namespace at {
             UpdateNextParams();
             return false;
         } else {
+            best_params_ = score_params_.rbegin()->second;
             return true;
         }
     }
@@ -130,11 +167,22 @@ namespace at {
                 break;
             case AE:
                 printf("[==>ViSenz-AE is in progress] ");
+                if (at_impl_->ae_obj.first_run){
+                    double score;
+                    score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                    score_params_[score] = next_params_;
+                    printf("Barcode score = %.2f\n", score);
+                    at_impl_->ae_obj.first_run = false;
+                }
                 at_impl_->ae_obj.Run(image(image_roi_));
                 break;
             case AR:
                 printf("[==>ViSenz-AR is in progress] ");
-                at_impl_->ar_obj.GetInfo(image, ar_params_);
+                double score;
+                score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                score_params_[score] = next_params_;
+                printf("Barcode score = %.2f\n", score);
+                std::cout << "[==>ViSenz-AR is done ]" << std::endl;
                 break;
             case END:
                 break;
@@ -204,25 +252,24 @@ namespace at {
             if (!at_impl_->ae_obj.end_iter) {
                 next_params_.exp_time = at_impl_->ae_obj.next_et;
                 next_params_.exp_gain = at_impl_->ae_obj.next_eg;
+                cur_phase_++;
             } else {
                 best_params_.exp_time = at_impl_->ae_obj.best_et;
                 best_params_.exp_gain = at_impl_->ae_obj.best_eg;
                 next_params_.exp_time = best_params_.exp_time;
                 next_params_.exp_gain = best_params_.exp_gain;
-                cur_phase_++;
             }
-        } else if (*cur_phase_ == AR) {
-            printf("[==>ViSenz-AR is done ]\n\n");
-            cur_phase_++;
+        } else if (*cur_phase_ == AR){
+            cur_phase_ ++;
         }
     }
 
     std::string ATInterface::GetVersion() {
         // Engineering Version Number
         #define TRIA_VERSION_E_MAJOR 3
-#define TRIA_VERSION_E_MINOR 3
-#define TRIA_VERSION_E_PATCH 1
-#define TRIA_VERSION_E_RC    1
+        #define TRIA_VERSION_E_MINOR 3
+        #define TRIA_VERSION_E_PATCH 1
+        #define TRIA_VERSION_E_RC    1
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)

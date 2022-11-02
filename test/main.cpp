@@ -55,7 +55,7 @@ void TestATOnline()
 
     cv::Mat final_img = ATCapImg(cam_params);
     cv::imwrite("/tmp/at_res/" + std::to_string(iter) + ".png", final_img);
-    ar_params.print();
+//    ar_params.print();
 
     std::cout << ">>>>>===== AT has been ended <<<<<=====\n\n " << std::endl;
 }
