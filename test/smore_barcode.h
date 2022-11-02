@@ -42,7 +42,7 @@ public:
         bool first_2D_read = false;
         bool first_DM_read = false;
         if (!output.results.empty()){
-            int cur_count = output.results.size();
+            auto cur_count = output.results.size();
             for (int i = 0; i < cur_count; i++){
                 smartmore::barcode::BarcodeInfo result = output.results[i];
                 // 没有解到码也有信息输出，也会返回results，这里需要判断是否解码成功

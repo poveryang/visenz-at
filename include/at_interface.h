@@ -6,12 +6,13 @@
 
 namespace at {
     /** @brief Defining the different phases of the Auto Tuning process.*/
-    enum ATPhase{
-        AL = 0,
-        AF = 1,
-        AE = 2,
-        AR = 3,
-        END = 4
+    enum ATPhase {
+        AL,
+        AE4AF,
+        AF,
+        AE,
+        AR,
+        END,
     };
 
     /** @brief A struct that is used to store the camera parameters.*/
@@ -111,13 +112,16 @@ namespace at {
     private:
         /** The concrete implementation class of the AT object.*/
         class ATImpl;
+
         std::shared_ptr<ATImpl> at_impl_;
 
         // Store the ROI of the image.
         cv::Rect2i image_roi_;
 
+        std::vector<ATPhase> pipeline_;
+
         // Variable that is used to keep track of the current phase of the Auto Tuning process.
-        ATPhase cur_phase_;
+        std::vector<ATPhase>::iterator cur_phase_;
 
         // Flag to indicate whether the corresponding module is enabled.
         bool en_al_, en_af_, en_ae_, en_ar_;

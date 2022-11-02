@@ -36,69 +36,93 @@ namespace at {
     class ATInterface::ATImpl {
     public:
         al::ALInterface al_obj;
-        ae::AEInterface ae_obj;
+        ae::AEInterface ae4af_obj;
         af::AFInterface af_obj;
+        ae::AEInterface ae_obj;
         ARInterface ar_obj;
 
         ATImpl() = default;
+
         ~ATImpl() = default;
     };
 
     ATInterface::ATInterface(std::string &dev_name, CamParams &init_params, BarcodeWrapperBase &barcode_wrapper) {
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
-        cur_phase_ = END;
         en_al_ = en_af_ = en_ae_ = en_ar_ = false;
         barcode_wrapper_ = &barcode_wrapper;
         SetDevice(dev_name, init_params);
     }
 
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
-
         if (enable_al) {
+            pipeline_.emplace_back(AL);
             at_impl_->al_obj.end_iter = false;
             at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
+            for (auto &light: next_params_.lights) {
+                light = at_impl_->al_obj.next_intensity;
+            }
         } else {
             at_impl_->al_obj.end_iter = true;
         }
 
         if (enable_af) {
+            pipeline_.emplace_back(AE4AF);
+            at_impl_->ae4af_obj.end_iter = false;
+            at_impl_->ae4af_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+                                     cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+            next_params_.exp_time = at_impl_->ae4af_obj.next_et;
+            next_params_.exp_gain = at_impl_->ae4af_obj.next_eg;
+
+            pipeline_.emplace_back(AF);
             at_impl_->af_obj.end_iter = false;
             at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS);
+            next_params_.focus_pos = at_impl_->af_obj.next_pos;
         } else {
             at_impl_->af_obj.end_iter = true;
         }
 
         if (enable_ae) {
+            pipeline_.emplace_back(AE);
             at_impl_->ae_obj.end_iter = false;
             at_impl_->ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
                                   cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+            next_params_.exp_time = at_impl_->ae_obj.next_et;
+            next_params_.exp_gain = at_impl_->ae_obj.next_eg;
         } else {
             at_impl_->ae_obj.end_iter = true;
         }
 
         if (enable_ar) {
+            pipeline_.emplace_back(AR);
             at_impl_->ar_obj.end_iter = false;
             at_impl_->ar_obj.Init(*barcode_wrapper_);
         } else {
             at_impl_->ar_obj.end_iter = true;
         }
+
+        pipeline_.emplace_back(END);
+        cur_phase_ = pipeline_.begin();
     }
 
     bool ATInterface::Run(const cv::Mat &image) {
-        UpdateCurPhase();
-        if (cur_phase_ != END) {
+        if (*cur_phase_ != END) {
             SequentialExec(image);
             UpdateNextParams();
             return false;
+        } else {
+            return true;
         }
-        return true;
     }
 
     void ATInterface::SequentialExec(const cv::Mat &image){
-        switch (cur_phase_) {
+        switch (*cur_phase_) {
             case AL:
                 printf("[==>ViSenz-AL is in progress] ");
                 at_impl_->al_obj.Run(image(image_roi_));
+                break;
+            case AE4AF:
+                printf("[==>ViSenz-AE4AF is in progress] ");
+                at_impl_->ae4af_obj.FastRun(image(image_roi_));
                 break;
             case AF:
                 printf("[==>ViSenz-AF is in progress] ");
@@ -147,65 +171,58 @@ namespace at {
         image_roi_ = init_params.roi;
     }
 
-    void ATInterface::UpdateCurPhase() {
-        if (!at_impl_->al_obj.end_iter) {
-            cur_phase_ = AL;
-        } else if (!at_impl_->af_obj.end_iter) {
-            cur_phase_ = AF;
-        } else if (!at_impl_->ae_obj.end_iter) {
-            cur_phase_ = AE;
-        } else if (!at_impl_->ar_obj.end_iter) {
-            cur_phase_ = AR;
-        } else {
-            cur_phase_ = END;
-        }
-    }
-
     void ATInterface::UpdateNextParams() {
-        if (cur_phase_ == AL) {
+        if (*cur_phase_ == AL) {
             if (!at_impl_->al_obj.end_iter) {
-                next_params_.lights[0] = at_impl_->al_obj.next_intensity;
-                next_params_.lights[1] = at_impl_->al_obj.next_intensity;
-                next_params_.lights[2] = at_impl_->al_obj.next_intensity;
-                next_params_.lights[3] = at_impl_->al_obj.next_intensity;
+                for (auto &light: next_params_.lights) {
+                    light = at_impl_->al_obj.next_intensity;
+                }
             } else {
-                best_params_.lights[0] = at_impl_->al_obj.best_intensity;
-                best_params_.lights[1] = at_impl_->al_obj.best_intensity;
-                best_params_.lights[2] = at_impl_->al_obj.best_intensity;
-                best_params_.lights[3] = at_impl_->al_obj.best_intensity;
-                
+                for (auto &light: best_params_.lights) {
+                    light = at_impl_->al_obj.best_intensity;
+                }
                 next_params_.lights = best_params_.lights;
+                cur_phase_++;
             }
-        } else if (cur_phase_ == AF) {
+        } else if (*cur_phase_ == AE4AF) {
+            if (!at_impl_->ae4af_obj.end_iter) {
+                next_params_.exp_time = at_impl_->ae4af_obj.next_et;
+            } else {
+                next_params_.exp_time = at_impl_->ae4af_obj.best_et;
+                at_impl_->ae_obj.ResetParams(next_params_.exp_time);
+                cur_phase_++;
+            }
+        } else if (*cur_phase_ == AF) {
             if (!at_impl_->af_obj.end_iter) {
                 next_params_.focus_pos = at_impl_->af_obj.next_pos;
             } else {
                 best_params_.focus_pos = at_impl_->af_obj.best_pos;
-
                 next_params_.focus_pos = best_params_.focus_pos;
+                cur_phase_++;
             }
-        } else if (cur_phase_ == AE) {
+        } else if (*cur_phase_ == AE) {
             if (!at_impl_->ae_obj.end_iter) {
                 next_params_.exp_time = at_impl_->ae_obj.next_et;
                 next_params_.exp_gain = at_impl_->ae_obj.next_eg;
             } else {
                 best_params_.exp_time = at_impl_->ae_obj.best_et;
                 best_params_.exp_gain = at_impl_->ae_obj.best_eg;
-
                 next_params_.exp_time = best_params_.exp_time;
                 next_params_.exp_gain = best_params_.exp_gain;
+                cur_phase_++;
             }
-        } else if (cur_phase_ == AR) {
+        } else if (*cur_phase_ == AR) {
             printf("[==>ViSenz-AR is done ]\n\n");
+            cur_phase_++;
         }
     }
 
     std::string ATInterface::GetVersion() {
         // Engineering Version Number
         #define TRIA_VERSION_E_MAJOR 3
-        #define TRIA_VERSION_E_MINOR 3
-        #define TRIA_VERSION_E_PATCH 0
-        #define TRIA_VERSION_E_RC    1
+#define TRIA_VERSION_E_MINOR 3
+#define TRIA_VERSION_E_PATCH 1
+#define TRIA_VERSION_E_RC    1
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)
