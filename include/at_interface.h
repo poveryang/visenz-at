@@ -141,6 +141,8 @@ namespace at {
         // A pointer to the BarcodeWrapperBase class.
         BarcodeWrapperBase *barcode_wrapper_;
 
+        std::map<double, CamParams> score_params_;
+
     private:
         /**
          * The main function of the ATInterface class. It is called to run the AT algorithm.
@@ -151,11 +153,6 @@ namespace at {
          * Update camera hardware parameters
          */
         void UpdateNextParams();
-
-        /**
-         * Update the current phase of the algorithm
-         */
-        void UpdateCurPhase();
 
         /**
          * It sets the camera device configuration, and loads init camera parameters.

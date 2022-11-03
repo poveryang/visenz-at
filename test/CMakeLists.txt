@@ -1,7 +1,12 @@
 cmake_minimum_required (VERSION 3.10)
 project(AT_TEST)
 
-set(DEVICE VS1000Pro)
+if (${TARGET_PLATFORM} MATCHES "imx8mini")
+    set(DEVICE VS800)
+elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
+    set(DEVICE VS1000Pro)
+endif()
+
 set(INC_DIR "./drivers/${DEVICE}/" "./")
 file(GLOB AT_TEST_SRC "./*.cpp")
 file(GLOB VCAP_SRC "./drivers/${DEVICE}/*.c*")
