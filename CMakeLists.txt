@@ -15,9 +15,6 @@ if (${TARGET_PLATFORM} MATCHES "imx8mini")
     # OpenCV
     set(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
     find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
-    # Barcode
-    include(modules/auto_recognition/Barcode.cmake)
-    load_barcode("/opt/libs_aarch64/Barcode_mini8_0.24.0")
 elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
     # Eigen3
     set(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
@@ -25,22 +22,19 @@ elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
     # OpenCV
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
     find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
-    # Barcode
-    include(modules/auto_recognition/Barcode.cmake)
-    load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.24.0")
 endif()
 
 # 2. Build AT submodule
 add_subdirectory(modules/auto_lights)
 add_subdirectory(modules/auto_exposure)
 add_subdirectory(modules/auto_focus)
-#add_subdirectory(modules/auto_recognition)
 
 # 3. Build AT library
 file(GLOB AT_SRC_LIST "src/*.cpp")
 add_library(AT SHARED ${AT_SRC_LIST})
-target_include_directories(AT PUBLIC "include")
+target_include_directories(AT PUBLIC "./include")
 target_link_libraries(AT PUBLIC AL AF AE ${OpenCV_LIBS})
+
 set(AT_PUBLIC_HEADER
         "${CMAKE_SOURCE_DIR}/include/at_interface.h"
         "${CMAKE_SOURCE_DIR}/include/at_params.h"
