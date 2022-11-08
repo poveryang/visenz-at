@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set remote device ip
-DEV_IP=192.168.1.21
+DEV_IP=192.168.8.21
 
 # Clean local files
 SAVE_DIR=${HOME}/Desktop/AT_RES/$(date +%m%d%H%M)

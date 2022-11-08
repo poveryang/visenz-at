@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Set remote device ip
-DEV_IP=192.168.1.22
+DEV_IP=192.168.8.22
 
 # Clean local files
-SAVE_DIR=${HOME}/Desktop/AT_8Mini/$(date +%m%d%H%M)
+SAVE_DIR=${HOME}/Desktop/AT_RES/$(date +%m%d%H%M)
 echo "$SAVE_DIR" && mkdir "$SAVE_DIR"
 
 # Scp execute file and lib to remote device
@@ -14,6 +14,7 @@ scp ../release/imx8mini/bin/AT_TEST root@$DEV_IP:/tmp
 # Connect to remote device(Scanner)
 ssh -tt root@$DEV_IP << remotessh
 killall /usr/bin/SmoreScanner
+killall SmoreScanner
 export LD_LIBRARY_PATH=/tmp:$LD_LIBRARY_PATH
 
 mkdir /tmp/at_res
