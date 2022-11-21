@@ -146,7 +146,9 @@ namespace at {
             UpdateNextParams();
             return false;
         } else {
-            best_params_ = score_params_.rbegin()->second;
+            if (!score_params_.empty()){
+                best_params_ = score_params_.rbegin()->second;
+            }
             return true;
         }
     }
@@ -237,7 +239,9 @@ namespace at {
                 next_params_.exp_time = at_impl_->ae4af_obj.next_et;
             } else {
                 next_params_.exp_time = at_impl_->ae4af_obj.best_et;
-                at_impl_->ae_obj.ResetParams(next_params_.exp_time);
+                if (en_ae_){
+                    at_impl_->ae_obj.ResetParams(next_params_.exp_time);
+                }
                 cur_phase_++;
             }
         } else if (*cur_phase_ == AF) {
@@ -268,7 +272,7 @@ namespace at {
         // Engineering Version Number
         #define TRIA_VERSION_E_MAJOR 3
         #define TRIA_VERSION_E_MINOR 3
-        #define TRIA_VERSION_E_PATCH 2
+        #define TRIA_VERSION_E_PATCH 3
         #define TRIA_VERSION_E_RC    1
 
         #define AUX_STR_EXP(__A) #__A
