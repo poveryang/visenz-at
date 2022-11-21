@@ -95,8 +95,10 @@ namespace at {
             pipeline_.emplace_back(AL);
             at_impl_->al_obj.end_iter = false;
             at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
-            for (auto &light: next_params_.lights) {
-                light = at_impl_->al_obj.next_intensity;
+            for (int i=0; i < best_params_.lights.size(); i++){
+                if (best_params_.lights[i] > 0){
+                    next_params_.lights[i] = at_impl_->al_obj.next_intensity;
+                }
             }
         } else {
             at_impl_->al_obj.end_iter = true;
@@ -230,12 +232,16 @@ namespace at {
     void ATInterface::UpdateNextParams() {
         if (*cur_phase_ == AL) {
             if (!at_impl_->al_obj.end_iter) {
-                for (auto &light: next_params_.lights) {
-                    light = at_impl_->al_obj.next_intensity;
+                for (int i=0; i < best_params_.lights.size(); i++){
+                    if (best_params_.lights[i] > 0){
+                        next_params_.lights[i] = at_impl_->al_obj.next_intensity;
+                    }
                 }
             } else {
-                for (auto &light: best_params_.lights) {
-                    light = at_impl_->al_obj.best_intensity;
+                for (int & light : best_params_.lights){
+                    if (light > 0){
+                        light = at_impl_->al_obj.next_intensity;
+                    }
                 }
                 next_params_.lights = best_params_.lights;
                 cur_phase_++;

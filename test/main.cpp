@@ -6,15 +6,14 @@
 #include "cap_image.h"
 
 
-void TestATOnline()
-{
+void TestATOnline() {
     // 1. Set device name
-//    std::string dev_name = "VS1000P";
-    std::string dev_name = "VS800";
+    std::string dev_name = "VS1000P";
+//    std::string dev_name = "VS800";
 
     // 2. Get the initial params from UI
     at::CamParams cam_params;
-    cam_params.lights = {12, 12, 12, 12};
+    cam_params.lights = {12, 12, 0, 0};
     cam_params.exp_time = 150;
     cam_params.exp_gain = 160;
     cam_params.focus_pos = 20;
@@ -23,7 +22,7 @@ void TestATOnline()
     // 3. Set AR parameters and Barcode wrapper
     at::ARParams ar_params;
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
-    if (dev_name == "VS1000P"){
+    if (dev_name == "VS1000P") {
         barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
     }
     BarcodeWrapper barcode_wrapper(barcode_sdk);
@@ -62,6 +61,8 @@ void TestATOnline()
     printf("best et = %d\n", cam_params.exp_time);
     printf("best eg = %d\n", cam_params.exp_gain);
     printf("best pos = %d\n", cam_params.focus_pos);
+    printf("best lights = %d, %d, %d, %d\n",
+           cam_params.lights[0], cam_params.lights[1], cam_params.lights[2], cam_params.lights[3]);
 
     std::cout << ">>>>>===== AT has been ended <<<<<=====\n\n " << std::endl;
 }
