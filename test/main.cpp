@@ -16,8 +16,8 @@ void TestATOnline()
     at::CamParams cam_params;
     cam_params.lights = {12, 12, 12, 12};
     cam_params.exp_time = 150;
-    cam_params.exp_gain = 30;
-    cam_params.focus_pos = 60;
+    cam_params.exp_gain = 160;
+    cam_params.focus_pos = 20;
     cam_params.roi = {0, 0, 1280, 800};
 
     // 3. Set AR parameters and Barcode wrapper
@@ -36,7 +36,7 @@ void TestATOnline()
     bool enable_al = false;
     bool enable_af = true;
     bool enable_ae = true;
-    bool enable_ar = true;
+    bool enable_ar = false;
     at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
 
     InitCap(cam_params);
@@ -59,6 +59,9 @@ void TestATOnline()
     cv::Mat final_img = ATCapImg(cam_params);
     cv::imwrite("/tmp/at_res/" + std::to_string(iter) + ".png", final_img);
     ar_params.print();
+    printf("best et = %d\n", cam_params.exp_time);
+    printf("best eg = %d\n", cam_params.exp_gain);
+    printf("best pos = %d\n", cam_params.focus_pos);
 
     std::cout << ">>>>>===== AT has been ended <<<<<=====\n\n " << std::endl;
 }
