@@ -147,7 +147,9 @@ namespace at {
             return false;
         } else {
             if (!score_params_.empty()){
-                best_params_ = score_params_.rbegin()->second;
+                if (score_params_.rbegin()->first != 0){
+                    best_params_ = score_params_.rbegin()->second;
+                }
             }
             return true;
         }
@@ -170,13 +172,17 @@ namespace at {
             case AE:
                 printf("[==>ViSenz-AE is in progress] ");
                 if (at_impl_->ae_obj.first_run){
-                    double score;
-                    score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                    double score = at_impl_->ar_obj.GetScore(image, ar_params_);
                     score_params_[score] = next_params_;
                     printf("Barcode score = %.2f\n", score);
                     at_impl_->ae_obj.first_run = false;
                 }
                 at_impl_->ae_obj.Run(image(image_roi_));
+                if (at_impl_->ae_obj.end_iter){
+                    double score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                    score_params_[score] = next_params_;
+                    printf("Barcode score = %.2f\n", score);
+                }
                 break;
             case AR:
                 printf("[==>ViSenz-AR is in progress] ");
@@ -256,12 +262,12 @@ namespace at {
             if (!at_impl_->ae_obj.end_iter) {
                 next_params_.exp_time = at_impl_->ae_obj.next_et;
                 next_params_.exp_gain = at_impl_->ae_obj.next_eg;
-                cur_phase_++;
             } else {
                 best_params_.exp_time = at_impl_->ae_obj.best_et;
                 best_params_.exp_gain = at_impl_->ae_obj.best_eg;
                 next_params_.exp_time = best_params_.exp_time;
                 next_params_.exp_gain = best_params_.exp_gain;
+                cur_phase_++;
             }
         } else if (*cur_phase_ == AR){
             cur_phase_ ++;
@@ -273,7 +279,7 @@ namespace at {
         #define TRIA_VERSION_E_MAJOR 3
         #define TRIA_VERSION_E_MINOR 3
         #define TRIA_VERSION_E_PATCH 3
-        #define TRIA_VERSION_E_RC    1
+        #define TRIA_VERSION_E_RC    2
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)

@@ -21,7 +21,7 @@ namespace at{
             .MIN_INTENSITY = 1,
             .MAX_INTENSITY = 24,
             .MIN_ET = 0,
-            .MAX_ET = 10000,
+            .MAX_ET = 1000000,
             .MIN_EG = 1,
             .MAX_EG = 255,
             .START_POS = 0,
