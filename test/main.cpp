@@ -9,7 +9,8 @@
 void TestATOnline()
 {
     // 1. Set device name
-    std::string dev_name = "VS1000P";
+//    std::string dev_name = "VS1000P";
+    std::string dev_name = "VS800";
 
     // 2. Get the initial params from UI
     at::CamParams cam_params;
@@ -22,7 +23,9 @@ void TestATOnline()
     // 3. Set AR parameters and Barcode wrapper
     at::ARParams ar_params;
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
-    barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
+    if (dev_name == "VS1000P"){
+        barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
+    }
     BarcodeWrapper barcode_wrapper(barcode_sdk);
 
     // 4. Initialization of AT object
@@ -30,7 +33,7 @@ void TestATOnline()
     std::string at_version = at_obj.GetVersion();
     printf("AT Version: %s \n", at_version.c_str());
 
-    bool enable_al = true;
+    bool enable_al = false;
     bool enable_af = true;
     bool enable_ae = true;
     bool enable_ar = true;
@@ -55,7 +58,7 @@ void TestATOnline()
 
     cv::Mat final_img = ATCapImg(cam_params);
     cv::imwrite("/tmp/at_res/" + std::to_string(iter) + ".png", final_img);
-//    ar_params.print();
+    ar_params.print();
 
     std::cout << ">>>>>===== AT has been ended <<<<<=====\n\n " << std::endl;
 }
