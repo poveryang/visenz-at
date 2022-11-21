@@ -7,6 +7,3 @@
 [submodule "modules/auto_exposure"]
 	path = modules/auto_exposure
 	url = https://e.coding.smoa.cloud/devops/smore-visenz/ViSenz_AE.git
-[submodule "modules/auto_recognition"]
-	path = modules/auto_recognition
-	url = https://e.coding.smoa.cloud/devops/smore-visenz/ViSenzProd_AR.git
