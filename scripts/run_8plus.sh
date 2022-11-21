@@ -1,4 +1,5 @@
 #!/bin/bash
+#!/usr/bin/bash
 
 # Set remote device ip
 DEV_IP=192.168.8.21

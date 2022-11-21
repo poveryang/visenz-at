@@ -1,4 +1,5 @@
 #!/bin/bash
+#!/usr/bin/bash
 
 if [ ! -d "build_8plus/" ]; then
 mkdir build_8plus
