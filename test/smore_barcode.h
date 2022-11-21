@@ -31,6 +31,13 @@ public:
         barcode_sdk_->SetNumsMaxOutput2D(200);
     };
 
+
+    void SetParams(at::ARParams &ar_params) override {
+        barcode_sdk_->SetMinPPM2D(ar_params.ppm);
+        barcode_sdk_->SetVersion2D(ar_params.version);
+    };
+
+
     std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) override{
         smartmore::barcode::BarcodeRequest input = {image};
         smartmore::barcode::BarcodeResponse output;
@@ -41,10 +48,16 @@ public:
         bool first_1D_read = false;
         bool first_2D_read = false;
         bool first_DM_read = false;
+
+        float ppm;  // Barcode minimal ppm
+        std::array<int, 2> version{};              // For 2d barcode only
         if (!output.results.empty()){
             auto cur_count = output.results.size();
             for (int i = 0; i < cur_count; i++){
                 smartmore::barcode::BarcodeInfo result = output.results[i];
+                ppm = result.ppm;
+                version = result.version;
+
                 // 没有解到码也有信息输出，也会返回results，这里需要判断是否解码成功
                 if (!result.succeed){continue;}
                 int top = image.rows;
@@ -177,6 +190,7 @@ public:
         }
         return rects;
     };
+
 };
 
 #endif //SM_BARCODE_WRAPPER_H

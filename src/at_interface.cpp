@@ -276,6 +276,7 @@ namespace at {
                 cur_phase_++;
             }
         } else if (*cur_phase_ == AR){
+            barcode_wrapper_->SetParams(ar_params_);
             cur_phase_ ++;
         }
     }
