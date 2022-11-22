@@ -240,7 +240,7 @@ namespace at {
             } else {
                 for (int & light : best_params_.lights){
                     if (light > 0){
-                        light = at_impl_->al_obj.next_intensity;
+                        light = at_impl_->al_obj.best_intensity;
                     }
                 }
                 next_params_.lights = best_params_.lights;
@@ -285,7 +285,7 @@ namespace at {
         #define TRIA_VERSION_E_MAJOR 3
         #define TRIA_VERSION_E_MINOR 3
         #define TRIA_VERSION_E_PATCH 3
-        #define TRIA_VERSION_E_RC    2
+        #define TRIA_VERSION_E_RC    4
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)
