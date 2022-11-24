@@ -240,7 +240,7 @@ namespace at {
             } else {
                 for (int & light : best_params_.lights){
                     if (light > 0){
-                        light = at_impl_->al_obj.next_intensity;
+                        light = at_impl_->al_obj.best_intensity;
                     }
                 }
                 next_params_.lights = best_params_.lights;

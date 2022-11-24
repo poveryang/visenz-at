@@ -33,7 +33,9 @@ public:
 
 
     void SetParams(at::ARParams &ar_params) override {
-        barcode_sdk_->SetMinPPM2D(ar_params.ppm);
+        auto min_ppm = float(ar_params.ppm - 0.5);
+        barcode_sdk_->SetMinPPM2D(min_ppm);
+        barcode_sdk_->SetPPM1D(ar_params.ppm);
         barcode_sdk_->SetVersion2D(ar_params.version);
     };
 
