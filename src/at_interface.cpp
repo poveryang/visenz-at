@@ -284,8 +284,8 @@ namespace at {
         // Engineering Version Number
         #define TRIA_VERSION_E_MAJOR 3
         #define TRIA_VERSION_E_MINOR 3
-        #define TRIA_VERSION_E_PATCH 3
-        #define TRIA_VERSION_E_RC    4
+        #define TRIA_VERSION_E_PATCH 4
+        #define TRIA_VERSION_E_RC    1
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)
