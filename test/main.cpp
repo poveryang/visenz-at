@@ -9,21 +9,22 @@
 void TestATOnline() {
     // 1. Set device name
     std::string dev_name = "VS1000P";
-//    std::string dev_name = "VS800";
 
     // 2. Get the initial params from UI
     at::CamParams cam_params;
-    cam_params.lights = {12, 12, 0, 0};
+    cam_params.lights = {12, 12, 12, 12};
     cam_params.exp_time = 150;
     cam_params.exp_gain = 160;
-    cam_params.focus_pos = 20;
-    cam_params.roi = {0, 0, 1280, 800};
+    cam_params.focus_pos = 297;
+    cam_params.roi = {0, 0, 2448, 2048};
 
     // 3. Set AR parameters and Barcode wrapper
     at::ARParams ar_params;
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
     if (dev_name == "VS1000P") {
         barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl.json");
+    } else if (dev_name == "VS2000"){
+        barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_500w.json");
     }
     BarcodeWrapper barcode_wrapper(barcode_sdk);
 
@@ -32,10 +33,10 @@ void TestATOnline() {
     std::string at_version = at_obj.GetVersion();
     printf("AT Version: %s \n", at_version.c_str());
 
-    bool enable_al = false;
+    bool enable_al = true;
     bool enable_af = true;
     bool enable_ae = true;
-    bool enable_ar = false;
+    bool enable_ar = true;
     at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
 
     InitCap(cam_params);
