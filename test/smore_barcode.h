@@ -33,9 +33,9 @@ public:
 
 
     void SetParams(at::ARParams &ar_params) override {
-        auto min_ppm = float(ar_params.ppm - 0.5);
+        auto min_ppm = float(std::max(ar_params.ppm - 0.5, 0.));
         barcode_sdk_->SetMinPPM2D(min_ppm);
-        barcode_sdk_->SetPPM1D(ar_params.ppm);
+        barcode_sdk_->SetMinPPM1D(ar_params.ppm);
         barcode_sdk_->SetVersion2D(ar_params.version);
     };
 
@@ -51,14 +51,12 @@ public:
         bool first_2D_read = false;
         bool first_DM_read = false;
 
-        float ppm;  // Barcode minimal ppm
-        std::array<int, 2> version{};              // For 2d barcode only
         if (!output.results.empty()){
             auto cur_count = output.results.size();
             for (int i = 0; i < cur_count; i++){
                 smartmore::barcode::BarcodeInfo result = output.results[i];
-                ppm = result.ppm;
-                version = result.version;
+                ar_params.ppm = result.ppm;
+                ar_params.version = result.version;
 
                 // 没有解到码也有信息输出，也会返回results，这里需要判断是否解码成功
                 if (!result.succeed){continue;}
@@ -190,6 +188,7 @@ public:
                 }
             }
         }
+
         return rects;
     };
 
