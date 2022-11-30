@@ -47,6 +47,8 @@ namespace at {
     public:
         virtual void Reset() = 0;
 
+        virtual void SetParams(at::ARParams &ar_params) = 0;
+
         virtual std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) = 0;
     };
 

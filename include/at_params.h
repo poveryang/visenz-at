@@ -23,6 +23,9 @@ namespace at{
 
     /** A struct that is used to store the AR parameters.*/
     struct ARParams {
+        float ppm = 0;  // Barcode minimal ppm
+        std::array<int, 2> version = {-1, -1};  // For 2d barcode only
+
         int number_1D = 0;
         int number_2D = 0;
         bool read_1D = false;
