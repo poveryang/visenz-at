@@ -15,7 +15,7 @@ void TestATOnline() {
     cam_params.lights = {12, 12, 12, 12};
     cam_params.exp_time = 150;
     cam_params.exp_gain = 160;
-    cam_params.focus_pos = 297;
+    cam_params.focus_pos = 60;
     if (dev_name == "VS1000P" | dev_name == "VS800") {
         cam_params.roi = {0, 0, 1280, 800};
     } else if (dev_name == "VS2000"){
@@ -38,7 +38,7 @@ void TestATOnline() {
     printf("AT Version: %s \n", at_version.c_str());
 
     bool enable_al, enable_af, enable_ae, enable_ar;
-    if (dev_name == "VS800" | dev_name == "VS1000P"){
+    if (dev_name == "VS800" | dev_name == "VS2000"){
         enable_al = false;
     } else {
         enable_al = true;
@@ -72,9 +72,6 @@ void TestATOnline() {
     printf("best pos = %d\n", cam_params.focus_pos);
     printf("best lights = %d, %d, %d, %d\n",
            cam_params.lights[0], cam_params.lights[1], cam_params.lights[2], cam_params.lights[3]);
-//    printf("min_ppm = %f, version2d = (%d, %d)\n",
-//           barcode_sdk.GetMinPPM2D(),
-//           barcode_sdk.GetVersion2D()[0], barcode_sdk.GetVersion2D()[1]);
 
     printf(">>>>>===== AT has been ended <<<<<=====\n\n");
 }
