@@ -15,19 +15,14 @@ namespace at {
             barcode_wrapper_->Reset();
         };
 
-        void GetInfo(const cv::Mat &image, at::ARParams &ar_params){
-            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params);
-            if (!rects.empty()) {
-                std::cout << "Recognized Barcode Info is as follows:" << std::endl;
-                ar_params.print();
-                ar_params.rect = rects[0];
-            }
-            end_iter = true;
-        };
-
         double GetScore(const cv::Mat &image, at::ARParams &ar_params){
             double score = 0;
-            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params);
+            at::ARParams ar_params_tmp;
+            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params_tmp);
+            if (!rects.empty()){
+                ar_params = ar_params_tmp;
+            }
+
             for (const auto& rect: rects){
                 double tmp = CalcScore(image(rect));
                 score += tmp;
@@ -276,7 +271,7 @@ namespace at {
                 cur_phase_++;
             }
         } else if (*cur_phase_ == AR){
-            barcode_wrapper_->SetParams(ar_params_);
+//            barcode_wrapper_->SetParams(ar_params_);
             cur_phase_ ++;
         }
     }
