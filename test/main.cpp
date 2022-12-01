@@ -8,7 +8,7 @@
 
 void TestATOnline() {
     // 1. Set device name
-    std::string dev_name = "VS1000P";
+    std::string dev_name="VS1000P";
 
     // 2. Get the initial params from UI
     at::CamParams cam_params;
@@ -37,10 +37,15 @@ void TestATOnline() {
     std::string at_version = at_obj.GetVersion();
     printf("AT Version: %s \n", at_version.c_str());
 
-    bool enable_al = true;
-    bool enable_af = true;
-    bool enable_ae = true;
-    bool enable_ar = true;
+    bool enable_al, enable_af, enable_ae, enable_ar;
+    if (dev_name == "VS800" | dev_name == "VS1000P"){
+        enable_al = false;
+    } else {
+        enable_al = true;
+    }
+    enable_af = true;
+    enable_ae = true;
+    enable_ar = true;
     at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
 
     // 5. This is the main loop of the AT algorithm
@@ -67,9 +72,9 @@ void TestATOnline() {
     printf("best pos = %d\n", cam_params.focus_pos);
     printf("best lights = %d, %d, %d, %d\n",
            cam_params.lights[0], cam_params.lights[1], cam_params.lights[2], cam_params.lights[3]);
-    printf("min_ppm = %f, version2d = (%d, %d)\n",
-           barcode_sdk.GetMinPPM2D(),
-           barcode_sdk.GetVersion2D()[0], barcode_sdk.GetVersion2D()[1]);
+//    printf("min_ppm = %f, version2d = (%d, %d)\n",
+//           barcode_sdk.GetMinPPM2D(),
+//           barcode_sdk.GetVersion2D()[0], barcode_sdk.GetVersion2D()[1]);
 
     printf(">>>>>===== AT has been ended <<<<<=====\n\n");
 }
