@@ -5,8 +5,13 @@ if [ ! -d "build_8plus/" ]; then
 mkdir build_8plus
 else
 echo "dir build_8plus existed"
+rm -rf build_8plus
+mkdir build_8plus
 fi
 cd build_8plus
+
+rm -rf ../release/imx8plus
+
 
 /usr/bin/cmake \
 -DCMAKE_BUILD_TYPE=Release \

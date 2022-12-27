@@ -45,11 +45,12 @@ namespace at {
     /** @brief This is a virtual base class of Barcode Wrapper.*/
     class BarcodeWrapperBase {
     public:
+        virtual void SetOriginParams() = 0;
+        virtual void PrintParams() = 0;
         virtual void Reset() = 0;
-
+        virtual std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) = 0;
 //        virtual void SetParams(at::ARParams &ar_params) = 0;
 
-        virtual std::vector<cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) = 0;
     };
 
     class ATInterface {
