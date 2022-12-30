@@ -225,6 +225,8 @@ namespace at {
             cam_conf_ = vs800_conf;
         } else if (dev_name == "VS2000") {
             cam_conf_ = vs2000_conf;
+        } else if (dev_name == "VS2000-2"){
+            cam_conf_ = vs2000_2_conf;
         }
 
         // Loads init camera parameters

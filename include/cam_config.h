@@ -53,6 +53,19 @@ namespace at{
             .START_POS = 0,
             .END_POS = 410,
     };
+
+    CamConf vs2000_2_conf = {
+            .IMG_WIDTH = 2448,
+            .IMG_HEIGHT = 2048,
+            .MIN_INTENSITY = 1,
+            .MAX_INTENSITY = 24,
+            .MIN_ET = 20,
+            .MAX_ET = 10000,
+            .MIN_EG = 1,
+            .MAX_EG = 255,
+            .START_POS = 0,
+            .END_POS = 1023,
+    };
 }
 
 #endif //AT_CONFIG_H
