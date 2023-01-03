@@ -5,7 +5,7 @@
 #include "at_interface.h"
 
 struct BarcodeParams {
-    smartmore::barcode::BarcodeType barcode_type;  //读码类型
+    smartmore::barcode::BarcodeType barcode_type;
     int dl_nums_instance;
     // 1D code params
     smartmore::barcode::Polarity polarity_1d;
@@ -18,7 +18,7 @@ struct BarcodeParams {
     smartmore::barcode::QrDistortionType qe_distortion_type;
     smartmore::barcode::DMEdgeType dm_edge_type;
     smartmore::barcode::DMShapeType dm_shape_type;
-    bool check_digit_enable_code39;  // code39校验
+    bool check_digit_enable_code39;
     int nums_max_output_2d;
 };
 
@@ -48,36 +48,6 @@ public:
         barcode_sdk_->SetDmShapeType(origin_params.dm_shape_type);
         barcode_sdk_->SetCheckDigitEnableCode39(origin_params.check_digit_enable_code39);
         barcode_sdk_->SetNumsMaxOutput2D(origin_params.nums_max_output_2d);
-
-//        PrintParams();
-    };
-
-    void PrintParams() override {
-        std::cout << "===================================================" << std::endl;
-        std::cout << "barcode_sdk_->GetBarcodeType(): " << static_cast<int>(barcode_sdk_->GetBarcodeType())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetDLNumsInstance(): " << static_cast<int>(barcode_sdk_->GetDLNumsInstance())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetPolarity1D(): " << static_cast<int>(barcode_sdk_->GetPolarity1D()) << std::endl;
-        std::cout << "barcode_sdk_->GetRunningMode1D(): " << static_cast<int>(barcode_sdk_->GetRunningMode1D())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetNumsMaxOutput1D(): " << static_cast<int>(barcode_sdk_->GetNumsMaxOutput1D())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetPolarity2D(): " << static_cast<int>(barcode_sdk_->GetPolarity2D()) << std::endl;
-        std::cout << "barcode_sdk_->GetMirrorType2D(): " << static_cast<int>(barcode_sdk_->GetMirrorType2D())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetRunningMode2D(): " << static_cast<int>(barcode_sdk_->GetRunningMode2D())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetQrDistortionType(): " << static_cast<int>(barcode_sdk_->GetQrDistortionType())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetDmEdgeType(): " << static_cast<int>(barcode_sdk_->GetDmEdgeType()) << std::endl;
-        std::cout << "barcode_sdk_->GetDmShapeType(): " << static_cast<int>(barcode_sdk_->GetDmShapeType())
-                  << std::endl;
-        std::cout << "barcode_sdk_->GetCheckDigitEnableCode39(): "
-                  << static_cast<int>(barcode_sdk_->GetCheckDigitEnableCode39()) << std::endl;
-        std::cout << "barcode_sdk_->GetNumsMaxOutput2D(): " << static_cast<int>(barcode_sdk_->GetNumsMaxOutput2D())
-                  << std::endl;
-        std::cout << "===================================================" << std::endl;
     };
 
     void Reset() override {

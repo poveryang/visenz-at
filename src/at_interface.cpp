@@ -91,6 +91,10 @@ namespace at {
     }
 
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
+        en_al_ = enable_al;
+        en_af_ = enable_af;
+        en_ae_ = enable_ae;
+        en_ar_ = enable_ar;
         if (enable_al) {
             pipeline_.emplace_back(AL);
             at_impl_->al_obj.end_iter = false;
@@ -150,8 +154,6 @@ namespace at {
         } else {
             if (!score_params_.empty()) {
                 if (score_params_.rbegin()->first != 0) {
-//                    std::cout << "===================fuck ti ititit " << std::endl;
-//                    barcode_wrapper_->PrintParams();
                     best_params_ = score_params_.rbegin()->second;
                 } else {
                     at_impl_->ar_obj.EndSet();
@@ -289,17 +291,17 @@ namespace at {
 
     std::string ATInterface::GetVersion() {
         // Engineering Version Number
-#define TRIA_VERSION_E_MAJOR 3
-#define TRIA_VERSION_E_MINOR 3
-#define TRIA_VERSION_E_PATCH 4
-#define TRIA_VERSION_E_RC    1
+        #define TRIA_VERSION_E_MAJOR 3
+        #define TRIA_VERSION_E_MINOR 3
+        #define TRIA_VERSION_E_PATCH 4
+        #define TRIA_VERSION_E_RC    1
 
-#define AUX_STR_EXP(__A) #__A
-#define AUX_STR(__A) AUX_STR_EXP(__A)
-#define TRIA_VERSION_E                             \
+        #define AUX_STR_EXP(__A) #__A
+        #define AUX_STR(__A) AUX_STR_EXP(__A)
+        #define TRIA_VERSION_E                             \
             "v" AUX_STR(TRIA_VERSION_E_MAJOR) "." AUX_STR( \
-                TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
-#define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
+            TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
+        #define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
 
         std::string version = std::string(TRIA_VERSION_E);
         if (TRIA_VERSION_E_RC != 0) {
