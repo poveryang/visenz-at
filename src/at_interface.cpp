@@ -118,7 +118,7 @@ namespace at {
 
             pipeline_.emplace_back(AF);
             at_impl_->af_obj.end_iter = false;
-            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS);
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.LENS_TYPE);
             next_params_.focus_pos = at_impl_->af_obj.next_pos;
         } else {
             at_impl_->af_obj.end_iter = true;

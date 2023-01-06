@@ -13,6 +13,7 @@ namespace at{
             .MAX_EG = 255,
             .START_POS = 0,
             .END_POS = 410,
+            .LENS_TYPE = "mechanical",
     };
 
     CamConf vs1000p2m_conf = {
@@ -26,6 +27,7 @@ namespace at{
             .MAX_EG = 255,
             .START_POS = 0,
             .END_POS = 410,
+            .LENS_TYPE = "mechanical",
     };
 
     CamConf vs800_conf = {
@@ -39,6 +41,7 @@ namespace at{
             .MAX_EG = 255,
             .START_POS = 0,
             .END_POS = 1023,
+            .LENS_TYPE = "liquid",
     };
 
     CamConf vs2000_conf = {
@@ -52,6 +55,7 @@ namespace at{
             .MAX_EG = 255,
             .START_POS = 0,
             .END_POS = 410,
+            .LENS_TYPE = "mechanical",
     };
 
     CamConf vs2000_2_conf = {
@@ -65,6 +69,7 @@ namespace at{
             .MAX_EG = 255,
             .START_POS = 0,
             .END_POS = 1023,
+            .LENS_TYPE = "liquid",
     };
 }
 

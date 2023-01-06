@@ -99,7 +99,7 @@ CREATE:
 		  close(fd);
 		}
 
-		printf("phys_addr[%d]=0x%x, size=%d\n", i, mem->phys_addr, mem->size);
+//		printf("phys_addr[%d]=0x%x, size=%d\n", i, mem->phys_addr, mem->size);
 
 		memset(tmp, 0, sizeof tmp);
 		sprintf(tmp, "/dev/udmabuf%d", i);
@@ -191,7 +191,7 @@ int sm_mem_alloc(struct sm_mem_dev *mem_dev, int buf_cnt)
 		}
 
 		mem->virt_uaddr = (long unsigned int)mmap(NULL, mem->size, PROT_READ|PROT_WRITE, MAP_SHARED, mem->fd, 0);
-		printf("virt_uaddr[%d] =  0x%x\n", i,  mem->virt_uaddr);
+//		printf("virt_uaddr[%d] =  0x%x\n", i,  mem->virt_uaddr);
 	}
 	return 0;
 err:

@@ -4,7 +4,7 @@
 #define RESOLUTION_HEIGHT 800
 
 #define FRAME_RATE 30
-unsigned long frame_size ;
+unsigned long frame_size;
 
 void InitCap(at::CamParams &cam_params, int raw_bit){
     V4L2Capture& vcap = V4L2Capture::getInstance();
@@ -28,7 +28,8 @@ cv::Mat ATCapImg(at::CamParams &cam_params, int raw_bit)
 {
     V4L2Capture& vcap = V4L2Capture::getInstance();
 
-    char *frame_buf = static_cast<char *>(malloc(RESOLUTION_WIDTH * RESOLUTION_HEIGHT));
+    char *frame_buf = nullptr;
+    unsigned long frame_size = 0;
     sensorParam sensor_params{};
     vcap.setLightBright(0, cam_params.lights[0]);
     vcap.setLightBright(1, cam_params.lights[1]);

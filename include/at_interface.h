@@ -40,6 +40,8 @@ namespace at {
         int START_POS;
         /** Configurable params of AF: end position of motor*/
         int END_POS;
+
+        std::string LENS_TYPE;
     };
 
     /** @brief This is a virtual base class of Barcode Wrapper.*/

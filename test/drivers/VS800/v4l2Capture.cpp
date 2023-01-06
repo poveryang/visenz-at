@@ -825,7 +825,7 @@ struct sensorParam V4L2Capture::getCurrentFrameSensorParam()
     unsigned char *p = &Stream_Parm.parm.raw_data[sizeof(struct v4l2_captureparm)];
     memcpy((void *)&sparam, (void *)p, sizeof(struct sensorParam));
 
-#if 1
+#if 0
     printf("v4l2 frameIndex = %d, paramActive = %d, gain = %d, exp=%d, bright=%d %d %d %d %d, focus=%d\n", 
 		frameIndex, sparam.active, sparam.gain, sparam.exposure, 
 		sparam.lightBright[0], sparam.lightBright[1], sparam.lightBright[2], sparam.lightBright[3], sparam.lightBright[4], sparam.focus);
