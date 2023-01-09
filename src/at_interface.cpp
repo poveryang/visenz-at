@@ -8,22 +8,27 @@ namespace at {
     class ARInterface {
     public:
         ARInterface() = default;
+
         ~ARInterface() = default;
 
-        void Init(BarcodeWrapperBase &barcode_wrapper){
+        void Init(BarcodeWrapperBase &barcode_wrapper) {
             barcode_wrapper_ = &barcode_wrapper;
             barcode_wrapper_->Reset();
         };
 
-        double GetScore(const cv::Mat &image, at::ARParams &ar_params){
+        void EndSet() {
+            barcode_wrapper_->SetOriginParams();
+        }
+
+        double GetScore(const cv::Mat &image, at::ARParams &ar_params) {
             double score = 0;
             at::ARParams ar_params_tmp;
-            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params_tmp);
-            if (!rects.empty()){
+            std::vector <cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params_tmp);
+            if (!rects.empty()) {
                 ar_params = ar_params_tmp;
             }
 
-            for (const auto& rect: rects){
+            for (const auto &rect: rects) {
                 double tmp = CalcScore(image(rect));
                 score += tmp;
             }
@@ -86,12 +91,16 @@ namespace at {
     }
 
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
+        en_al_ = enable_al;
+        en_af_ = enable_af;
+        en_ae_ = enable_ae;
+        en_ar_ = enable_ar;
         if (enable_al) {
             pipeline_.emplace_back(AL);
             at_impl_->al_obj.end_iter = false;
             at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
-            for (int i=0; i < best_params_.lights.size(); i++){
-                if (best_params_.lights[i] > 0){
+            for (int i = 0; i < best_params_.lights.size(); i++) {
+                if (best_params_.lights[i] > 0) {
                     next_params_.lights[i] = at_impl_->al_obj.next_intensity;
                 }
             }
@@ -109,7 +118,7 @@ namespace at {
 
             pipeline_.emplace_back(AF);
             at_impl_->af_obj.end_iter = false;
-            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS);
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.LENS_TYPE);
             next_params_.focus_pos = at_impl_->af_obj.next_pos;
         } else {
             at_impl_->af_obj.end_iter = true;
@@ -143,16 +152,18 @@ namespace at {
             UpdateNextParams();
             return false;
         } else {
-            if (!score_params_.empty()){
-                if (score_params_.rbegin()->first != 0){
+            if (!score_params_.empty()) {
+                if (score_params_.rbegin()->first != 0) {
                     best_params_ = score_params_.rbegin()->second;
+                } else {
+                    at_impl_->ar_obj.EndSet();
                 }
             }
             return true;
         }
     }
 
-    void ATInterface::SequentialExec(const cv::Mat &image){
+    void ATInterface::SequentialExec(const cv::Mat &image) {
         switch (*cur_phase_) {
             case AL:
                 printf("[==>ViSenz-AL is in progress] ");
@@ -168,14 +179,14 @@ namespace at {
                 break;
             case AE:
                 printf("[==>ViSenz-AE is in progress] ");
-                if (at_impl_->ae_obj.first_run){
+                if (at_impl_->ae_obj.first_run) {
                     double score = at_impl_->ar_obj.GetScore(image, ar_params_);
                     score_params_[score] = next_params_;
                     printf("Barcode score = %.2f\n", score);
                     at_impl_->ae_obj.first_run = false;
                 }
                 at_impl_->ae_obj.Run(image(image_roi_));
-                if (at_impl_->ae_obj.end_iter){
+                if (at_impl_->ae_obj.end_iter) {
                     double score = at_impl_->ar_obj.GetScore(image, ar_params_);
                     score_params_[score] = next_params_;
                     printf("Barcode score = %.2f\n", score);
@@ -210,12 +221,14 @@ namespace at {
         // Sets the camera device configuration
         if (dev_name == "VS1000P") {
             cam_conf_ = vs1000p_conf;
-        } else if (dev_name == "VS1000P@2M"){
+        } else if (dev_name == "VS1000P@2M") {
             cam_conf_ = vs1000p2m_conf;
         } else if (dev_name == "VS800") {
             cam_conf_ = vs800_conf;
-        } else if (dev_name == "VS2000"){
+        } else if (dev_name == "VS2000") {
             cam_conf_ = vs2000_conf;
+        } else if (dev_name == "VS2000-2"){
+            cam_conf_ = vs2000_2_conf;
         }
 
         // Loads init camera parameters
@@ -227,14 +240,14 @@ namespace at {
     void ATInterface::UpdateNextParams() {
         if (*cur_phase_ == AL) {
             if (!at_impl_->al_obj.end_iter) {
-                for (int i=0; i < best_params_.lights.size(); i++){
-                    if (best_params_.lights[i] > 0){
+                for (int i = 0; i < best_params_.lights.size(); i++) {
+                    if (best_params_.lights[i] > 0) {
                         next_params_.lights[i] = at_impl_->al_obj.next_intensity;
                     }
                 }
             } else {
-                for (int & light : best_params_.lights){
-                    if (light > 0){
+                for (int &light: best_params_.lights) {
+                    if (light > 0) {
                         light = at_impl_->al_obj.best_intensity;
                     }
                 }
@@ -246,7 +259,7 @@ namespace at {
                 next_params_.exp_time = at_impl_->ae4af_obj.next_et;
             } else {
                 next_params_.exp_time = at_impl_->ae4af_obj.best_et;
-                if (en_ae_){
+                if (en_ae_) {
                     at_impl_->ae_obj.ResetParams(next_params_.exp_time);
                 }
                 cur_phase_++;
@@ -270,24 +283,24 @@ namespace at {
                 next_params_.exp_gain = best_params_.exp_gain;
                 cur_phase_++;
             }
-        } else if (*cur_phase_ == AR){
+        } else if (*cur_phase_ == AR) {
 //            barcode_wrapper_->SetParams(ar_params_);
-            cur_phase_ ++;
+            cur_phase_++;
         }
     }
 
     std::string ATInterface::GetVersion() {
         // Engineering Version Number
         #define TRIA_VERSION_E_MAJOR 3
-        #define TRIA_VERSION_E_MINOR 3
-        #define TRIA_VERSION_E_PATCH 4
+        #define TRIA_VERSION_E_MINOR 4
+        #define TRIA_VERSION_E_PATCH 0
         #define TRIA_VERSION_E_RC    1
 
         #define AUX_STR_EXP(__A) #__A
         #define AUX_STR(__A) AUX_STR_EXP(__A)
         #define TRIA_VERSION_E                             \
             "v" AUX_STR(TRIA_VERSION_E_MAJOR) "." AUX_STR( \
-                TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
+            TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
         #define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
 
         std::string version = std::string(TRIA_VERSION_E);

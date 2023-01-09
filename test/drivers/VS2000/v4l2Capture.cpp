@@ -17,11 +17,14 @@
 #include <string.h>
 #include <iostream>
 #include <stdlib.h>
+#include <syslog.h>
 
 
 #include "v4l2Capture.h"
 
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
+
+#define FOCUSTYPE_PATH "/sys/devices/platform/soc@0/30800000.bus/30a30000.i2c/i2c-1/1-0036/cmd"
 
 int V4L2Capture::openDevice()
 {
@@ -37,9 +40,7 @@ int V4L2Capture::openDevice()
     {
         printf("Can't open %s device", subName);
     }
-
-	
-	
+    openlog("vs2000", LOG_PID | LOG_PERROR, 0);
 
     return 0;
 }
@@ -47,6 +48,7 @@ int V4L2Capture::openDevice()
 int V4L2Capture::closeDevice()
 {
 
+    closelog();
     if (fdCam > 0)
     {
         int ret = 0;
@@ -256,7 +258,7 @@ int V4L2Capture::getNewestFrame(void **frame_buf, size_t *len, int timeout)
     {
         reserved = getFrame(frame_buf, len, 1);
 #ifdef DEBUG_FRAME_TIME
-        printf("discard old frame... %d\n", reserved);
+//        printf("discard old frame... %d\n", reserved);
 #endif
         // buffer is full.
         if (reserved >= BUFFER_NUM - 2)
@@ -290,7 +292,7 @@ int V4L2Capture::getNewestFrame(void **frame_buf, size_t *len, int timeout)
 
 #ifdef DEBUG_FRAME_TIME
     gettimeofday(&timeEnd, nullptr);
-    printf("get frame time =%dms state=%d\n", timeDiffUs(timeStart, timeEnd) / 1000, full_state);
+//    printf("get frame time =%dms state=%d\n", timeDiffUs(timeStart, timeEnd) / 1000, full_state);
 #endif
     return 0;
 #endif
@@ -379,21 +381,67 @@ struct timeval V4L2Capture::getFrameDonetime()
     return m_newframetime;
 }
 
+#define FOCUSTYPE_PATH "/sys/devices/platform/soc@0/30800000.bus/30a30000.i2c/i2c-1/1-0036/cmd"
+#define FOPENERR (-1)
+#define FREADERR (-2)
+#define VALERR (-3)
+
+static int read_focus_type() {
+    FILE *pfo  = NULL;
+    size_t len = 0;
+    char buf[16] = {0};
+    int type = 0;
+    int ret = 0;
+
+    pfo = fopen(FOCUSTYPE_PATH, "r");
+    if (pfo == NULL) { 
+        syslog(LOG_ERR, "fopen err!");
+        type = FOPENERR;
+        pfo = NULL;
+        goto end;
+    }
+    len = fread(buf, sizeof(char), 1, pfo);
+    if (len < 1) {
+        syslog(LOG_ERR, "fread err! len:%d\n", len);
+        type = FREADERR;
+        goto end;
+    }
+    buf[1] = '\0';
+    ret = sscanf(buf, "%d", &type);
+    if (ret != 1) {
+        syslog(LOG_ERR, "sscanf failed! ret:%d\n", ret);
+        type = VALERR;
+        goto end;
+    }
+    syslog(LOG_INFO, "buf:##%s## type:##%d##\n", buf, type);
+end:
+    if (pfo != NULL) {
+        fclose(pfo);
+    }
+    return type;
+}
+
 //这个接口
 int V4L2Capture::getLensVaild(void)
 {
-
+    int ret = 1;
+    if ( (ret = read_focus_type()) < 0 ) {
+        syslog(LOG_INFO, "getLensVaild read_focus_type ret:%d\n", ret); 
+        return 1;
+    }
+    syslog(LOG_INFO, "getLensVaild read_focus_type ret:%d\n", ret); 
+    return ret; 
 #if 0
     struct v4l2_control ctrl = {V4L2_CID_FOCUS_ABSOLUTE, -1};
 	int ret;
 	
     ret = ioctl(subfb, VIDIOC_G_CTRL, &ctrl);
 	if(ret < 0){
+        syslog(LOG_INFO, "getLensVaild ioctl VIDIOC_G_CTRL ret:%d\n", ret); 
 		return -1;
 	}
+    syslog(LOG_INFO, "getLensVaild ioctl:VIDIOC_G_CTRL cid:V4L2_CID_FOCUS_ABSOLUTE ctrl.value=%d\n", ctrl.value); 
     return ctrl.value;
-#else
-	return 0;
 #endif
 }
 
@@ -581,7 +629,20 @@ int V4L2Capture::setCrop(int left, int top, int width, int height)
 /* 获取内核中支持的图片格式 */
 int V4L2Capture::getformat()
 {
-	return -1;
+	int ret = 0;
+	struct v4l2_format fmt;
+
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    ret = ioctl(fdCam, VIDIOC_G_FMT, &fmt);
+
+	if (ret < 0)
+	{
+		fprintf(stderr, "vs2000 getformat err occurr! ret:%d\n", ret);
+		return ret;
+	}
+	mWidth = fmt.fmt.pix_mp.width;
+	mHeight = fmt.fmt.pix_mp.height;
+	return ret;
 }
 
 /* 帧率 图片大小 设置  1280*800(30/60/120fps)  1280*720(60/120fps)*/
@@ -689,7 +750,7 @@ struct sensorParam V4L2Capture::getCurrentFrameSensorParam()
     unsigned char *p = &stream_p.parm.raw_data[sizeof(struct v4l2_captureparm)];
     memcpy((void *)&sparam, (void *)p, sizeof(struct sensorParam));
 
-#if 1
+#if 0
     printf("v4l2 frameIndex = %d, paramActive = %d, gain = %d, exp=%d, bright=%d %d %d %d %d, focus=%d\n", 
 		frameIndex, sparam.active, sparam.gain, sparam.exposure, 
 		sparam.lightBright[0], sparam.lightBright[1], sparam.lightBright[2], sparam.lightBright[3], sparam.lightBright[4], sparam.focus);

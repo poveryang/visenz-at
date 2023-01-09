@@ -18,7 +18,7 @@ void TestATOnline() {
     cam_params.focus_pos = 60;
     if (dev_name == "VS1000P" | dev_name == "VS800") {
         cam_params.roi = {0, 0, 1280, 800};
-    } else if (dev_name == "VS2000"){
+    } else if (dev_name == "VS2000" | dev_name == "VS2000-2"){
         cam_params.roi = {0, 0, 2448, 2048};
     }
 
@@ -27,7 +27,7 @@ void TestATOnline() {
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
     if (dev_name == "VS1000P") {
         barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_100w.json");
-    } else if (dev_name == "VS2000"){
+    } else if (dev_name == "VS2000" | dev_name == "VS2000-2"){
         barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_500w.json");
     }
     BarcodeWrapper barcode_wrapper(barcode_sdk);
@@ -38,7 +38,7 @@ void TestATOnline() {
     printf("AT Version: %s \n", at_version.c_str());
 
     bool enable_al, enable_af, enable_ae, enable_ar;
-    if (dev_name == "VS800" | dev_name == "VS2000"){
+    if (dev_name == "VS800" | dev_name == "VS2000" | dev_name == "VS2000-2"){
         enable_al = false;
     } else {
         enable_al = true;
