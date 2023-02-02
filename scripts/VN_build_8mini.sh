@@ -10,14 +10,15 @@ mkdir build_8mini
 fi
 cd build_8mini
 
-rm -rf ../release/build_8mini
+rm -rf ../release/VN/build_8mini
 
 source /opt/myir-imx-xwayland/4.14-sumo/environment-setup-aarch64-poky-linux
 
 /usr/bin/cmake \
 -DCMAKE_BUILD_TYPE=Release \
 -DTARGET_PLATFORM="imx8mini" \
--DCMAKE_INSTALL_PREFIX="../release/imx8mini" \
+-DTARGET_SERIES="VN" \
+-DCMAKE_INSTALL_PREFIX="../release/VN/imx8mini" \
 -S .. \
 -B .
 

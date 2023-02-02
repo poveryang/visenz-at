@@ -90,6 +90,12 @@ namespace at {
         SetDevice(dev_name, init_params);
     }
 
+    ATInterface::ATInterface(std::string &dev_name, CamParams &init_params) {
+        at_impl_ = std::make_shared<ATInterface::ATImpl>();
+        en_al_ = en_af_ = en_ae_ = en_ar_ = false;
+        SetDevice(dev_name, init_params);
+    }
+
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
         en_al_ = enable_al;
         en_af_ = enable_af;
@@ -146,6 +152,54 @@ namespace at {
         cur_phase_ = pipeline_.begin();
     }
 
+    void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae) {
+        en_al_ = enable_al;
+        en_af_ = enable_af;
+        en_ae_ = enable_ae;
+        if (enable_al) {
+            pipeline_.emplace_back(AL);
+            at_impl_->al_obj.end_iter = false;
+            at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
+            for (int i = 0; i < best_params_.lights.size(); i++) {
+                if (best_params_.lights[i] > 0) {
+                    next_params_.lights[i] = at_impl_->al_obj.next_intensity;
+                }
+            }
+        } else {
+            at_impl_->al_obj.end_iter = true;
+        }
+
+        if (enable_af) {
+            pipeline_.emplace_back(AE4AF);
+            at_impl_->ae4af_obj.end_iter = false;
+            at_impl_->ae4af_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+                                     cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+            next_params_.exp_time = at_impl_->ae4af_obj.next_et;
+            next_params_.exp_gain = at_impl_->ae4af_obj.next_eg;
+
+            pipeline_.emplace_back(AF);
+            at_impl_->af_obj.end_iter = false;
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.LENS_TYPE);
+            next_params_.focus_pos = at_impl_->af_obj.next_pos;
+        } else {
+            at_impl_->af_obj.end_iter = true;
+        }
+
+        if (enable_ae) {
+            pipeline_.emplace_back(AE);
+            at_impl_->ae_obj.end_iter = false;
+            at_impl_->ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+                                  cam_conf_.MIN_EG, cam_conf_.MAX_EG);
+            next_params_.exp_time = at_impl_->ae_obj.next_et;
+            next_params_.exp_gain = at_impl_->ae_obj.next_eg;
+        } else {
+            at_impl_->ae_obj.end_iter = true;
+        }
+
+        pipeline_.emplace_back(END);
+        cur_phase_ = pipeline_.begin();
+    }
+
     bool ATInterface::Run(const cv::Mat &image) {
         if (*cur_phase_ != END) {
             SequentialExec(image);
@@ -155,7 +209,7 @@ namespace at {
             if (!score_params_.empty()) {
                 if (score_params_.rbegin()->first != 0) {
                     best_params_ = score_params_.rbegin()->second;
-                } else {
+                } else if (en_ar_) {
                     at_impl_->ar_obj.EndSet();
                 }
             }
@@ -180,21 +234,28 @@ namespace at {
             case AE:
                 printf("[==>ViSenz-AE is in progress] ");
                 if (at_impl_->ae_obj.first_run) {
-                    double score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                    if (en_ar_) {
+                        score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                        printf("Barcode score = %.2f\n", score);
+                    } else {
+                        score = 0;
+                    }
                     score_params_[score] = next_params_;
-                    printf("Barcode score = %.2f\n", score);
                     at_impl_->ae_obj.first_run = false;
                 }
                 at_impl_->ae_obj.Run(image(image_roi_));
                 if (at_impl_->ae_obj.end_iter) {
-                    double score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                    if (en_ar_) {
+                        score = at_impl_->ar_obj.GetScore(image, ar_params_);
+                        printf("Barcode score = %.2f\n", score);
+                    } else {
+                        score = 0;
+                    }
                     score_params_[score] = next_params_;
-                    printf("Barcode score = %.2f\n", score);
                 }
                 break;
             case AR:
                 printf("[==>ViSenz-AR is in progress] ");
-                double score;
                 score = at_impl_->ar_obj.GetScore(image, ar_params_);
                 score_params_[score] = next_params_;
                 printf("Barcode score = %.2f\n", score);
@@ -229,6 +290,10 @@ namespace at {
             cam_conf_ = vs2000_conf;
         } else if (dev_name == "VS2000-2"){
             cam_conf_ = vs2000_2_conf;
+        } else if (dev_name == "VN800"){
+            cam_conf_ = vn800_conf;
+        } else if (dev_name == "VN1000pro"){
+            cam_conf_ = vn1000p_conf;
         }
 
         // Loads init camera parameters

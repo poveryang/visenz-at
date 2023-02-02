@@ -38,9 +38,6 @@ int V4L2Capture::openDevice()
         printf("Can't open %s device", subName);
     }
 
-	
-	
-
     return 0;
 }
 
@@ -58,9 +55,11 @@ int V4L2Capture::closeDevice()
         {
             fdCam = -1;
         }
-
+        Rpmsg& rpmsg_instance = Rpmsg::getInstance();
+        rpmsg_instance.camera_power(0);
 		close(subfb);
 		subfb = -1;
+		strobe_state = 0;
 		
         return 0;
     }
@@ -254,14 +253,14 @@ int V4L2Capture::getNewestFrame(void **frame_buf, size_t *len, int timeout)
 
     while (1)
     {
-        reserved = getFrame(frame_buf, len, 1);
+        reserved = getFrame(frame_buf, len, timeout);
 #ifdef DEBUG_FRAME_TIME
-        printf("discard old frame... %d\n", reserved);
+        printf("timeout = %d,discard old frame... %d\n",timeout, reserved);
 #endif
         // buffer is full.
         if (reserved >= BUFFER_NUM - 2)
         {
-//            printf("warnning: buffer is full, it will clear all and get newest frame\n");
+            printf("warnning: buffer is full, it will clear all and get newest frame\n");
             full_state = 1;
         }
         // get last frame in buffer queue and clear other frame. clear all when buffer is full.
@@ -317,7 +316,7 @@ int V4L2Capture::getFrame(void **frame_buf, size_t *len, int timeout)
     FD_ZERO(&fds);
     FD_SET(fdCam, &fds);
     // timeout
-    if(timeout < -1){
+    if(timeout <= -1){
 		res = select(fdCam + 1, &fds, NULL, NULL, NULL);
 	}else{
 		tv.tv_sec = timeout / 1000000;
@@ -349,7 +348,7 @@ int V4L2Capture::getFrame(void **frame_buf, size_t *len, int timeout)
     *frame_buf = buffers[buf.index].start[0];
     *len = buf.m.planes->bytesused;
 	frameIndex = buf.index;
-	
+
     return buf.reserved;
 }
 
@@ -412,33 +411,39 @@ int V4L2Capture::setGain(int value)
 
 int V4L2Capture::setStrobeEnable(int enable)
 {
+	if (enable == strobe_state)
+	{
+		return 0;
+	}
+	strobe_state = enable;
     struct v4l2_control ctrl;
-    
+	  
+    Rpmsg& rpmsg_instance = Rpmsg::getInstance();
+    for (int i = 0; i < LIGHT_NUM; i++){
+        rpmsg_instance.setLightEnable(i, enable == 0 ? 0 : 1, 0);
+    }    
+
     if(enable == 1){
 	    ctrl.id = V4L2_CID_FLASH_STROBE;
     }else{
 	    ctrl.id = V4L2_CID_FLASH_STROBE_STOP;
     }
-    ctrl.value = enable;
+    ctrl.value = (__s32)enable;
     int ret = ioctl(fdCam, VIDIOC_S_CTRL, &ctrl);
-    
-    Rpmsg& rpmsg_instance = Rpmsg::getInstance();
-    for (int i = 0; i < LIGHT_NUM; i++){
-        rpmsg_instance.setLightEnable(i, enable == 0 ? 0 : 1, 0);
-    }    
     
     return ret;
 }
 
 int V4L2Capture::setExposure(int value)
 {
-
+	int ret = 0;
     struct v4l2_control ctrl;
     ctrl.id = V4L2_CID_EXPOSURE;
     ctrl.value = value;
     exposure = value;
-    int ret = ioctl(fdCam, VIDIOC_S_CTRL, &ctrl);
-
+	Rpmsg& rpmsg_instance = Rpmsg::getInstance();
+	ret |= rpmsg_instance.setLightTime(value);
+    ret |= ioctl(fdCam, VIDIOC_S_CTRL, &ctrl);
     return ret;
 }
 
@@ -596,7 +601,21 @@ int V4L2Capture::setCrop(int left, int top, int width, int height)
 /* 获取内核中支持的图片格式 */
 int V4L2Capture::getformat()
 {
-	return -1;
+	int ret = 0;
+    struct v4l2_format fmt;
+
+    fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
+    ret = ioctl(fdCam, VIDIOC_G_FMT, &fmt);
+
+	if (ret < 0)
+	{
+		return ret;
+	}
+ 
+    mWidth = fmt.fmt.pix_mp.width;
+	mHeight = fmt.fmt.pix_mp.height;
+
+	return ret;
 }
 
 /* 帧率 图片大小 设置  1280*800(30/60/120fps)  1280*720(60/120fps)*/
@@ -610,11 +629,9 @@ int V4L2Capture::setFrameRateFormat(int frameRate, int width, int height, int im
 	
     int ret;
 
-	mWidth = width;
-	mHeight = height;
 	fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-	fmt.fmt.pix_mp.width       = width; //replace
-	fmt.fmt.pix_mp.height      = height; //replace
+    fmt.fmt.pix_mp.width       = mWidth;
+    fmt.fmt.pix_mp.height      = mHeight;
 	fmt.fmt.pix_mp.field       = V4L2_FIELD_ANY;
 	fmt.fmt.pix_mp.num_planes  = NUM_PLANES;
 	fmt.fmt.pix_mp.plane_fmt[0].bytesperline  = width;
@@ -704,7 +721,7 @@ struct sensorParam V4L2Capture::getCurrentFrameSensorParam()
     unsigned char *p = &stream_p.parm.raw_data[sizeof(struct v4l2_captureparm)];
     memcpy((void *)&sparam, (void *)p, sizeof(struct sensorParam));
 
-#if 0
+#if 1
     printf("v4l2 frameIndex = %d, paramActive = %d, gain = %d, exp=%d, bright=%d %d %d %d %d, focus=%d\n", 
 		frameIndex, sparam.active, sparam.gain, sparam.exposure, 
 		sparam.lightBright[0], sparam.lightBright[1], sparam.lightBright[2], sparam.lightBright[3], sparam.lightBright[4], sparam.focus);
