@@ -23,7 +23,7 @@ namespace at {
         double GetScore(const cv::Mat &image, at::ARParams &ar_params) {
             double score = 0;
             at::ARParams ar_params_tmp;
-            std::vector <cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params_tmp);
+            std::vector<cv::Rect> rects = barcode_wrapper_->Decode(image, ar_params_tmp);
             if (!rects.empty()) {
                 ar_params = ar_params_tmp;
             }
@@ -82,18 +82,12 @@ namespace at {
         ~ATImpl() = default;
     };
 
-    ATInterface::ATInterface(std::string &dev_name, CamParams &init_params, BarcodeWrapperBase &barcode_wrapper) {
+    ATInterface::ATInterface(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper) {
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
         en_al_ = en_af_ = en_ae_ = en_ar_ = false;
-        barcode_wrapper_ = &barcode_wrapper;
-        at_impl_->ar_obj.Init(*barcode_wrapper_);
-        SetDevice(dev_name, init_params);
-    }
-
-    ATInterface::ATInterface(std::string &dev_name, CamParams &init_params) {
-        at_impl_ = std::make_shared<ATInterface::ATImpl>();
-        en_al_ = en_af_ = en_ae_ = en_ar_ = false;
-        SetDevice(dev_name, init_params);
+        at_impl_->ar_obj.Init(barcode_wrapper);
+        cam_conf_ = cam_conf;
+        SetInitParams(cam_conf);
     }
 
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) {
@@ -101,10 +95,12 @@ namespace at {
         en_af_ = enable_af;
         en_ae_ = enable_ae;
         en_ar_ = enable_ar;
+
         if (enable_al) {
             pipeline_.emplace_back(AL);
             at_impl_->al_obj.end_iter = false;
             at_impl_->al_obj.Init(cam_conf_.MIN_INTENSITY, cam_conf_.MAX_INTENSITY);
+            // Just init the lights which are enabled
             for (int i = 0; i < best_params_.lights.size(); i++) {
                 if (best_params_.lights[i] > 0) {
                     next_params_.lights[i] = at_impl_->al_obj.next_intensity;
@@ -117,7 +113,8 @@ namespace at {
         if (enable_af) {
             pipeline_.emplace_back(AE4AF);
             at_impl_->ae4af_obj.end_iter = false;
-            at_impl_->ae4af_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+            at_impl_->ae4af_obj.Init(cam_conf_.AE_MODE,
+                                     cam_conf_.MIN_ET, cam_conf_.MAX_ET,
                                      cam_conf_.MIN_EG, cam_conf_.MAX_EG);
             next_params_.exp_time = at_impl_->ae4af_obj.next_et;
             next_params_.exp_gain = at_impl_->ae4af_obj.next_eg;
@@ -133,7 +130,8 @@ namespace at {
         if (enable_ae) {
             pipeline_.emplace_back(AE);
             at_impl_->ae_obj.end_iter = false;
-            at_impl_->ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+            at_impl_->ae_obj.Init(cam_conf_.AE_MODE,
+                                  cam_conf_.MIN_ET, cam_conf_.MAX_ET,
                                   cam_conf_.MIN_EG, cam_conf_.MAX_EG);
             next_params_.exp_time = at_impl_->ae_obj.next_et;
             next_params_.exp_gain = at_impl_->ae_obj.next_eg;
@@ -150,6 +148,13 @@ namespace at {
 
         pipeline_.emplace_back(END);
         cur_phase_ = pipeline_.begin();
+    }
+
+    ATInterface::ATInterface(CamConf &cam_conf) {
+        at_impl_ = std::make_shared<ATInterface::ATImpl>();
+        en_al_ = en_af_ = en_ae_ = en_ar_ = false;
+        cam_conf_ = cam_conf;
+        SetInitParams(cam_conf);
     }
 
     void ATInterface::Init(bool enable_al, bool enable_af, bool enable_ae) {
@@ -172,7 +177,8 @@ namespace at {
         if (enable_af) {
             pipeline_.emplace_back(AE4AF);
             at_impl_->ae4af_obj.end_iter = false;
-            at_impl_->ae4af_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+            at_impl_->ae4af_obj.Init(1,
+                                     cam_conf_.MIN_ET, cam_conf_.MAX_ET,
                                      cam_conf_.MIN_EG, cam_conf_.MAX_EG);
             next_params_.exp_time = at_impl_->ae4af_obj.next_et;
             next_params_.exp_gain = at_impl_->ae4af_obj.next_eg;
@@ -188,7 +194,8 @@ namespace at {
         if (enable_ae) {
             pipeline_.emplace_back(AE);
             at_impl_->ae_obj.end_iter = false;
-            at_impl_->ae_obj.Init(cam_conf_.MIN_ET, cam_conf_.MAX_ET,
+            at_impl_->ae_obj.Init(cam_conf_.AE_MODE,
+                                  cam_conf_.MIN_ET, cam_conf_.MAX_ET,
                                   cam_conf_.MIN_EG, cam_conf_.MAX_EG);
             next_params_.exp_time = at_impl_->ae_obj.next_et;
             next_params_.exp_gain = at_impl_->ae_obj.next_eg;
@@ -278,28 +285,16 @@ namespace at {
         return ar_params_;
     }
 
-    void ATInterface::SetDevice(std::string &dev_name, CamParams &init_params) {
-        // Sets the camera device configuration
-        if (dev_name == "VS1000P") {
-            cam_conf_ = vs1000p_conf;
-        } else if (dev_name == "VS1000P@2M") {
-            cam_conf_ = vs1000p2m_conf;
-        } else if (dev_name == "VS800") {
-            cam_conf_ = vs800_conf;
-        } else if (dev_name == "VS2000") {
-            cam_conf_ = vs2000_conf;
-        } else if (dev_name == "VS2000-2"){
-            cam_conf_ = vs2000_2_conf;
-        } else if (dev_name == "VN800"){
-            cam_conf_ = vn800_conf;
-        } else if (dev_name == "VN1000pro"){
-            cam_conf_ = vn1000p_conf;
-        }
+    void ATInterface::SetInitParams(CamConf &cam_conf) {
+        next_params_.lights = cam_conf.INIT_INTENSITIES;
+        next_params_.exp_time = cam_conf.INIT_ET;
+        next_params_.exp_gain = cam_conf.INIT_EG;
+        next_params_.focus_pos = cam_conf.INIT_POS;
 
-        // Loads init camera parameters
-        next_params_ = init_params;
-        best_params_ = init_params;
-        image_roi_ = init_params.roi;
+        best_params_.lights = cam_conf.INIT_INTENSITIES;
+        best_params_.exp_time = cam_conf.INIT_ET;
+        best_params_.exp_gain = cam_conf.INIT_EG;
+        best_params_.focus_pos = cam_conf.INIT_POS;
     }
 
     void ATInterface::UpdateNextParams() {
@@ -356,17 +351,17 @@ namespace at {
 
     std::string ATInterface::GetVersion() {
         // Engineering Version Number
-        #define TRIA_VERSION_E_MAJOR 3
-        #define TRIA_VERSION_E_MINOR 4
-        #define TRIA_VERSION_E_PATCH 0
-        #define TRIA_VERSION_E_RC    1
+#define TRIA_VERSION_E_MAJOR 3
+#define TRIA_VERSION_E_MINOR 5
+#define TRIA_VERSION_E_PATCH 0
+#define TRIA_VERSION_E_RC    0
 
-        #define AUX_STR_EXP(__A) #__A
-        #define AUX_STR(__A) AUX_STR_EXP(__A)
-        #define TRIA_VERSION_E                             \
+#define AUX_STR_EXP(__A) #__A
+#define AUX_STR(__A) AUX_STR_EXP(__A)
+#define TRIA_VERSION_E                             \
             "v" AUX_STR(TRIA_VERSION_E_MAJOR) "." AUX_STR( \
             TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
-        #define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
+#define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
 
         std::string version = std::string(TRIA_VERSION_E);
         if (TRIA_VERSION_E_RC != 0) {
