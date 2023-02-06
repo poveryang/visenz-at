@@ -1,7 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <string.h> 
+#include <unistd.h> 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
@@ -9,10 +9,13 @@
 #include <sys/mman.h>
 #include "mem_manager.h"
 
+#define ZERO_OBJ(ptr, obj_size) \
+	memset((ptr), 0, (obj_size))
+
 struct sm_mem_dev *sm_mem_dev_create(int buf_num, int size)
 {
     int            fd;
-    char  attr[1024];
+    char  attr[1024] = { 0 };
     unsigned long  debug_vma = 0;
     unsigned long  sync_mode = 1;
 	unsigned int  sync_direction = 2;
@@ -28,11 +31,12 @@ struct sm_mem_dev *sm_mem_dev_create(int buf_num, int size)
 	if(!mem_dev){
 		goto ERROR;
 	}
+	ZERO_OBJ(mem_dev, sizeof(struct sm_mem_dev));
 	mem_dev->mem = (udma_buf *)malloc(sizeof(udma_buf) * buf_num);
 	if(!mem_dev->mem){
 		goto ERROR;
 	}
-
+	ZERO_OBJ(mem_dev->mem, sizeof(udma_buf) * buf_num);
 	page_size = getpagesize();
 	size = (size + page_size - 1) & ~(page_size - 1);
 	
@@ -55,6 +59,7 @@ CREATE:
         memset(tmp, 0, sizeof tmp);
         sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/phys_addr", i);
         if ((fd  = open(tmp, O_RDONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
           read(fd, attr, 1024);
           sscanf(attr, "%x", &mem->phys_addr);
           close(fd);
@@ -63,6 +68,7 @@ CREATE:
         memset(tmp, 0, sizeof tmp);
         sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/size", i);
         if ((fd  = open(tmp, O_RDONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
           read(fd, attr, 1024);
           sscanf(attr, "%d", &mem->size);
           close(fd);
@@ -70,6 +76,7 @@ CREATE:
         memset(tmp, 0, sizeof tmp);
         sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/sync_mode", i);
         if ((fd  = open(tmp, O_WRONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
           sprintf(attr, "%d", sync_mode);
           write(fd, attr, strlen(attr));
           close(fd);
@@ -78,6 +85,7 @@ CREATE:
         memset(tmp, 0, sizeof tmp);
         sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/sync_direction", i);
         if ((fd  = open(tmp, O_WRONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
           sprintf(attr, "%d", sync_direction);
           write(fd, attr, strlen(attr));
           close(fd);
@@ -86,6 +94,7 @@ CREATE:
         memset(tmp, 0, sizeof tmp);
         sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/sync_for_cpu", i);
         if ((fd  = open(tmp, O_WRONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
           sprintf(attr, "%d", sync_for_cpu);
           write(fd, attr, strlen(attr));
           close(fd);
@@ -94,6 +103,7 @@ CREATE:
 		memset(tmp, 0, sizeof tmp);
 		sprintf(tmp, "/sys/class/u-dma-buf/udmabuf%d/debug_vma", i);
 		if ((fd  = open(tmp, O_WRONLY)) != -1) {
+		  ZERO_OBJ(attr, sizeof(attr));
 		  sprintf(attr, "%d", debug_vma);
 		  write(fd, attr, strlen(attr));
 		  close(fd);

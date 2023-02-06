@@ -16,7 +16,7 @@
 #include <mutex>
 
 //#define USE_2M_SENSOR 
-#define BUFFER_NUM				16
+#define BUFFER_NUM				8
 
 #define LIGHT_BRIGHT_MAX		24
 //#define DMA_M2M_ENABLE 	
@@ -133,7 +133,8 @@ private:
     int subfb = -1;    
     int frameIndex;
     int light_status = 0;
-    
+	int strobe_state = 0;   
+ 
     struct sensorParam sparam;
 	
     struct timeval m_newframetime;

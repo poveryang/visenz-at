@@ -8,7 +8,11 @@
 #include <condition_variable>
 #include <pthread.h>
 
-#define LIGHT_NUM				4
+#define LIGHT_NUM				(4)
+#define MIN_LIGHT_TIME          (30)
+#define MAX_LIGHT_TIME          (2000)
+#define LIGHT_BEFORE_TIME		(1000)
+
 struct light_info
 {
     int num;
@@ -143,12 +147,15 @@ public:
      */
     int setPlcStatus(int num, int value);
     
+	int setLightTime(int time);
+
 private:
     const char *rpmsg_name = "/dev/ttyRPMSG30";     
     const char *light_head = "light";       //light head   
     const char *key_head = "key";           //key head
     const char *led_head = "led";           //led head
     const char *plc_head = "plc";           //plc head   
+	const char *time_head = "exposure";     //time head
     const char *camera_open = "camera1";
     const char *camera_close = "camera0";
     const char* const COMMAND_KEY0 = "key10";

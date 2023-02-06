@@ -64,7 +64,7 @@ int Rpmsg::Rpmsg_SendDate(const char *send_buf, int data_len)
     {
         return -1;
     }
-//    printf("send_buf = %s", send_buf);
+    // printf("send_buf = %s", send_buf);
     ret = write(fd_rpmsg, send_buf, data_len);
     if (ret != data_len)
     {
@@ -180,7 +180,7 @@ int Rpmsg::setLightBright(int num, int value)
     m_light[num].num = num;
     m_light[num].value = value;
     sprintf(command, "%s%d%d%d%d", light_head, num, m_light[num].state, value/10, value%10);
-//    printf("command = %s\n",command);
+    // printf("command = %s\n",command);
     ret = Rpmsg_SendDate(command, strlen(command));
     
     return ret >= 0 ? 0 : -1;
@@ -281,3 +281,23 @@ int Rpmsg::setPlcStatus(int num, int value)
 
     return ret >= 0 ? 0 : -1; 
 }
+
+int Rpmsg::setLightTime(int time)
+{
+    int ret = 0;
+    char command[20] = { 0 };
+    if (time > MAX_LIGHT_TIME) {
+        time = MAX_LIGHT_TIME;
+    } else if (time < MIN_LIGHT_TIME) {
+        time = MIN_LIGHT_TIME;
+    }
+	time = time + LIGHT_BEFORE_TIME;
+    //sprintf(command, "%s%1d%1d", time_head,  ((time >> 8) & 0xFF) , (time & 0xFF));
+	snprintf(command, sizeof(command), "%s%d", time_head, time);
+
+    ret = Rpmsg_SendDate(command, strlen(command));
+	printf("smore command = %s\n",command);    
+	return 0;
+}
+
+

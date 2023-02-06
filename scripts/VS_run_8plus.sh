@@ -2,6 +2,7 @@
 #!/usr/bin/bash
 
 # Set remote device ip
+#DEV_IP=169.254.19.139
 DEV_IP=169.254.19.136
 
 # Clean local files
@@ -9,8 +10,8 @@ SAVE_DIR=./AT_RES/VS1000pro/$(date +%m%d%H%M)
 echo "$SAVE_DIR" && mkdir "$SAVE_DIR"
 
 # Scp execute file and lib to remote device
-scp -O ./release/imx8plus/lib/libAT.so root@$DEV_IP:/tmp
-scp -O ./release/imx8plus/bin/AT_TEST root@$DEV_IP:/tmp
+scp -O ./release/VS/imx8plus/lib/libAT.so root@$DEV_IP:/tmp
+scp -O ./release/VS/imx8plus/bin/AT_TEST root@$DEV_IP:/tmp
 
 # Connect to remote device(Scanner)
 ssh -tt root@$DEV_IP << remotessh

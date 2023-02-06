@@ -65,6 +65,8 @@ namespace at {
          */
         ATInterface(std::string &dev_name, CamParams &init_params, BarcodeWrapperBase &barcode_wrapper);
 
+        ATInterface(std::string &dev_name, CamParams &init_params);
+
         /**
          * The is the main function of the ATInterface class. It is called to run the AT algorithm
          *
@@ -82,6 +84,8 @@ namespace at {
          * @param enable_ar Enable/Disable Auto recognition
          */
         void Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar);
+
+        void Init(bool enable_al, bool enable_af, bool enable_ae);
 
         /**
          * Used to get the next camera parameters.
@@ -144,6 +148,8 @@ namespace at {
 
         // A pointer to the BarcodeWrapperBase class.
         BarcodeWrapperBase *barcode_wrapper_;
+
+        double score;
 
         std::map<double, CamParams> score_params_;
 
