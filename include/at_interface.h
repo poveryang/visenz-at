@@ -20,26 +20,29 @@ namespace at {
         /** Image Resolution*/
         int IMG_WIDTH;  // image width
         int IMG_HEIGHT;  // image height
-        cv::Rect2i ROI;  // roi of the image
 
         /** Fill Light control*/
         int MIN_INTENSITY;  // minimum light intensity
         int MAX_INTENSITY;  // maximum light intensity
-        std::vector<int> INIT_INTENSITIES;  // initial light intensities
 
         /** Exposure control*/
-        int AE_MODE;  // 0:auto, 1: shutter priority, 2: gain priority
         int MIN_ET;  // minimum exposure time
         int MAX_ET;  // maximum exposure time
         int MIN_EG;  // minimum exposure gain
         int MAX_EG;  // maximum exposure gain
-        int INIT_ET;  // initial exposure time
-        int INIT_EG;  // initial exposure gain
+
 
         /** Focus control*/
         int LENS_TYPE;  // 0: mechanical lens, 1: liquid lens
         int START_POS;  // start position of lens
         int END_POS; // end position of lens
+
+        /** Initial camera parameters*/
+        cv::Rect2i ROI;  // roi of the image
+        std::vector<int> INIT_INTENSITIES;  // initial light intensities
+        int AE_MODE;  // 0:auto, 1: shutter priority, 2: gain priority
+        int INIT_ET;  // initial exposure time
+        int INIT_EG;  // initial exposure gain
         int INIT_POS;  // initial position of lens
     };
 
@@ -123,7 +126,7 @@ namespace at {
          * Used to get the version of the AT.
          * @return the version of the AT
          */
-        static std::string GetVersion();
+        std::string GetVersion();
 
         ~ATInterface() = default;
 

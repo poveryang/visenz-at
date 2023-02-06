@@ -14,6 +14,12 @@ namespace at{
             .LENS_TYPE = 0,
             .START_POS = 0,
             .END_POS = 410,
+            .ROI = cv::Rect2i(0, 0, 1280, 800),
+            .INIT_INTENSITIES = {12, 12, 12, 12},
+            .AE_MODE = 0,
+            .INIT_ET = 1000,
+            .INIT_EG = 16,
+            .INIT_POS = 60,
     };
 
     CamConf vs1000p2m_conf = {
