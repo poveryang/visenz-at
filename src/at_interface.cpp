@@ -295,6 +295,8 @@ namespace at {
         best_params_.exp_time = cam_conf.INIT_ET;
         best_params_.exp_gain = cam_conf.INIT_EG;
         best_params_.focus_pos = cam_conf.INIT_POS;
+
+        image_roi_ = cam_conf.ROI;
     }
 
     void ATInterface::UpdateNextParams() {
