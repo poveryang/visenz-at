@@ -25,7 +25,7 @@ namespace at {
         /** Fill Light control*/
         int MIN_INTENSITY;  // minimum light intensity
         int MAX_INTENSITY;  // maximum light intensity
-        std::vector<int> INIT_INTENSITY;  // initial light intensity
+        std::vector<int> INIT_INTENSITIES;  // initial light intensities
 
         /** Exposure control*/
         int AE_MODE;  // 0:auto, 1: shutter priority, 2: gain priority
@@ -57,28 +57,14 @@ namespace at {
     public:
         /**
          * The constructor of the ATInterface for VS series.
+         *
          * @param cam_conf Camera configuration
          * @param barcode_wrapper The wrapper of the Barcode SDK
          */
         ATInterface(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper);
 
         /**
-         * The constructor of the ATInterface for VN series.
-         * @param cam_conf Camera configuration
-         * @param init_params The initial camera parameters.
-         */
-        ATInterface(std::string &dev_name, CamParams &init_params);
-
-        /**
-         * The is the main function of the ATInterface class. It is called to run the AT algorithm
-         *
-         * @param image the input image
-         * @return whether the iteration is ended
-         */
-        bool Run(const cv::Mat &image);
-
-        /**
-         * It initializes the ATInterface class.
+         * The initial function to enable/disable the corresponding module for VS series.
          *
          * @param enable_al Enable/Disable Auto Light
          * @param enable_af Enable/Disable Auto Focus
@@ -87,7 +73,29 @@ namespace at {
          */
         void Init(bool enable_al, bool enable_af, bool enable_ae, bool enable_ar);
 
+        /**
+         * The constructor of the ATInterface for VN series.
+         *
+         * @param cam_conf Camera configuration
+         */
+        explicit ATInterface(CamConf &cam_conf);
+
+        /**
+         * The initial function to enable/disable the corresponding module for VN series.
+         *
+         * @param enable_al Enable/Disable Auto Light
+         * @param enable_af Enable/Disable Auto Focus
+         * @param enable_ae Enable/Disable Auto Exposure
+         */
         void Init(bool enable_al, bool enable_af, bool enable_ae);
+
+        /**
+         * The main function to run the Auto Tuning process.
+         *
+         * @param image the input image
+         * @return true if the Auto Tuning process is finished, otherwise false.
+         */
+        bool Run(const cv::Mat &image);
 
         /**
          * Used to get the next camera parameters.
@@ -115,7 +123,7 @@ namespace at {
          * Used to get the version of the AT.
          * @return the version of the AT
          */
-        std::string GetVersion();
+        static std::string GetVersion();
 
         ~ATInterface() = default;
 
@@ -148,31 +156,25 @@ namespace at {
         // Variable that stores the parameters of the AR module.
         ARParams ar_params_;
 
-        // A pointer to the BarcodeWrapperBase class.
-        BarcodeWrapperBase *barcode_wrapper_;
-
-        double score;
+        double score = 0;
 
         std::map<double, CamParams> score_params_;
 
     private:
         /**
-         * The main function of the ATInterface class. It is called to run the AT algorithm.
+         * The main function to execute all the phases sequentially.
          */
         void SequentialExec(const cv::Mat &image);
 
         /**
-         * Update camera hardware parameters
+         * Update the camera parameters
          */
         void UpdateNextParams();
 
         /**
-         * It sets the camera device configuration, and loads init camera parameters.
-         *
-         * @param dev_name The name of the device.
-         * @param init_params The initial camera parameters.
+         * Set the initial camera parameters.
          */
-        void SetDevice(std::string &dev_name, CamParams &init_params);
+        void SetInitParams(CamConf &cam_conf);
     };
 }
 
