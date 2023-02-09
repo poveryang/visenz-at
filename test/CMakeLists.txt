@@ -10,8 +10,7 @@ if (${TARGET_SERIES} MATCHES "VS")
     elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
         # Barcode
         load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.24.0")
-            set(DEVICE VS1000Pro)
-#        set(DEVICE VS2000)
+        set(DEVICE VS1000Pro)
     endif ()
 
     set(INC_DIR "./drivers/${DEVICE}/" "./")
@@ -25,7 +24,6 @@ elseif (${TARGET_SERIES} MATCHES "VN")
     if (${TARGET_PLATFORM} MATCHES "imx8mini")
         set(DEVICE VS800)
     elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
-        #    set(DEVICE VS1000Pro)
         set(DEVICE VS1000Pro)
     endif ()
 

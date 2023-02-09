@@ -7,9 +7,28 @@
 #include "cam_config.h"
 
 
-void TestATOnline() {
+// Map of camera parameters
+std::map<std::string, at::CamConf> cam_conf_map = {
+        {"vs1000p", at::vs1000p_conf},
+        {"vs800", at::vs800_conf}
+};
+
+
+// Get Barcode wrapper
+BarcodeWrapper GetBarcodeWrapper(const std::string& dev_name) {
+    smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
+    if (dev_name == "vs1000p") {
+        barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_100w.json");
+    }
+    barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_100w.json");
+    BarcodeWrapper barcode_wrapper(barcode_sdk);
+    return barcode_wrapper;
+}
+
+
+void TestATOnline(const std::string& dev_name) {
     // 1. Prepare camera parameters
-    at::CamConf cam_conf = at::vs1000p_conf;
+    at::CamConf cam_conf = cam_conf_map[dev_name];
 
     // 2. Set AR parameters and Barcode wrapper
     at::ARParams ar_params;
@@ -19,8 +38,6 @@ void TestATOnline() {
 
     // 3. Initialize AT algorithm
     at::ATInterface at_obj(cam_conf, barcode_wrapper);
-    std::string at_version = at_obj.GetVersion();
-    printf("AT Version: %s \n", at_version.c_str());
 
     // 4. Set enable flags of the four algorithms
     bool enable_al, enable_af, enable_ae, enable_ar;
@@ -31,9 +48,12 @@ void TestATOnline() {
     at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
 
     // 5. Execute AT algorithm
-    printf("\n\n>>>>>===== AT has been started <<<<<=====\n\n");
-    bool end_iter = false;
+    std::string at_version = at_obj.GetVersion();
+    printf(">>>>>===== AT version: %s <<<<<=====\n", at_version.c_str());
+    printf(">>>>>===== AT has been started <<<<<=====\n");
+
     int iter = 0;
+    bool end_iter = false;
     at::CamParams cam_params = at_obj.GetNextParams();
     InitCap(cam_params);
     while (!end_iter) {
@@ -59,7 +79,13 @@ void TestATOnline() {
     printf(">>>>>===== AT has been ended <<<<<=====\n\n");
 }
 
-int main() {
-    TestATOnline();
+
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Please pass the device name as the first argument.\n");
+        return 0;
+    }
+    std::string dev_name = argv[1];
+    TestATOnline(dev_name);
     return 0;
 }

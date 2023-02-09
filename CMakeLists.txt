@@ -4,7 +4,7 @@ project(ViSenz_AT)
 set(CMAKE_C_COMPILER_WORKS 1)
 set(CMAKE_CXX_COMPILER_WORKS 1)
 
-option(AT_TEST "Build AT UnitTest" ON)
+option(BUILD_AT_TEST "Build AT UnitTest" ON)
 option(SUBMODULE_TEST "Build AT Submodule's UnitTest" OFF)
 
 # 1. Load dependent library
@@ -46,7 +46,7 @@ install(TARGETS AT
 install(FILES ${AT_PUBLIC_HEADER}
         DESTINATION include)
 
-if (${AT_TEST})
+if (${BUILD_AT_TEST})
     add_subdirectory(test)
     install(TARGETS AT_TEST
             DESTINATION bin)
