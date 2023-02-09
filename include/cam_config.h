@@ -48,6 +48,12 @@ namespace at{
             .LENS_TYPE = 1,
             .START_POS = 0,
             .END_POS = 1023,
+            .ROI = cv::Rect2i(0, 0, 1280, 800),
+            .INIT_INTENSITIES = {1, 1, 1, 1},
+            .AE_MODE = 0,
+            .INIT_ET = 1000,
+            .INIT_EG = 16,
+            .INIT_POS = 60,
     };
 
     CamConf vs2000_conf = {
