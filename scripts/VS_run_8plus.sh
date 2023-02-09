@@ -2,8 +2,7 @@
 #!/usr/bin/bash
 
 # Set remote device ip
-#DEV_IP=169.254.19.139
-DEV_IP=169.254.19.136
+DEV_IP=192.168.8.21
 
 # Clean local files
 SAVE_DIR=./AT_RES/VS1000pro/$(date +%m%d%H%M)
@@ -22,7 +21,7 @@ export LD_LIBRARY_PATH=/tmp:$LD_LIBRARY_PATH
 
 mkdir /tmp/at_res
 cd /tmp
-./AT_TEST
+./AT_TEST vs1000p
 exit
 remotessh
 
