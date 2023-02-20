@@ -346,7 +346,6 @@ namespace at {
                 cur_phase_++;
             }
         } else if (*cur_phase_ == AR) {
-//            barcode_wrapper_->SetParams(ar_params_);
             cur_phase_++;
         }
     }
@@ -355,7 +354,7 @@ namespace at {
         // Engineering Version Number
 #define TRIA_VERSION_E_MAJOR 3
 #define TRIA_VERSION_E_MINOR 5
-#define TRIA_VERSION_E_PATCH 0
+#define TRIA_VERSION_E_PATCH 1
 #define TRIA_VERSION_E_RC    0
 
 #define AUX_STR_EXP(__A) #__A
