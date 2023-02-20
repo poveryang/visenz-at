@@ -296,7 +296,7 @@ int Rpmsg::setLightTime(int time)
 	snprintf(command, sizeof(command), "%s%d", time_head, time);
 
     ret = Rpmsg_SendDate(command, strlen(command));
-	printf("smore command = %s\n",command);    
+//	printf("smore command = %s\n",command);
 	return 0;
 }
 
