@@ -11,9 +11,15 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 0,
             .START_POS = 0,
             .END_POS = 410,
-            .LENS_TYPE = "mechanical",
+            .ROI = cv::Rect2i(0, 0, 1280, 800),
+            .INIT_INTENSITIES = {12, 12, 12, 12},
+            .AE_MODE = 0,
+            .INIT_ET = 1000,
+            .INIT_EG = 16,
+            .INIT_POS = 60,
     };
 
     CamConf vs1000p2m_conf = {
@@ -25,9 +31,9 @@ namespace at{
             .MAX_ET = 1000000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 0,
             .START_POS = 0,
             .END_POS = 410,
-            .LENS_TYPE = "mechanical",
     };
 
     CamConf vs800_conf = {
@@ -39,9 +45,15 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 1,
             .START_POS = 0,
             .END_POS = 1023,
-            .LENS_TYPE = "liquid",
+            .ROI = cv::Rect2i(0, 0, 1280, 800),
+            .INIT_INTENSITIES = {1, 1, 1, 1},
+            .AE_MODE = 0,
+            .INIT_ET = 1000,
+            .INIT_EG = 16,
+            .INIT_POS = 60,
     };
 
     CamConf vs2000_conf = {
@@ -53,9 +65,9 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 0,
             .START_POS = 0,
             .END_POS = 410,
-            .LENS_TYPE = "mechanical",
     };
 
     CamConf vs2000_2_conf = {
@@ -67,9 +79,9 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 1,
             .START_POS = 0,
             .END_POS = 1023,
-            .LENS_TYPE = "liquid",
     };
 
     CamConf vn800_conf = {
@@ -81,9 +93,9 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 1,
             .START_POS = 0,
             .END_POS = 1023,
-            .LENS_TYPE = "liquid",
     };
 
     CamConf vn1000p_conf = {
@@ -95,9 +107,9 @@ namespace at{
             .MAX_ET = 10000,
             .MIN_EG = 1,
             .MAX_EG = 255,
+            .LENS_TYPE = 0,
             .START_POS = 0,
             .END_POS = 410,
-            .LENS_TYPE = "mechanical",
     };
 }
 

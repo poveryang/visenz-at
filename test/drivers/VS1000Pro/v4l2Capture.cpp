@@ -260,7 +260,7 @@ int V4L2Capture::getNewestFrame(void **frame_buf, size_t *len, int timeout)
         // buffer is full.
         if (reserved >= BUFFER_NUM - 2)
         {
-            printf("warnning: buffer is full, it will clear all and get newest frame\n");
+//            printf("warnning: buffer is full, it will clear all and get newest frame\n");
             full_state = 1;
         }
         // get last frame in buffer queue and clear other frame. clear all when buffer is full.
@@ -721,7 +721,7 @@ struct sensorParam V4L2Capture::getCurrentFrameSensorParam()
     unsigned char *p = &stream_p.parm.raw_data[sizeof(struct v4l2_captureparm)];
     memcpy((void *)&sparam, (void *)p, sizeof(struct sensorParam));
 
-#if 1
+#if 0
     printf("v4l2 frameIndex = %d, paramActive = %d, gain = %d, exp=%d, bright=%d %d %d %d %d, focus=%d\n", 
 		frameIndex, sparam.active, sparam.gain, sparam.exposure, 
 		sparam.lightBright[0], sparam.lightBright[1], sparam.lightBright[2], sparam.lightBright[3], sparam.lightBright[4], sparam.focus);
