@@ -44,13 +44,12 @@ void TestATOnline(const std::string& dev_name) {
     enable_al = true;
     enable_af = true;
     enable_ae = true;
-    enable_ar = true;
+    enable_ar = false;
     at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
 
     // 5. Execute AT algorithm
     std::string at_version = at_obj.GetVersion();
-    printf(">>>>>===== AT version: %s <<<<<=====\n", at_version.c_str());
-    printf(">>>>>===== AT has been started <<<<<=====\n");
+    printf(">>>>>===== AT (version: %s) has been started <<<<<=====\n", at_version.c_str());
 
     int iter = 0;
     bool end_iter = false;

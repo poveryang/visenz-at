@@ -2,7 +2,8 @@
 #include "al_interface.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-#include "cam_config.h"
+#include "hmap_generator.h"
+
 
 namespace at {
     class ARInterface {
@@ -77,7 +78,15 @@ namespace at {
         ae::AEInterface ae_obj;
         ARInterface ar_obj;
 
-        ATImpl() = default;
+        // TODO: refactor this
+        std::string precision = "uint8";
+        std::string model_path = "/tmp/hmap-v3-e99-uint8.tmfile";
+        std::string context_name = "timvx";
+        HeatMapGenerator hmap_generator = HeatMapGenerator(context_name, precision);
+
+        ATImpl(){
+            hmap_generator.Init(model_path);
+        };
 
         ~ATImpl() = default;
     };
@@ -208,7 +217,7 @@ namespace at {
     }
 
     bool ATInterface::Run(const cv::Mat &image) {
-        if (*cur_phase_ != END) {
+        if (*cur_phase_ > END) {
             SequentialExec(image);
             UpdateNextParams();
             return false;
@@ -269,7 +278,16 @@ namespace at {
                 std::cout << "[==>ViSenz-AR is done ]" << std::endl;
                 break;
             case END:
+            {
+                printf("[==>ViSenz-HAMP is in progress] ");
+                // preprocess image using hamp_generator
+                cv::Mat image_copy = image.clone();
+                cv::Mat in_image = at_impl_->hmap_generator.PreProcess(image_copy);
+                cv::Mat hmap = at_impl_->hmap_generator.Infer(in_image);
+                cv::Mat hmap_post = at_impl_->hmap_generator.PostProcess(hmap);
+                cv::imwrite("/tmp/hmap.png", hmap_post);
                 break;
+            }
         }
     }
 
@@ -354,7 +372,7 @@ namespace at {
         // Engineering Version Number
 #define TRIA_VERSION_E_MAJOR 3
 #define TRIA_VERSION_E_MINOR 5
-#define TRIA_VERSION_E_PATCH 1
+#define TRIA_VERSION_E_PATCH 2
 #define TRIA_VERSION_E_RC    0
 
 #define AUX_STR_EXP(__A) #__A
