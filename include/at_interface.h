@@ -121,12 +121,11 @@ namespace at {
          */
         ARParams GetARParams();
 
-
         /**
          * Used to get the version of the AT.
          * @return the version of the AT
          */
-        std::string GetVersion();
+        static std::string GetVersion();
 
         ~ATInterface() = default;
 

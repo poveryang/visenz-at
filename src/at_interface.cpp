@@ -3,6 +3,7 @@
 #include "af_interface.h"
 #include "ae_interface.h"
 #include "hmap_generator.h"
+#include "version.h"
 
 
 namespace at {
@@ -84,7 +85,7 @@ namespace at {
         std::string context_name = "timvx";
         HeatMapGenerator hmap_generator = HeatMapGenerator(context_name, precision);
 
-        ATImpl(){
+        ATImpl() {
             hmap_generator.Init(model_path);
         };
 
@@ -277,8 +278,7 @@ namespace at {
                 printf("Barcode score = %.2f\n", score);
                 std::cout << "[==>ViSenz-AR is done ]" << std::endl;
                 break;
-            case END:
-            {
+            case END: {
                 printf("[==>ViSenz-HAMP is in progress] ");
                 // preprocess image using hamp_generator
                 cv::Mat image_copy = image.clone();
@@ -369,23 +369,11 @@ namespace at {
     }
 
     std::string ATInterface::GetVersion() {
-        // Engineering Version Number
-#define TRIA_VERSION_E_MAJOR 3
-#define TRIA_VERSION_E_MINOR 5
-#define TRIA_VERSION_E_PATCH 2
-#define TRIA_VERSION_E_RC    0
+        std::string at_version =
+                std::to_string(AT_VERSION_MAJOR) + "." +
+                std::to_string(AT_VERSION_MINOR) + "." +
+                std::to_string(AT_VERSION_PATCH);
 
-#define AUX_STR_EXP(__A) #__A
-#define AUX_STR(__A) AUX_STR_EXP(__A)
-#define TRIA_VERSION_E                             \
-            "v" AUX_STR(TRIA_VERSION_E_MAJOR) "." AUX_STR( \
-            TRIA_VERSION_E_MINOR) "." AUX_STR(TRIA_VERSION_E_PATCH)
-#define TRIA_VERSION_RC  "-rc" AUX_STR(TRIA_VERSION_E_RC)
-
-        std::string version = std::string(TRIA_VERSION_E);
-        if (TRIA_VERSION_E_RC != 0) {
-            version += TRIA_VERSION_RC;
-        }
-        return version;
+        return at_version;
     }
 }
