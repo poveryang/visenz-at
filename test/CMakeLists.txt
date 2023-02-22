@@ -9,7 +9,7 @@ if (${TARGET_SERIES} MATCHES "VS")
         load_barcode("/opt/libs_aarch64/Barcode_mini8_0.24.0")
     elseif (${TARGET_PLATFORM} MATCHES "imx8plus")
         # Barcode
-        load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.24.0")
+        load_barcode("/opt/libs_aarch64/Barcode_8plus_dl_0.24.14")
         set(DEVICE VS1000Pro)
     endif ()
 
