@@ -5,12 +5,13 @@
 DEV_IP=192.168.8.21
 
 # Clean local files
-SAVE_DIR=./AT_RES/VS1000pro/$(date +%m%d%H%M)
-echo "$SAVE_DIR" && mkdir "$SAVE_DIR"
+SAVE_DIR=${HOME}/Downloads/AT_RES_VS1000P/$(date +%m%d%H%M)
+echo "$SAVE_DIR" && mkdir "$SAVE_DIR" -p
 
 # Scp execute file and lib to remote device
 scp -O ./release/VS/imx8plus/lib/libAT.so root@$DEV_IP:/tmp
 scp -O ./release/VS/imx8plus/bin/AT_TEST root@$DEV_IP:/tmp
+scp -O ./modules/hmap-generator/test/hmap-v3-e99-uint8.tmfile root@$DEV_IP:/tmp
 
 # Connect to remote device(Scanner)
 ssh -tt root@$DEV_IP << remotessh
@@ -31,7 +32,5 @@ scp -O -q root@$DEV_IP:/tmp/at_res/\* $SAVE_DIR
 # Clean remote files
 ssh -tt root@$DEV_IP << remotessh
 rm -r /tmp/at_res
-rm /tmp/AT_TEST
-rm /tmp/libAT.so
 exit
 remotessh
