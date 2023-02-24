@@ -218,8 +218,8 @@ namespace at {
     }
 
     bool ATInterface::Run(const cv::Mat &image) {
-        if (*cur_phase_ > END) {
-            SequentialExec(image);
+        SequentialExec(image);
+        if (*cur_phase_ != END) {
             UpdateNextParams();
             return false;
         } else {
@@ -285,7 +285,7 @@ namespace at {
                 cv::Mat in_image = at_impl_->hmap_generator.PreProcess(image_copy);
                 cv::Mat hmap = at_impl_->hmap_generator.Infer(in_image);
                 cv::Mat hmap_post = at_impl_->hmap_generator.PostProcess(hmap);
-                cv::imwrite("/tmp/hmap.png", hmap_post);
+                cv::imwrite("/tmp/at_res/hmap.png", hmap_post);
                 break;
             }
         }
