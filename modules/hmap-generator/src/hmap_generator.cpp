@@ -6,7 +6,6 @@ HeatMapGenerator::HeatMapGenerator(const std::string &context_name, const std::s
     precision_ = precision;
 }
 
-
 void HeatMapGenerator::Init(const std::string& model_path) {
     /* Set precision */
     int unit_size;
@@ -90,18 +89,21 @@ void HeatMapGenerator::Init(const std::string& model_path) {
     get_tensor_quant_param(output_tensor_, &output_scale, &output_zero_point, 1);
 }
 
-
 cv::Mat HeatMapGenerator::Infer(cv::Mat &image) {
-    if (precision_ == "fp32"){
-        return InferFP32(image);
-    } else if (precision_ == "uint8"){
-        return InferUInt8(image);
+    cv::Mat in_img = PostProcess(image);
+    cv::Mat out_img;
+    if (precision_ == "fp32") {
+        out_img = InferFP32(in_img);
+    } else if (precision_ == "uint8") {
+        out_img = InferUInt8(in_img);
     } else {
         fprintf(stderr, "Precision not supported.\n");
         exit(1);
     }
-}
 
+    out_img = PreProcess(out_img);
+    return out_img;
+}
 
 cv::Mat HeatMapGenerator::InferFP32(cv::Mat &image) {
     /* 1. set image data to input tensor */
@@ -128,7 +130,6 @@ cv::Mat HeatMapGenerator::InferFP32(cv::Mat &image) {
     return heatmap;
 }
 
-
 cv::Mat HeatMapGenerator::InferUInt8(cv::Mat &image) {
     /* 1. set image data to input tensor */
     auto *image_data = image.data;
@@ -153,7 +154,6 @@ cv::Mat HeatMapGenerator::InferUInt8(cv::Mat &image) {
 
     return heatmap;
 }
-
 
 HeatMapGenerator::~HeatMapGenerator() {
     /* release tengine */

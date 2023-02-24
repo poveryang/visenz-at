@@ -30,7 +30,7 @@ ADD_LIBRARY(hmap_generator STATIC src/hmap_generator.cpp)
 
 TARGET_INCLUDE_DIRECTORIES(hmap_generator PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${PROJECT_SOURCE_DIR}/3rdparty/tengine/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/tengine/include
         )
 TARGET_LINK_LIBRARIES(hmap_generator PUBLIC
         ${TENGINE_LIBS}
