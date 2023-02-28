@@ -14,7 +14,7 @@ void InitCap(at::CamParams &cam_params, int raw_bit){
     vcap.startCapture();
     vcap.setLightAim(0);
 
-    vcap.setStrobeEnable(1);
+    vcap.setStrobeEnable(0);
     vcap.setLightBright(0, cam_params.lights[0]);
     vcap.setLightBright(1, cam_params.lights[1]);
     vcap.setLightBright(2, cam_params.lights[2]);
@@ -40,6 +40,7 @@ cv::Mat ATCapImg(at::CamParams &cam_params, int raw_bit)
     vcap.setGain(cam_params.exp_gain);
     vcap.setLensFocus(cam_params.focus_pos);
 
+    vcap.setStrobeEnable(1);
     while (true){
         int ret = vcap.getNewestFrame(reinterpret_cast<void **>(&frame_buf),
                                       static_cast<size_t *>(&frame_size), 2000000);
@@ -53,6 +54,7 @@ cv::Mat ATCapImg(at::CamParams &cam_params, int raw_bit)
             sensor_params.exposure == cam_params.exp_time &&
             sensor_params.gain == cam_params.exp_gain &&
             sensor_params.focus == cam_params.focus_pos){
+            vcap.setStrobeEnable(0);
             break;
         } else{
             vcap.backFrame();

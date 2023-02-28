@@ -29,6 +29,8 @@ BarcodeWrapper GetBarcodeWrapper(const std::string& dev_name) {
 void TestATOnline(const std::string& dev_name) {
     // 1. Prepare camera parameters
     at::CamConf cam_conf = cam_conf_map[dev_name];
+    cam_conf.INIT_POS = 87;
+    cam_conf.INIT_INTENSITIES = {1, 1, 1, 1};
 
     // 2. Set AR parameters and Barcode wrapper
     at::ARParams ar_params;
