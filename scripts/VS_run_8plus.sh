@@ -11,7 +11,8 @@ echo "$SAVE_DIR" && mkdir "$SAVE_DIR" -p
 # Scp execute file and lib to remote device
 scp -O ./release/VS/imx8plus/lib/libAT.so root@$DEV_IP:/tmp
 scp -O ./release/VS/imx8plus/bin/AT_TEST root@$DEV_IP:/tmp
-scp -O ./modules/hmap-generator/test/hmap-v3-e99-uint8.tmfile root@$DEV_IP:/tmp
+scp -O ./modules/hmap-generator/model/hmap-uint8-v7k-kl.tmfile root@$DEV_IP:/tmp
+scp -O ./modules/hmap-generator/model/hmap-v3-e99-fp32.tmfile root@$DEV_IP:/tmp
 
 # Connect to remote device(Scanner)
 ssh -tt root@$DEV_IP << remotessh
