@@ -8,7 +8,7 @@ namespace at{
             .MIN_INTENSITY = 1,
             .MAX_INTENSITY = 24,
             .MIN_ET = 20,
-            .MAX_ET = 10000,
+            .MAX_ET = 39000,
             .MIN_EG = 1,
             .MAX_EG = 255,
             .LENS_TYPE = 0,

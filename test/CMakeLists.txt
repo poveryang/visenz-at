@@ -8,7 +8,7 @@ IF (${TARGET_PLATFORM} MATCHES "imx8mini")
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.24.0")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
     SET(DEVICE VS1000Pro)
-    LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.24.14")
+    LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.25.3")
 ENDIF ()
 
 # Build AT_TEST
