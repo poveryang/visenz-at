@@ -14,9 +14,15 @@ public:
 
     cv::Mat Infer(cv::Mat& image);
 
+    double InferScore(cv::Mat& image);
+
     cv::Mat InferFP32(cv::Mat& image);
 
     cv::Mat InferUInt8(cv::Mat& image);
+
+    cv::Rect2i FindRect(cv::Mat& image);
+
+    double CalcScore(const cv::Mat &image);
 
     cv::Mat PreProcess(cv::Mat& image) const;
 

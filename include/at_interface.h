@@ -10,6 +10,7 @@ namespace at {
         AL,
         AE4AF,
         AF,
+        EF,
         AE,
         AR,
         END,
@@ -138,6 +139,8 @@ namespace at {
         // Store the ROI of the image.
         cv::Rect2i image_roi_;
 
+        bool object_detected_ = false;
+
         std::vector<ATPhase> pipeline_;
 
         // Variable that is used to keep track of the current phase of the Auto Tuning process.
@@ -177,6 +180,8 @@ namespace at {
          * Set the initial camera parameters.
          */
         void SetInitParams(CamConf &cam_conf);
+
+        static double CalcScore(const cv::Mat &image);
     };
 }
 

@@ -33,57 +33,57 @@ public:
     }
 
     void SetOriginParams() override {
-        barcode_sdk_->SetBarcodeType(origin_params.barcode_type);
-        barcode_sdk_->SetDLNumsInstance(origin_params.dl_nums_instance);
-        // Set origin 1D code params
-        barcode_sdk_->SetPolarity1D(origin_params.polarity_1d);
-        barcode_sdk_->SetRunningMode1D(origin_params.running_mode_1d);
-        barcode_sdk_->SetNumsMaxOutput1D(origin_params.nums_max_output_1d);
-        // Set origin 2D code params
-        barcode_sdk_->SetPolarity2D(origin_params.polarity_2d);
-        barcode_sdk_->SetMirrorType2D(origin_params.mirror_type_2d);
-        barcode_sdk_->SetRunningMode2D(origin_params.running_mode_2d);
-        barcode_sdk_->SetQrDistortionType(origin_params.qe_distortion_type);
-        barcode_sdk_->SetDmEdgeType(origin_params.dm_edge_type);
-        barcode_sdk_->SetDmShapeType(origin_params.dm_shape_type);
-        barcode_sdk_->SetCheckDigitEnableCode39(origin_params.check_digit_enable_code39);
-        barcode_sdk_->SetNumsMaxOutput2D(origin_params.nums_max_output_2d);
+//        barcode_sdk_->SetBarcodeType(origin_params.barcode_type);
+//        barcode_sdk_->SetDLNumsInstance(origin_params.dl_nums_instance);
+//        // Set origin 1D code params
+//        barcode_sdk_->SetPolarity1D(origin_params.polarity_1d);
+//        barcode_sdk_->SetRunningMode1D(origin_params.running_mode_1d);
+//        barcode_sdk_->SetNumsMaxOutput1D(origin_params.nums_max_output_1d);
+//        // Set origin 2D code params
+//        barcode_sdk_->SetPolarity2D(origin_params.polarity_2d);
+//        barcode_sdk_->SetMirrorType2D(origin_params.mirror_type_2d);
+//        barcode_sdk_->SetRunningMode2D(origin_params.running_mode_2d);
+//        barcode_sdk_->SetQrDistortionType(origin_params.qe_distortion_type);
+//        barcode_sdk_->SetDmEdgeType(origin_params.dm_edge_type);
+//        barcode_sdk_->SetDmShapeType(origin_params.dm_shape_type);
+//        barcode_sdk_->SetCheckDigitEnableCode39(origin_params.check_digit_enable_code39);
+//        barcode_sdk_->SetNumsMaxOutput2D(origin_params.nums_max_output_2d);
     };
 
     void Reset() override {
-        // Get origin parameters
-        origin_params.barcode_type = barcode_sdk_->GetBarcodeType();
-        origin_params.dl_nums_instance = barcode_sdk_->GetDLNumsInstance();
-        // Get origin 1D code params
-        origin_params.polarity_1d = barcode_sdk_->GetPolarity1D();
-        origin_params.running_mode_1d = barcode_sdk_->GetRunningMode1D();
-        origin_params.nums_max_output_1d = barcode_sdk_->GetNumsMaxOutput1D();
-        // Get origin 2D code params
-        origin_params.polarity_2d = barcode_sdk_->GetPolarity2D();
-        origin_params.mirror_type_2d = barcode_sdk_->GetMirrorType2D();
-        origin_params.running_mode_2d = barcode_sdk_->GetRunningMode2D();
-        origin_params.qe_distortion_type = barcode_sdk_->GetQrDistortionType();
-        origin_params.dm_edge_type = barcode_sdk_->GetDmEdgeType();
-        origin_params.dm_shape_type = barcode_sdk_->GetDmShapeType();
-        origin_params.check_digit_enable_code39 = barcode_sdk_->GetCheckDigitEnableCode39();
-        origin_params.nums_max_output_2d = barcode_sdk_->GetNumsMaxOutput2D();
+//        // Get origin parameters
+//        origin_params.barcode_type = barcode_sdk_->GetBarcodeType();
+//        origin_params.dl_nums_instance = barcode_sdk_->GetDLNumsInstance();
+//        // Get origin 1D code params
+//        origin_params.polarity_1d = barcode_sdk_->GetPolarity1D();
+//        origin_params.running_mode_1d = barcode_sdk_->GetRunningMode1D();
+//        origin_params.nums_max_output_1d = barcode_sdk_->GetNumsMaxOutput1D();
+//        // Get origin 2D code params
+//        origin_params.polarity_2d = barcode_sdk_->GetPolarity2D();
+//        origin_params.mirror_type_2d = barcode_sdk_->GetMirrorType2D();
+//        origin_params.running_mode_2d = barcode_sdk_->GetRunningMode2D();
+//        origin_params.qe_distortion_type = barcode_sdk_->GetQrDistortionType();
+//        origin_params.dm_edge_type = barcode_sdk_->GetDmEdgeType();
+//        origin_params.dm_shape_type = barcode_sdk_->GetDmShapeType();
+//        origin_params.check_digit_enable_code39 = barcode_sdk_->GetCheckDigitEnableCode39();
+//        origin_params.nums_max_output_2d = barcode_sdk_->GetNumsMaxOutput2D();
 
-        // Reset Parameters
-        barcode_sdk_->SetBarcodeType(smartmore::barcode::BarcodeType::kUnknown);
-        barcode_sdk_->SetDLNumsInstance(200);
-        // Reset 1D code params
-        barcode_sdk_->SetPolarity1D(smartmore::barcode::Polarity::kAuto);
-        barcode_sdk_->SetRunningMode1D(smartmore::barcode::RunningMode::kAuto);
-        barcode_sdk_->SetNumsMaxOutput1D(200);
-        // Reset 2D code params
-        barcode_sdk_->SetPolarity2D(smartmore::barcode::Polarity::kAuto);
-        barcode_sdk_->SetMirrorType2D(smartmore::barcode::MirrorType::kAuto);
-        barcode_sdk_->SetRunningMode2D(smartmore::barcode::RunningMode::kAuto);
-        barcode_sdk_->SetQrDistortionType(smartmore::barcode::QrDistortionType::kAuto);
-        barcode_sdk_->SetDmEdgeType(smartmore::barcode::DMEdgeType::kAuto);
-        barcode_sdk_->SetDmShapeType(smartmore::barcode::DMShapeType::kAuto);
-        barcode_sdk_->SetCheckDigitEnableCode39(false);
-        barcode_sdk_->SetNumsMaxOutput2D(200);
+//        // Reset Parameters
+//        barcode_sdk_->SetBarcodeType(smartmore::barcode::BarcodeType::kUnknown);
+//        barcode_sdk_->SetDLNumsInstance(200);
+//        // Reset 1D code params
+//        barcode_sdk_->SetPolarity1D(smartmore::barcode::Polarity::kAuto);
+//        barcode_sdk_->SetRunningMode1D(smartmore::barcode::RunningMode::kAuto);
+//        barcode_sdk_->SetNumsMaxOutput1D(200);
+//        // Reset 2D code params
+//        barcode_sdk_->SetPolarity2D(smartmore::barcode::Polarity::kAuto);
+//        barcode_sdk_->SetMirrorType2D(smartmore::barcode::MirrorType::kAuto);
+//        barcode_sdk_->SetRunningMode2D(smartmore::barcode::RunningMode::kAuto);
+//        barcode_sdk_->SetQrDistortionType(smartmore::barcode::QrDistortionType::kAuto);
+//        barcode_sdk_->SetDmEdgeType(smartmore::barcode::DMEdgeType::kAuto);
+//        barcode_sdk_->SetDmShapeType(smartmore::barcode::DMShapeType::kAuto);
+//        barcode_sdk_->SetCheckDigitEnableCode39(false);
+//        barcode_sdk_->SetNumsMaxOutput2D(200);
     };
 
     std::vector <cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) override {
