@@ -1,21 +1,26 @@
-#include <opencv2/core.hpp>
-
 #include "smore_barcode.h"
-#include "at_interface.h"
-#include "at_params.h"
-#include "cap_image.h"
+
+#include "driver_cap.h"
 #include "cam_config.h"
+
+
+void copy_params(at::CamParams &src, DCapParams &dst) {
+    dst.exp_time = src.exp_time;
+    dst.exp_gain = src.exp_gain;
+    dst.focus_pos = src.focus_pos;
+    dst.lights = src.lights;
+}
 
 
 // Map of camera parameters
 std::map<std::string, at::CamConf> cam_conf_map = {
         {"vs1000p", at::vs1000p_conf},
-        {"vs800", at::vs800_conf}
+        {"vs800",   at::vs800_conf}
 };
 
 
 // Get Barcode wrapper
-BarcodeWrapper GetBarcodeWrapper(const std::string& dev_name) {
+BarcodeWrapper GetBarcodeWrapper(const std::string &dev_name) {
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
     if (dev_name == "vs1000p") {
         barcode_sdk.LoadConfig("/usr/scanner/algorithm/config_dl_100w.json");
@@ -27,6 +32,7 @@ BarcodeWrapper GetBarcodeWrapper(const std::string& dev_name) {
 
 
 void TestATOnline(const std::string& dev_name) {
+    DCapParams dcap_params;
     // 1. Prepare camera parameters
     at::CamConf cam_conf = cam_conf_map[dev_name];
     cam_conf.INIT_POS = 87;
@@ -56,10 +62,15 @@ void TestATOnline(const std::string& dev_name) {
     int iter = 0;
     bool end_iter = false;
     at::CamParams cam_params = at_obj.GetNextParams();
-    InitCap(cam_params);
+
+    copy_params(cam_params, dcap_params);
+    InitCap(dcap_params);
+
     while (!end_iter) {
         cam_params = at_obj.GetNextParams();
-        cv::Mat img = ATCapImg(cam_params);
+        copy_params(cam_params, dcap_params);
+        cv::Mat img = CapImg(dcap_params);
+
         end_iter = at_obj.Run(img);
         // concatenate the camera parameters
         std::string cam_params_str = std::to_string(cam_params.exp_time) + "-" +
@@ -77,9 +88,10 @@ void TestATOnline(const std::string& dev_name) {
     }
 
     cam_params = at_obj.GetBestParams();
+    copy_params(cam_params, dcap_params);
     ar_params = at_obj.GetARParams();
 
-    cv::Mat final_img = ATCapImg(cam_params);
+    cv::Mat final_img = CapImg(dcap_params);
     cv::imwrite("/tmp/at_res/" + std::to_string(iter) + "_final.png", final_img);
     ar_params.print();
     printf("best et = %d\n", cam_params.exp_time);
