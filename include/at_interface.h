@@ -10,7 +10,6 @@ namespace at {
         AL,
         AE4AF,
         AF,
-        EF,
         AE,
         AR,
         END,
@@ -126,7 +125,7 @@ namespace at {
          * Used to get the version of the AT.
          * @return the version of the AT
          */
-        static std::string GetVersion();
+        std::string GetVersion();
 
         ~ATInterface() = default;
 
@@ -138,8 +137,6 @@ namespace at {
 
         // Store the ROI of the image.
         cv::Rect2i image_roi_;
-
-        bool object_detected_ = false;
 
         std::vector<ATPhase> pipeline_;
 
@@ -180,8 +177,6 @@ namespace at {
          * Set the initial camera parameters.
          */
         void SetInitParams(CamConf &cam_conf);
-
-        static double CalcScore(const cv::Mat &image);
     };
 }
 
