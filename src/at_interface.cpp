@@ -3,7 +3,6 @@
 #include "af_interface.h"
 #include "ae_interface.h"
 #include "hmap_generator.h"
-#include "exp_fusion.h"
 #include "version.h"
 
 
@@ -74,14 +73,21 @@ namespace at {
 
     class ATInterface::ATImpl {
     public:
+
+        ATImpl() {
+            hmap_generator.Init("/tmp/hmap-v4-e200-uint8.tmfile");
+        }
+
+        ~ATImpl() = default;
+
+    public:
         al::ALInterface al_obj;
         ae::AEInterface ae4af_obj;
         af::AFInterface af_obj;
         ae::AEInterface ae_obj;
         ARInterface ar_obj;
+        HeatMapGenerator hmap_generator = HeatMapGenerator("timvx", "uint8");
 
-        ATImpl() = default;
-        ~ATImpl() = default;
     };
 
     ATInterface::ATInterface(CamConf &cam_conf) {
@@ -89,7 +95,7 @@ namespace at {
         en_al_ = en_af_ = en_ae_ = en_ar_ = false;
         cam_conf_ = cam_conf;
         SetInitParams(cam_conf);
-}
+    }
 
     ATInterface::ATInterface(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper) {
         at_impl_ = std::make_shared<ATInterface::ATImpl>();
@@ -127,7 +133,7 @@ namespace at {
 
             pipeline_.emplace_back(AF);
             at_impl_->af_obj.end_iter = false;
-            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.LENS_TYPE);
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, true);
             next_params_.focus_pos = at_impl_->af_obj.next_pos;
         } else {
             at_impl_->af_obj.end_iter = true;
@@ -180,7 +186,7 @@ namespace at {
 
             pipeline_.emplace_back(AF);
             at_impl_->af_obj.end_iter = false;
-            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, cam_conf_.LENS_TYPE);
+            at_impl_->af_obj.Init(cam_conf_.START_POS, cam_conf_.END_POS, true);
             next_params_.focus_pos = at_impl_->af_obj.next_pos;
         } else {
             at_impl_->af_obj.end_iter = true;
@@ -228,30 +234,39 @@ namespace at {
 
     void ATInterface::SequentialExec(const cv::Mat &image) {
         switch (*cur_phase_) {
-            case AL:
+            case AL: {
                 printf("[==>ViSenz-AL is in progress] ");
                 at_impl_->al_obj.Run(image(image_roi_));
                 break;
-            case AE4AF:
+            }
+            case AE4AF: {
                 printf("[==>ViSenz-AE4AF is in progress] ");
                 at_impl_->ae4af_obj.FastRun(image(image_roi_));
                 break;
-            case AF:
+            }
+            case AF: {
                 printf("[==>ViSenz-AF is in progress] ");
-                at_impl_->af_obj.Run(image(image_roi_));
+                if (at_impl_->af_obj.enable_hmap) {
+                    cv::Mat hmap = at_impl_->hmap_generator.Infer(image);
+                    at_impl_->af_obj.Run(image, hmap);
+                } else {
+                    at_impl_->af_obj.Run(image);
+                }
                 break;
-
-            case AE:
+            }
+            case AE: {
                 printf("[==>ViSenz-AE is in progress] ");
                 at_impl_->ae_obj.Run(image(image_roi_));
                 break;
-            case AR:
+            }
+            case AR: {
                 printf("[==>ViSenz-AR is in progress] ");
                 score = at_impl_->ar_obj.GetScore(image, ar_params_);
                 score_params_[score] = next_params_;
                 printf("Barcode score = %.2f\n", score);
                 std::cout << "[==>ViSenz-AR is done ]" << std::endl;
                 break;
+            }
             case END: {
                 break;
             }
