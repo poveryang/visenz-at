@@ -9,10 +9,11 @@ CONFIGURE_FILE(
         "${PROJECT_SOURCE_DIR}/version.h.in"
         "${PROJECT_BINARY_DIR}/version.h"
 )
-OPTION(BUILD_AT_TEST "Build AT UnitTest" ON)
-OPTION(BUILD_SUB_TEST "Build Submodule UnitTest" OFF)
+OPTION(ENABLE_AT_TEST "Build AT UnitTest" ON)
+OPTION(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
 
 # 1. Load dependent library
+SET(TARGET_PLATFORM "imx8plus" CACHE STRING "Target platform")
 IF (${TARGET_PLATFORM} MATCHES "imx8mini")
     SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     SET(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
@@ -27,18 +28,22 @@ FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 ADD_SUBDIRECTORY(modules/auto_lights)
 ADD_SUBDIRECTORY(modules/auto_exposure)
 ADD_SUBDIRECTORY(modules/auto_focus)
-ADD_SUBDIRECTORY(modules/hmap-generator)
+IF (${TARGET_PLATFORM} MATCHES "imx8plus")  # Build heatmap generator on i.MX8Plus platform
+    ADD_SUBDIRECTORY(modules/hmap_generator)
+ENDIF ()
 
 # 3. Build AT library
 FILE(GLOB AT_SRC "src/*.cpp")
 ADD_LIBRARY(AT SHARED ${AT_SRC})
 TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
 TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
-        hmap_generator
         ${OpenCV_LIBS})
+IF (${TARGET_PLATFORM} MATCHES "imx8plus")
+    TARGET_LINK_LIBRARIES(AT PUBLIC hmap_generator)
+ENDIF ()
 
 # 4. Build AT test(optional)
-IF (${BUILD_AT_TEST})
+IF (${ENABLE_AT_TEST})
     ADD_SUBDIRECTORY(test)
 ENDIF ()
 
