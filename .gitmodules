@@ -7,3 +7,6 @@
 [submodule "modules/auto_exposure"]
 	path = modules/auto_exposure
 	url = https://e.coding.smoa.cloud/devops/smore-visenz/visenz-ae.git
+[submodule "modules/hmap_generator"]
+	path = modules/hmap_generator
+	url = https://e.coding.smoa.cloud/devops/smore-visenz/hmap-generator.git
