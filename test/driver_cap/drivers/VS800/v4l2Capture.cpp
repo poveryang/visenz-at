@@ -103,7 +103,7 @@ int V4L2Capture::initDevice(int frameRate, int width, int height, int bit)
         perror("Can't get frame information");
     }
 
-    printf("Current data format information:\n\twidth:%d\n\theight:%d\n", cam_format.fmt.pix.width,
+    printf("Current sample_images format information:\n\twidth:%d\n\theight:%d\n", cam_format.fmt.pix.width,
            cam_format.fmt.pix.height);
 
     ret = initBuffers();

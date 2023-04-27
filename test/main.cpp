@@ -48,15 +48,16 @@ void TestATOnline(const std::string& dev_name) {
     at::ATInterface at_obj(cam_conf, barcode_wrapper);
 
     // 4. Set enable flags of the four algorithms
-    bool enable_al, enable_af, enable_ae, enable_ar;
+    bool enable_al, enable_af, enable_ae, enable_ar, enable_hmap;
     enable_al = true;
     enable_af = true;
     enable_ae = true;
     enable_ar = false;
-    at_obj.Init(enable_al, enable_af, enable_ae, enable_ar);
+    enable_hmap = true;
+    at_obj.Init(enable_al, enable_af, enable_ae, enable_ar, enable_hmap);
 
     // 5. Execute AT algorithm
-    std::string at_version = at_obj.GetVersion();
+    std::string at_version = at::ATInterface::GetVersion();
     printf(">>>>>===== AT (version: %s) has been started <<<<<=====\n", at_version.c_str());
 
     int iter = 0;
@@ -69,6 +70,10 @@ void TestATOnline(const std::string& dev_name) {
     while (!end_iter) {
         cam_params = at_obj.GetNextParams();
         copy_params(cam_params, dcap_params);
+
+        printf("cap params: et = %d, eg = %d, pos = %d, lights = %d, %d, %d, %d\n",
+               cam_params.exp_time, cam_params.exp_gain, cam_params.focus_pos,
+               cam_params.lights[0], cam_params.lights[1], cam_params.lights[2], cam_params.lights[3]);
         cv::Mat img = CapImg(dcap_params);
 
         end_iter = at_obj.Run(img);
@@ -81,7 +86,7 @@ void TestATOnline(const std::string& dev_name) {
                                      std::to_string(cam_params.lights[2]) + "-" +
                                      std::to_string(cam_params.lights[3]);
         std::string img_name = "/tmp/at_res/" + std::to_string(iter) + "_" + cam_params_str + ".png";
-        cv::imwrite(img_name + ".png", img);
+        cv::imwrite(img_name, img);
         iter += 1;
         // wait for 10 ms
         usleep(10 * 1000);

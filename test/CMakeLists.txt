@@ -4,7 +4,7 @@ PROJECT(AT_TEST)
 # Set device
 INCLUDE(Barcode.cmake)
 IF (${TARGET_PLATFORM} MATCHES "imx8mini")
-    LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.24.0")
+    LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.25.8")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
     SET(DEVICE VS1000Pro)
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.25.5")

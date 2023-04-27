@@ -59,7 +59,7 @@ int SM_LIGHT::light_config(int nSpeed, int nBits, int nParity, int nStop)
             newtio.c_cflag |= CS8;
         break;
         default:
-            fprintf(stderr, "Unsupported data size\n");
+            fprintf(stderr, "Unsupported sample_images size\n");
             return -1;
     }
 
@@ -195,7 +195,7 @@ int SM_LIGHT::Lihgt_Send(char *send_buf, int data_len)
     ret = write(fd_light, send_buf, data_len);
     if (ret == data_len)
     {
-        printf("send data is %s\n", send_buf);
+        printf("send sample_images is %s\n", send_buf);
         return ret;
     }
     else

@@ -1,27 +1,24 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(ViSenz-AT)
 
-# 0. Set sdk version and cmake options
-SET(AT_VERSION_MAJOR 3)
-SET(AT_VERSION_MINOR 5)
-SET(AT_VERSION_PATCH 3)
-CONFIGURE_FILE(
-        "${PROJECT_SOURCE_DIR}/version.h.in"
-        "${PROJECT_BINARY_DIR}/version.h"
-)
+# 1. Set sdk version and cmake options
+SET(AT_VERSION_MAJOR 4)
+SET(AT_VERSION_MINOR 0)
+SET(AT_VERSION_PATCH 0)
+CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
 OPTION(ENABLE_AT_TEST "Build AT UnitTest" ON)
 OPTION(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
 
-# 1. Load dependent library
+# 2. Load dependent library
 SET(TARGET_PLATFORM "imx8plus" CACHE STRING "Target platform")
 IF (${TARGET_PLATFORM} MATCHES "imx8mini")
-    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
+#    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     SET(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
-    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
+#    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     SET(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
 ENDIF ()
-FIND_PACKAGE(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
+#FIND_PACKAGE(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
 FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
 # 2. Build AT submodules
@@ -39,7 +36,7 @@ TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
 TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
         ${OpenCV_LIBS})
 IF (${TARGET_PLATFORM} MATCHES "imx8plus")
-    TARGET_LINK_LIBRARIES(AT PUBLIC hmap_generator)
+    TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
 ENDIF ()
 
 # 4. Build AT test(optional)
