@@ -2,7 +2,7 @@
 #define SM_BARCODE_WRAPPER_H
 
 #include "barcode.h"
-#include "at_interface.h"
+#include "ar_base.h"
 
 struct BarcodeParams {
     smartmore::barcode::BarcodeType barcode_type;
@@ -22,7 +22,7 @@ struct BarcodeParams {
     int nums_max_output_2d;
 };
 
-class BarcodeWrapper : public at::BarcodeWrapperBase {
+class BarcodeWrapper : public BarcodeWrapperBase {
 private:
     smartmore::barcode::Barcode *barcode_sdk_;
     BarcodeParams origin_params;
@@ -86,7 +86,7 @@ public:
 //        barcode_sdk_->SetNumsMaxOutput2D(200);
     };
 
-    std::vector <cv::Rect> Decode(const cv::Mat &image, at::ARParams &ar_params) override {
+    std::vector <cv::Rect> Decode(const cv::Mat &image, ARParams &ar_params) override {
         smartmore::barcode::BarcodeRequest input = {image};
         smartmore::barcode::BarcodeResponse output;
         barcode_sdk_->Run(input, output);

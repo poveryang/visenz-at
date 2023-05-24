@@ -32,6 +32,8 @@ ENDIF ()
 # 3. Build AT library
 FILE(GLOB AT_SRC "src/*.cpp")
 ADD_LIBRARY(AT SHARED ${AT_SRC})
+TARGET_COMPILE_DEFINITIONS(AT PRIVATE AT4VS)
+
 TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
 TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
         ${OpenCV_LIBS})
@@ -47,7 +49,8 @@ ENDIF ()
 # 5. Install AT library
 SET(AT_PUBLIC_HEADER
         "${CMAKE_SOURCE_DIR}/include/at_interface.h"
-        "${CMAKE_SOURCE_DIR}/include/at_params.h"
+        "${CMAKE_SOURCE_DIR}/include/at_base.h"
+        "${CMAKE_SOURCE_DIR}/include/ar_base.h"
         )
 INSTALL(TARGETS AT
         LIBRARY DESTINATION lib)

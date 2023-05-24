@@ -1,38 +1,35 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
-PROJECT(AT_TEST)
+PROJECT(AT-TEST)
 
 # Set device
-INCLUDE(Barcode.cmake)
+SET(BAR_WRAP_DIR "3rdparty/barcode")
+INCLUDE(${BAR_WRAP_DIR}/barcode.cmake)
 IF (${TARGET_PLATFORM} MATCHES "imx8mini")
+    # Load barcode library
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.25.8")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
-    SET(DEVICE VS1000Pro)
+    # Load barcode library
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.25.5")
 ENDIF ()
 
-IF (NOT ${ENABLE_SUB_TEST})
-    ADD_SUBDIRECTORY("./driver_cap")
-ENDIF ()
+# Set cap library
+SET(CAP_INC_DIR "3rdparty/driver_cap/VS1000P/inc")
+SET(CAP_LIB_DIR "3rdparty/driver_cap/VS1000P/lib")
+FILE(GLOB CAP_LIB "${CAP_LIB_DIR}/*.*")
 
 # Build AT_TEST
-ADD_EXECUTABLE(AT_TEST "./main.cpp")
+ADD_EXECUTABLE(AT_TEST "test_at.cpp")
 
-# Determine whether to load barcode and link it
-IF (${TARGET_SERIES} MATCHES "VS")
-    TARGET_INCLUDE_DIRECTORIES(AT_TEST PUBLIC
-            ${Barcode_INCLUDE_DIRS})
-    TARGET_LINK_LIBRARIES(AT_TEST PUBLIC
-            AT
-            DCAP
-            ${OpenCV_LIBS}
-            ${Barcode_LIBRARIES})
-ELSEIF (${TARGET_SERIES} MATCHES "VN")
-    TARGET_LINK_LIBRARIES(AT_TEST PUBLIC
-            AT
-            ${OpenCV_LIBS}
-            DCAP
-            )
-ENDIF ()
+TARGET_INCLUDE_DIRECTORIES(AT_TEST PUBLIC
+        ${CAP_INC_DIR}
+        ${BAR_WRAP_DIR}
+        ${Barcode_INCLUDE_DIRS})
+
+TARGET_LINK_LIBRARIES(AT_TEST PUBLIC
+        AT
+        ${CAP_LIB}
+        ${OpenCV_LIBS}
+        ${Barcode_LIBRARIES})
 
 # Install
 INSTALL(TARGETS AT_TEST
