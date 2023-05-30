@@ -9,7 +9,7 @@ IF (${TARGET_PLATFORM} MATCHES "imx8mini")
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.25.8")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
     # Load barcode library
-    LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.25.5")
+    LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.25.16")
 ENDIF ()
 
 # Set cap library
@@ -19,6 +19,7 @@ FILE(GLOB CAP_LIB "${CAP_LIB_DIR}/*.*")
 
 # Build AT_TEST
 ADD_EXECUTABLE(AT_TEST "test_at.cpp")
+
 
 TARGET_INCLUDE_DIRECTORIES(AT_TEST PUBLIC
         ${CAP_INC_DIR}

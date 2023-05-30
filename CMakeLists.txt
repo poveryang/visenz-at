@@ -1,11 +1,14 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(ViSenz-AT)
 
-# 1. Set sdk version and cmake options
+# Set AT version
 SET(AT_VERSION_MAJOR 4)
 SET(AT_VERSION_MINOR 0)
 SET(AT_VERSION_PATCH 0)
 CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
+MESSAGE(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
+
+# Set build options
 OPTION(ENABLE_AT_TEST "Build AT UnitTest" ON)
 OPTION(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
 
@@ -21,7 +24,7 @@ ENDIF ()
 #FIND_PACKAGE(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
 FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
-# 2. Build AT submodules
+# Build AT submodules
 ADD_SUBDIRECTORY(modules/auto_lights)
 ADD_SUBDIRECTORY(modules/auto_exposure)
 ADD_SUBDIRECTORY(modules/auto_focus)
@@ -29,7 +32,7 @@ IF (${TARGET_PLATFORM} MATCHES "imx8plus")  # Build heatmap generator on i.MX8Pl
     ADD_SUBDIRECTORY(modules/hmap_generator)
 ENDIF ()
 
-# 3. Build AT library
+# Build AT library
 FILE(GLOB AT_SRC "src/*.cpp")
 ADD_LIBRARY(AT SHARED ${AT_SRC})
 TARGET_COMPILE_DEFINITIONS(AT PRIVATE AT4VS)
@@ -41,12 +44,12 @@ IF (${TARGET_PLATFORM} MATCHES "imx8plus")
     TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
 ENDIF ()
 
-# 4. Build AT test(optional)
+# Build AT test(optional)
 IF (${ENABLE_AT_TEST})
     ADD_SUBDIRECTORY(test)
 ENDIF ()
 
-# 5. Install AT library
+# Install AT library
 SET(AT_PUBLIC_HEADER
         "${CMAKE_SOURCE_DIR}/include/at_interface.h"
         "${CMAKE_SOURCE_DIR}/include/at_base.h"
