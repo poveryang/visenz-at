@@ -8,10 +8,8 @@ ATInterface::ATInterface(bool en_hmap) {
     at_impl_ = std::make_shared<AT4VsImpl>(en_hmap);
 }
 
-void ATInterface::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper, bool en_al, bool en_af, bool en_ae, bool en_ar) {
-    cam_conf.min_eg = 16;  // TODO: fixed the min EG to 16 temporarily
-    cam_conf.eg_quant_scale = 0.0625;  // TODO: fixed the EG scale to 0.0625 temporarily
-
+void ATInterface::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
+                       bool en_al, bool en_af, bool en_ae, bool en_ar) {
     at_impl_->Init(cam_conf, barcode_wrapper, en_al, en_af, en_ae, en_ar);
 }
 
