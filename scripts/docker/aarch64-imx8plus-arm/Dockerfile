@@ -18,4 +18,4 @@ RUN wget https://devops-generic.pkg.coding.smoa.cloud/smore-visenz/3rdparty/Barc
 RUN wget http://artifactory.smoa.cloud/artifactory/SMScanner/nxp_tengine_inference/tengine_lib.tar.gz && \
     tar -xzf tengine_lib.tar.gz && \
     rm tengine_lib.tar.gz && \
-    mv tengine_lib Barcode_8plus_dl*/
+    mv ./tengine_lib /opt/libs_aarch64/Barcode_8plus_dl*/
