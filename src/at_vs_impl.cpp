@@ -95,6 +95,8 @@ void AT4VsImpl::LoadCamConf(CamConf &cam_conf) {
     ae_conf.min_intensity = cam_conf.min_intensity;
     ae_conf.max_intensity = cam_conf.max_intensity;
     ae_conf.roi = cam_conf.roi;
+    ae_conf.img_width = cam_conf.img_width;
+    ae_conf.img_height = cam_conf.img_height;
     ae_conf.init_et = cam_conf.init_et;
     ae_conf.init_eg = cam_conf.init_eg;
     ae_conf.init_intensities = cam_conf.init_intensities;
