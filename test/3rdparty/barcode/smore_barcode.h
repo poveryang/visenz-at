@@ -15,7 +15,7 @@ struct BarcodeParams {
     smartmore::barcode::Polarity polarity_2d;
     smartmore::barcode::MirrorType mirror_type_2d;
     smartmore::barcode::RunningMode running_mode_2d;
-    smartmore::barcode::QrDistortionType qe_distortion_type;
+    // smartmore::barcode::QrDistortionType qe_distortion_type;
     smartmore::barcode::DMEdgeType dm_edge_type;
     smartmore::barcode::DMShapeType dm_shape_type;
     bool check_digit_enable_code39;
