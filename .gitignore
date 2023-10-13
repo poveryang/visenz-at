@@ -34,3 +34,4 @@
 *.out
 *.app
 /test/drivers/
+/3rdparty/
