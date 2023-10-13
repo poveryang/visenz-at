@@ -20,6 +20,8 @@ IF (${TARGET_PLATFORM} MATCHES "imx8mini")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
 #    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
     SET(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+ELSEIF (${TARGET_PLATFORM} MATCHES "aarch32-nova")
+    SET(OpenCV_DIR "3rdparty/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
 ENDIF ()
 #FIND_PACKAGE(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
 FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
@@ -28,7 +30,7 @@ FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 ADD_SUBDIRECTORY(modules/auto_lights)
 ADD_SUBDIRECTORY(modules/auto_exposure)
 ADD_SUBDIRECTORY(modules/auto_focus)
-IF (${TARGET_PLATFORM} MATCHES "imx8plus")  # Build heatmap generator on i.MX8Plus platform
+IF (${TARGET_PLATFORM} MATCHES "imx8plus" OR ${TARGET_PLATFORM} MATCHES "aarch32-nova")  # Build heatmap generator on i.MX8Plus platform
     ADD_SUBDIRECTORY(modules/hmap_generator)
 ENDIF ()
 
@@ -40,7 +42,7 @@ TARGET_COMPILE_DEFINITIONS(AT PRIVATE AT4VS)
 TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
 TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
         ${OpenCV_LIBS})
-IF (${TARGET_PLATFORM} MATCHES "imx8plus")
+IF (${TARGET_PLATFORM} MATCHES "imx8plus" OR ${TARGET_PLATFORM} MATCHES "aarch32-nova")
     TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
 ENDIF ()
 
