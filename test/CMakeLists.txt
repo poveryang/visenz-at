@@ -9,7 +9,7 @@ IF (${TARGET_PLATFORM} MATCHES "imx8mini")
     LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.25.8")
 ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
     # Load barcode library
-    LOAD_BARCODE("/opt/libs_aarch64/Barcode_8plus_dl_0.26.6")
+    LOAD_BARCODE("../3rdparty/libs_aarch64/Barcode_8plus")
 ENDIF ()
 
 # Set cap library
