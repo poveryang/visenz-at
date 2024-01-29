@@ -1,36 +1,42 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
 PROJECT(AT-TEST)
 
-# Set device
-SET(BAR_WRAP_DIR "3rdparty/barcode")
-INCLUDE(${BAR_WRAP_DIR}/barcode.cmake)
-IF (${TARGET_PLATFORM} MATCHES "imx8mini")
-    # Load barcode library
-    LOAD_BARCODE("/opt/libs_aarch64/Barcode_mini8_0.25.8")
-ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
-    # Load barcode library
-    LOAD_BARCODE("../3rdparty/libs_aarch64/Barcode_8plus")
+# Load barcode and driver sdk
+SET(BARCODE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/barcode")
+SET(DRIVER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/driver_cap")
+INCLUDE(${BARCODE_DIR}/barcode.cmake)
+INCLUDE(${DRIVER_DIR}/driver.cmake)
+
+IF (${TARGET_PLATFORM} STREQUAL "imx8mini")
+    SET(barcode_sdk_dir "/opt/libs_aarch64/Barcode_mini8_0.25.8")
+    SET(driver_sdk_dir "../3rdparty/libs_aarch64/drivers_aarch64/VS800")
+ELSEIF (${TARGET_PLATFORM} STREQUAL "imx8plus")
+    SET(barcode_sdk_dir "/opt/libs_aarch64/Barcode_plus8_0.25.8")
+    SET(driver_sdk_dir "../3rdparty/libs_aarch64/drivers_aarch64/VS1000P")
+ELSEIF (${TARGET_PLATFORM} STREQUAL "nvt-52x")
+    SET(barcode_sdk_dir "${BARCODE_DIR}/barcode_sdk_vs800p")
+    SET(driver_sdk_dir "${DRIVER_DIR}/aarch32")
+ELSEIF (${TARGET_PLATFORM} STREQUAL "nvt-56x")
+    SET(barcode_sdk_dir "${BARCODE_DIR}/barcode_sdk_vs600")
+    SET(driver_sdk_dir "${DRIVER_DIR}/aarch32")
 ENDIF ()
 
-# Set cap library
-SET(CAP_INC_DIR "3rdparty/driver_cap/VS1000P/inc")
-SET(CAP_LIB_DIR "3rdparty/driver_cap/VS1000P/lib")
-FILE(GLOB CAP_LIB "${CAP_LIB_DIR}/*.*")
+LOAD_BARCODE(${barcode_sdk_dir} ${TARGET_PLATFORM})
+LOAD_DRIVER(${driver_sdk_dir} ${TARGET_PLATFORM})
 
 # Build AT_TEST
-ADD_EXECUTABLE(AT_TEST "test_at.cpp")
-
+ADD_EXECUTABLE(AT_TEST "test_at.cpp" ${CAP_SRC})
 
 TARGET_INCLUDE_DIRECTORIES(AT_TEST PUBLIC
-        ${CAP_INC_DIR}
-        ${BAR_WRAP_DIR}
-        ${Barcode_INCLUDE_DIRS})
+        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+        ${Barcode_INC}
+        ${Driver_INC})
 
 TARGET_LINK_LIBRARIES(AT_TEST PUBLIC
         AT
-        ${CAP_LIB}
-        ${OpenCV_LIBS}
-        ${Barcode_LIBRARIES})
+        ${Barcode_LIBS}
+        ${Driver_LIBS}
+        ${OpenCV_LIBS})
 
 # Install
 INSTALL(TARGETS AT_TEST
