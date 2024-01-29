@@ -4,7 +4,18 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap) {
     /* Load heat-map generator if enabled */
     enable_hmap_ = enable_hmap;
     if (enable_hmap_) {
-        hmap_obj.Init("/usr/scanner/algorithm/hmap-v2-qat-uint8.tmfile");
+#ifdef NVTAI_INFER
+        std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
+        int input_width = 1280;
+        int input_height = 800;
+        hmap_obj = std::make_shared<NvtAIInferenceEngine>(model_path, input_width, input_height);
+        hmap_obj->Init();
+        hmap_obj->LoadModel();  // TODO: delay loading model after camera is initialized
+#elif TENGINE_INFER
+        // TODO: add tengine inference engine
+#else
+        enable_hmap_ = false;
+#endif
     }
 }
 
@@ -112,7 +123,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
         case AEST: {
             printf("[AT4VS] AEST Running: \n");
             if (ae_obj.enable_hmap) {
-                cv::Mat hmap = hmap_obj.Infer(image);
+                cv::Mat hmap = hmap_obj->Inference(image);
                 ae_obj.StepTune(image, hmap);
             } else {
                 ae_obj.StepTune(image);
@@ -122,7 +133,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
         case AF: {
             printf("[AT4VS] AF Running: \n");
             if (af_obj.enable_hmap) {
-                cv::Mat hmap = hmap_obj.Infer(image);
+                cv::Mat hmap = hmap_obj->Inference(image);
                 af_obj.Run(image, hmap);
             } else {
                 af_obj.Run(image);

@@ -12,27 +12,32 @@ MESSAGE(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION
 OPTION(ENABLE_AT_TEST "Build AT UnitTest" ON)
 OPTION(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
 
-# 2. Load dependent library
-SET(TARGET_PLATFORM "imx8plus" CACHE STRING "Target platform")
-IF (${TARGET_PLATFORM} MATCHES "imx8mini")
-#    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
-    SET(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
-ELSEIF (${TARGET_PLATFORM} MATCHES "imx8plus")
-#    SET(Eigen3_DIR "/opt/libs_aarch64/eigen3/share/eigen3/cmake")
-    SET(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
-ELSEIF (${TARGET_PLATFORM} MATCHES "aarch32-nova")
-    SET(OpenCV_DIR "3rdparty/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
+# Set target platform
+IF (NOT DEFINED TARGET_PLATFORM)
+    SET(TARGET_PLATFORM "nvt-52x" CACHE STRING "Target platform")
+ELSE ()
+    MESSAGE(STATUS "Target platform: ${TARGET_PLATFORM}")
 ENDIF ()
-#FIND_PACKAGE(Eigen3 REQUIRED PATHS ${Eigen3_DIR})
+
+
+# Load dependent library
+IF (${TARGET_PLATFORM} STREQUAL "imx8mini")
+    SET(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
+ELSEIF (${TARGET_PLATFORM} STREQUAL "imx8plus")
+    ADD_DEFINITIONS(-DTENGINE_INFER)
+    SET(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+ELSEIF (${TARGET_PLATFORM} MATCHES "^nvt.*")
+    ADD_DEFINITIONS(-DNVTAI_INFER)
+    SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
+ENDIF ()
+
 FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
 # Build AT submodules
 ADD_SUBDIRECTORY(modules/auto_lights)
 ADD_SUBDIRECTORY(modules/auto_exposure)
 ADD_SUBDIRECTORY(modules/auto_focus)
-IF (${TARGET_PLATFORM} MATCHES "imx8plus" OR ${TARGET_PLATFORM} MATCHES "aarch32-nova")  # Build heatmap generator on i.MX8Plus platform
-    ADD_SUBDIRECTORY(modules/hmap_generator)
-ENDIF ()
+ADD_SUBDIRECTORY(modules/hmap_generator)
 
 # Build AT library
 FILE(GLOB AT_SRC "src/*.cpp")
@@ -42,9 +47,7 @@ TARGET_COMPILE_DEFINITIONS(AT PRIVATE AT4VS)
 TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
 TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
         ${OpenCV_LIBS})
-IF (${TARGET_PLATFORM} MATCHES "imx8plus" OR ${TARGET_PLATFORM} MATCHES "aarch32-nova")
-    TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
-ENDIF ()
+TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
 
 # Build AT test(optional)
 IF (${ENABLE_AT_TEST})

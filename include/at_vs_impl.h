@@ -4,7 +4,11 @@
 #include "at_base.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-#include "hmap_generator.h"
+#ifdef TENGINE_INFER
+#include "tengine_inference_engine.h"
+#elif NVTAI_INFER
+#include "nvtai_inference_engine.h"
+#endif
 
 class AT4VsImpl : public ATImplBase {
 public:
@@ -19,8 +23,8 @@ public:
     /* Object and params of AR */
     ARInterface ar_obj;
 
-    /* Object of heatmap-generator */
-    HeatMapGenerator hmap_obj;
+    /* Object of Hmap */
+    std::shared_ptr<InferenceEngine> hmap_obj;
 
 public:
     /**
