@@ -4,11 +4,7 @@
 #include "at_base.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-#ifdef TENGINE_INFER
-#include "tengine_inference_engine.h"
-#elif NVTAI_INFER
-#include "nvtai_inference_engine.h"
-#endif
+#include "hmap_infer_base.h"
 
 class AT4VsImpl : public ATImplBase {
 public:
@@ -24,7 +20,7 @@ public:
     ARInterface ar_obj;
 
     /* Object of Hmap */
-    std::shared_ptr<InferenceEngine> hmap_obj;
+    std::shared_ptr<HMapInferBase> hmap_obj;
 
 public:
     /**
@@ -34,8 +30,8 @@ public:
     explicit AT4VsImpl(bool enable_hmap);
 
     /**
- * @brief AT4VsImpl destructor
- */
+    * @brief AT4VsImpl destructor
+    */
     ~AT4VsImpl() = default;
 
     /**

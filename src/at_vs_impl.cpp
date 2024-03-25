@@ -1,19 +1,35 @@
 #include "at_vs_impl.h"
 
+#ifdef USE_TENGINE
+#include "hmap_infer_tengine.h"
+#elif USE_NVTAI
+// TODO: Add NVTAI implementation
+#elif USE_RKNN
+#include "hmap_infer_rknn.h"
+#endif
+
+
 AT4VsImpl::AT4VsImpl(bool enable_hmap) {
     /* Load heat-map generator if enabled */
     enable_hmap_ = enable_hmap;
     if (enable_hmap_) {
-#ifdef NVTAI_INFER
+        printf("[AT4VS] Heatmap is enabled\n");
+#ifdef USE_TENGINE
+        hmap_obj = std::make_shared<HMapInferTengine>();
+        hmap_obj->Init("/usr/scanner/algorithm/hmap-v2-qat-uint8.tmfile");
+#elif USE_NVTAI
         std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
         int input_width = 1280;
         int input_height = 800;
         hmap_obj = std::make_shared<NvtAIInferenceEngine>(model_path, input_width, input_height);
         hmap_obj->Init();
         hmap_obj->LoadModel();  // TODO: delay loading model after camera is initialized
-#elif TENGINE_INFER
-        // TODO: add tengine inference engine
+#elif USE_RKNN
+        printf("[AT4VS] Using RKNN for heatmap inference\n");
+        hmap_obj = std::make_shared<HMapInferRK>();
+        hmap_obj->Init("/usr/scanner/algorithm/hmap-v2.rknn");
 #else
+        printf("[AT4VS] Heatmap is enabled but no inference engine is specified\n");
         enable_hmap_ = false;
 #endif
     }
