@@ -1,67 +1,61 @@
-#include <opencv2/core.hpp>
+#include <opencv2/opencv.hpp>
+
 #include "at_interface.h"
 #include "smore_barcode.h"
-#include "cam_config.h"
+#include "device_info.h"
 
-#ifdef AARCH64
-#include "cap_aarch64.h"
-#endif
-#ifdef AARCH32
-#include "cap_aarch32.h"
+#ifdef USE_SMVC
+#include "cap_smvc.h"
 #endif
 
-
-// Map of camera parameters
-std::map<std::string, CamConf> cam_conf_map = {
-        {"vs1000p", at::vs1000p_conf},
-//        {"vs800", at::vs800_conf},
-//        {"vs600", at::vs600_conf},
+// Device information for different devices
+std::map<std::string, DeviceInfo> dev_infos = {
+        {"vs2000p", vs2000p_info},
 };
 
-void TestATOnline(const std::string& dev_name) {
-    // 1. Prepare camera parameters
-    CamConf cam_conf = cam_conf_map[dev_name];
+void TestATOnline(const std::string& dev_name,
+                  bool enable_hmap = true,
+                  bool enable_al = false,
+                  bool enable_af = true,
+                  bool enable_ae = true,
+                  bool enable_ar = false) {
+    // Prepare capture object
+    DeviceInfo dev_info = dev_infos[dev_name];
+    CamCapture cap(dev_info.sensor_name, dev_info.sensor_width, dev_info.sensor_height, dev_info.sensor_format);
 
-    // 2. Set AR parameters and Barcode wrapper
+    // Initialize AT algorithm
+    at::ATInterface at_obj(enable_hmap);
+
+    // Set AR parameters and Barcode wrapper
     ARParams ar_params;
     smartmore::barcode::Barcode barcode_sdk("/usr/scanner/algorithm/");
     barcode_sdk.LoadConfig("/usr/scanner/algorithm/config.json");
     BarcodeWrapper barcode_wrapper(barcode_sdk);
 
-    // 3. Initialize AT algorithm
-    bool enable_hmap = true;
-    at::ATInterface at_obj(enable_hmap);
+    // Set enable flags of the four algorithms
+    at_obj.Init(dev_info.cam_conf, barcode_wrapper, enable_al, enable_af, enable_ae, enable_ar);
 
-    // 4. Set enable flags of the four algorithms
-    bool enable_al, enable_af, enable_ae, enable_ar;
-    enable_al = false;
-    enable_af = false;
-    enable_ae = true;
-    enable_ar = false;
-    at_obj.Init(cam_conf, barcode_wrapper, enable_al, enable_af, enable_ae, enable_ar);
-
-    // 5. Execute AT algorithm
-    std::string at_version = at_obj.GetVersion();
+    // Execute AT algorithm
+    std::string at_version = at::ATInterface::GetVersion();
     printf(">>>>>===== AT version: %s <<<<<=====\n", at_version.c_str());
     printf(">>>>>===== AT has been started <<<<<=====\n");
 
     int iter = 0;
     bool end_iter = false;
     CamParams cam_params = at_obj.GetNextParams();
-    CamCapture cap_obj(dev_name);
 
     while (!end_iter) {
         cam_params = at_obj.GetNextParams();
-        cv::Mat img = cap_obj.CapImg(cam_params);
+        cv::Mat img = cap.CapImg(cam_params);
         end_iter = at_obj.Run(img);
         cv::imwrite("/tmp/at_res/" + std::to_string(iter) + ".png", img);
         iter += 1;
     }
 
-    // 6. Get final image and print best parameters
+    // Get final image and print best parameters
     cam_params = at_obj.GetBestParams();
     ar_params = at_obj.GetARParams();
-    cv::Mat final_img = cap_obj.CapImg(cam_params);
+    cv::Mat final_img = cap.CapImg(cam_params);
     cv::imwrite("/tmp/at_res/" + std::to_string(iter) + ".png", final_img);
 
     ar_params.print();
@@ -79,11 +73,17 @@ void TestATOnline(const std::string& dev_name) {
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        printf("Please pass the device name as the first argument.\n");
+        printf("Usage: %s <device_name> [enable_hmap] [enable_al] [enable_af] [enable_ae] [enable_ar]\n", argv[0]);
         return 0;
-    }
-
-    if (argc == 2) {
+    } else if (argc > 7) {
+        std::string dev_name = argv[1];
+        bool enable_hmap = argv[2][0] == '1';
+        bool enable_al = argv[3][0] == '1';
+        bool enable_af = argv[4][0] == '1';
+        bool enable_ae = argv[5][0] == '1';
+        bool enable_ar = argv[6][0] == '1';
+        TestATOnline(dev_name, enable_hmap, enable_al, enable_af, enable_ae, enable_ar);
+    } else {
         std::string dev_name = argv[1];
         TestATOnline(dev_name);
     }
