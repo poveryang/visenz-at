@@ -1,58 +1,55 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 3.10)
-PROJECT(ViSenz-AT)
+cmake_minimum_required(VERSION 3.10)
+project(ViSenz-AT)
 
 # Set AT version
-SET(AT_VERSION_MAJOR 4)
-SET(AT_VERSION_MINOR 0)
-SET(AT_VERSION_PATCH 0)
-CONFIGURE_FILE("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
-MESSAGE(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
+set(AT_VERSION_MAJOR 4)
+set(AT_VERSION_MINOR 0)
+set(AT_VERSION_PATCH 0)
+configure_file("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
+message(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
 
-# Set build options
-OPTION(ENABLE_AT_TEST "Build AT UnitTest" ON)
-OPTION(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
-
-# Set target platform
-IF (NOT DEFINED TARGET_PLATFORM)
-    SET(TARGET_PLATFORM "nvt-52x" CACHE STRING "Target platform")
-ELSE ()
-    MESSAGE(STATUS "Target platform: ${TARGET_PLATFORM}")
-ENDIF ()
-
+# Build options
+option(ENABLE_AT_TEST "Build AT UnitTest" ON)
+option(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
 
 # Load dependent library
-IF (${TARGET_PLATFORM} STREQUAL "imx8mini")
-    SET(OpenCV_DIR "/opt/libs_aarch64/mier_opencv/lib/cmake/opencv4")
-ELSEIF (${TARGET_PLATFORM} STREQUAL "imx8plus")
-    ADD_DEFINITIONS(-DTENGINE_INFER)
-    SET(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
-ELSEIF (${TARGET_PLATFORM} MATCHES "^nvt.*")
-    ADD_DEFINITIONS(-DNVTAI_INFER)
+if (${DEVICE} MATCHES "vs1000p")
+    message(STATUS "Using tengine backend")
+    add_definitions(-DUSE_TENGINE)
+    set(NPU_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libtengine_api")
+    set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+elseif (${DEVICE} MATCHES "vs600|vs800p")
+    message(STATUS "Using nvtai backend")
+    add_definitions(-DUSE_NVTAI)
+    # TODO: add nvtai backend
     SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
-ENDIF ()
+elseif (${DEVICE} MATCHES "vs2000p")
+    message(STATUS "Using rknn backend")
+    add_definitions(-DUSE_RKNN)
+    set(NPU_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/librknn_api")
+    set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+endif ()
 
-FIND_PACKAGE(OpenCV REQUIRED PATHS ${OpenCV_DIR})
+find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
 # Build AT submodules
-ADD_SUBDIRECTORY(modules/auto_lights)
-ADD_SUBDIRECTORY(modules/auto_exposure)
-ADD_SUBDIRECTORY(modules/auto_focus)
-ADD_SUBDIRECTORY(modules/hmap_generator)
+add_subdirectory("./src/auto_exposure/")
+add_subdirectory("./src/auto_focus/")
+add_subdirectory("./src/hmap_infer/")
 
 # Build AT library
-FILE(GLOB AT_SRC "src/*.cpp")
-ADD_LIBRARY(AT SHARED ${AT_SRC})
-TARGET_COMPILE_DEFINITIONS(AT PRIVATE AT4VS)
+file(GLOB AT_SRC "src/*.cpp")
+add_library(AT SHARED ${AT_SRC})
+#target_compile_definitions(AT PRIVATE AT4VS)
 
-TARGET_INCLUDE_DIRECTORIES(AT PUBLIC "./include" ${PROJECT_BINARY_DIR})
-TARGET_LINK_LIBRARIES(AT PUBLIC AL AF AE
-        ${OpenCV_LIBS})
-TARGET_LINK_LIBRARIES(AT PUBLIC HMAP)
+target_include_directories(AT PUBLIC "./include" "src/auto_exposure" "src/auto_focus" "src/infer_hmap" ${PROJECT_BINARY_DIR})
+target_link_libraries(AT PUBLIC AE AF HmapInfer ${OpenCV_LIBS})
+#target_link_libraries(AT PUBLIC AE AF ${OpenCV_LIBS})
 
 # Build AT test(optional)
-IF (${ENABLE_AT_TEST})
-    ADD_SUBDIRECTORY(test)
-ENDIF ()
+if (${ENABLE_AT_TEST})
+    add_subdirectory("./test/")
+endif ()
 
 # Install AT library
 SET(AT_PUBLIC_HEADER
