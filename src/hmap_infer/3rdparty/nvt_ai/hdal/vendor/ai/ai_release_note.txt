@@ -1,0 +1,214 @@
+Novatek AI SDK Notes
+
+Version
+ * vendor_ai_version: 02.19.2111250
+ * kflow_ai_version: 02.18.2111250
+ * kdrv_ai_version: 01.14.2105250
+Version from master
+ * vendor_ai_version: 02.19.2111250
+ * kflow_ai_version: 02.18.2111250
+ * kdrv_ai_version: 01.14.2105250
+NvtAITool version
+ * tool version: 1.05.03
+Feature/modification
+ * User can use vendor_ais_get_net_id / vendor_ais_release_net_id api to get/release valid net_id
+Usage influence
+ * Modifications that influence usage
+   NA
+ * Usage note
+   1. User can get valid id by calling vendor_ais_get_net_id before calling vendor_ais_net_gen_init.
+   2. If user want to uninit the network and release the net id, user can call vendor_ais_release_net_id after calling vendor_ais_net_gen_uninit.
+   3. User can refer to AI_USE_NET_ID_FROM_KFLOW define and check how to use those api.
+ * Sample code: alg_net_app_user_sample.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.18.2106090
+ * kflow_ai_version: 02.17.2106030
+ * kdrv_ai_version: 01.14.2105250
+Version from master
+ * vendor_ai_version: 02.18.2106090
+ * kflow_ai_version: 02.17.2106030
+ * kdrv_ai_version: 01.14.2105250
+NvtAITool version
+ * tool version: 1.05.03
+Feature/modification
+ * User can use dynamic batch function
+Usage influence
+ * Modifications that influence usage
+   1. If user wants todynamic batch function, user can check AI_TEST_DYNAMIC_BATCH define in alg_net_app_user_sample_multi_in.c.
+ * Usage note
+   User can refer AI_TEST_DYNAMIC_BATCH define and check usage.
+ * Sample code: alg_net_app_user_sample_multi_in.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.13.2012180
+ * kdrv_ai_version: 01.12.2012170
+Version from master
+ * vendor_ai_version: 02.13.2012180
+ * kdrv_ai_version: 01.12.2012170
+NvtAITool version
+ * tool version: 1.03.01
+Feature/modification
+ * User can select CPU running id in AI thread
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to set CPU affinity, user can check AI_CPU_AFFINITY_TEST define in alg_net_app_user_sample.c.
+   2. Makefile for sample code should add some link library. User can check difference of makefile in alg_net_app_user_sample.
+ * Usage note
+   User can refer AI_CPU_AFFINITY_TEST define and check usage.
+ * Sample code: alg_net_app_user_sample.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.12.2012170
+ * kdrv_ai_version: 01.12.2012170
+Version from master
+ * vendor_ai_version: 02.12.2012170
+ * kdrv_ai_version: 01.12.2012170
+NvtAITool version
+ * tool version: 1.03.01
+Feature/modification
+ * User can malloc input/output layer info data instead of allocating in vendor_ai
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to malloc input/output layer info data, 
+      user can check ALLOC_IN_OUT_INFO_IN_SAMPLE define in alg_net_app_user_sample.c.
+ * Usage note
+   User can refer ALLOC_IN_OUT_INFO_IN_SAMPLE define and check usage.
+ * Sample code: alg_net_app_user_sample.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.10.2012080
+ * kdrv_ai_version: 01.12.2012080
+Version from master
+ * vendor_ai_version: 02.10.2012080
+ * kdrv_ai_version: 01.12.2012080
+NvtAITool version
+ * tool version: 1.03.01
+Feature/modification
+ * Add kdrv/kflow version query API
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to query kdrv version, user can use vendor_ai_get_kdrv_version to achieve the goal.
+   2. If user wants to query kflow version, user can use vendor_ai_get_kflow_version to achieve the goal.
+ * Usage note
+   User can refer alg_net_app_user_sample.c line 882 and check usage.
+ * Sample code: alg_net_app_user_sample.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.09.2012030
+ * kdrv_ai_version: 01.11.2011160
+Version from master
+ * vendor_ai_version: 02.09.2012030
+ * kdrv_ai_version: 01.11.2011160
+Feature/modification
+ * Support float to fix api with querying input frac bit
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to do float to fix on input data, user can use vendor_ais_float_to_fix to achieve the goal.
+   2. If user wants to get input layer frac bit, user can use vendor_ais_get_input_layer_mem to query input layer info.
+ * Usage note
+   User can refer alg_net_app_user_sample.c and check for TEST_FLOAT_TO_FIX for api usage.
+ * Sample code: alg_net_app_user_sample.c
+ -----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.08.2011062
+ * kdrv_ai_version: 01.11.2011061
+Version from master
+ * vendor_ai_version: 02.08.2011062
+ * kdrv_ai_version: 01.11.2011061
+Feature/modification
+ * Support multi-thread in preproc library
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to use multi-thread, user can check alg_preproc_sample.c and update api usage.
+ * Usage note
+   User can refer alg_preproc_sample.c for api usage.
+ * Sample code: alg_preproc_sample.c
+-----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.07.2011061
+ * kdrv_ai_version: 01.10.2011060
+Version from master
+ * vendor_ai_version: 02.07.2011061
+ * kdrv_ai_version: 01.10.2011060
+Feature/modification
+ * Add vendor_ais_get_layer_mem_v2/vendor_ais_net_input_init_v2 api
+ * Support permute stripe for app mode
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to assign different channel information in one image, user can use vendor_ais_net_input_init_v2.
+   2. If user wants to get layer memory directly, user can use vendor_ais_get_layer_mem_v2 instead of vendor_ais_get_layer_mem.
+   3. For supporting permute stripe, please note that the app model less than 4.1 is not compatible in this sdk.
+ * Usage note
+   User can refer alg_net_app_user_sample.c for api usage.
+ * Sample code: alg_net_app_user_sample.c
+-----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.04.2010262
+ * kdrv_ai_version: 01.09.2010210
+Version from master
+ * vendor_ai_version: 02.04.2010262
+ * kdrv_ai_version: 01.09.2010210
+Feature/modification
+ * Add alg_net_app_user_sample_multi_in sample and add vendor_ais_net_get_input_blob_info api
+Usage influence
+ * Modifications that influence usage
+   1. If user wants to use multi-blob input, user can refer alg_net_app_user_sample_multi_in.
+ * Usage note
+   NA
+ * Sample code: alg_net_app_user_sample_multi_in.c
+-----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.03.2010260
+ * kdrv_ai_version: 01.09.2010210
+Version from master
+ * vendor_ai_version: 02.03.2010260
+ * kdrv_ai_version: 01.09.2010210
+Feature/modification
+ * Add user info memory block in VENDOR_AIS_FLOW_MAP_MEM_PARM structure
+Usage influence
+ * Modifications that influence usage
+   1. In net_flow_sample.h, the structure VENDOR_AIS_FLOW_MAP_MEM_PARM is changed, 
+      which may cause structure not align.
+ * Usage note
+   NA
+ * Sample code: NA
+-----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.02.2010211
+ * kdrv_ai_version: 01.09.2010071
+Version from master
+ * vendor_ai_version: 02.02.2010211
+ * kdrv_ai_version: 01.09.2010071
+Feature/modification
+ * add submean function in preproc library
+Usage influence
+ * Modifications that influence usage
+   1. in vendor_preproc.h, the structure "AI_PREPROC_SUB_PARM" modify element "sub_val" to "sub_val[AI_PREPROC_MAX_IO_NUM]",
+      which may cause structure not align.
+ * Usage note
+   NA
+ * Sample code: NA
+-----------------------------------------------------------------------------------------
+Version
+ * vendor_ai_version: 02.01.2010072
+ * kdrv_ai_version: 01.09.2010071
+Version from master
+ * vendor_ai_version: 02.01.2010072
+ * kdrv_ai_version: 01.09.2010071
+Feature/modification
+ * add prototxt info in customer layer
+ * default enable MODIFY_ENG_ONLINE
+Usage influence
+ * Modifications that influence usage
+   1. for customer layer, prototxt parameter is parsed for user's usage.
+   2. for default enable MODIFY_ENG_ONLINE, sample code use another define MODIFY_ENG_IN_SAMPLE to enable modify engine
+ * Usage note
+   1. for customer layer change, 
+      user can refer net_cust_layer.c and get information through variable below:
+      //CUSTNN_POOL_PROTO_PARM *p_proto_pool_parm = (CUSTNN_POOL_PROTO_PARM*)p_prototxt_parm;
+	  //CUSTNN_SLICE_PROTO_PARM *p_proto_slice_parm = (CUSTNN_SLICE_PROTO_PARM*)p_prototxt_parm;
+   2. for default enable MODIFY_ENG_ONLINE, 
+      since sample code use another define, user can modify the define to enable function:
+	  #define MODIFY_ENG_IN_SAMPLE 0 // set to 1 means use modify engine api
+ * Sample code: alg_net_app_user_sample.c / net_cust_layer.c

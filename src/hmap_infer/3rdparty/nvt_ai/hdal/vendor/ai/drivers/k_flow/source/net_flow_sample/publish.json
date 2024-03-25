@@ -1,0 +1,8 @@
+{
+	"jsontype": "module_publish",
+	"publish_src": [
+		"net_flow_platform.c",
+		"net_flow_sample_ioctl.c",
+		"net_flow_sample_ioctl_rtos.c"
+	]
+}
