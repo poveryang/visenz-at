@@ -16,7 +16,7 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap) {
         printf("[AT4VS] Heatmap is enabled\n");
 #ifdef USE_TENGINE
         hmap_obj = std::make_shared<HMapInferTengine>();
-        hmap_obj->Init("/usr/scanner/algorithm/hmap-v2-qat-uint8.tmfile");
+        hmap_obj->Init("/usr/scanner/algorithm/hmap-v7-qat-tmp-uint8-2.tmfile");
 #elif USE_NVTAI
         std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
         int input_width = 1280;
