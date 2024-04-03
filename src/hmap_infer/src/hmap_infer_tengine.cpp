@@ -66,8 +66,8 @@ void HMapInferTengine::Init(const std::string &model_path) {
     get_tensor_quant_param(input_tensor_, &input_scale, &input_zero_point, 1);
 
     // set input tensor shape
-    int img_h = 400;  // TODO: get from model
-    int img_w = 640;
+    int img_h = this->infer_size_wh_.height;  // TODO: get from model
+    int img_w = this->infer_size_wh_.width;
     int img_c = 1;
     input_buffer_size_ = img_h * img_w * img_c * unit_size;
     int in_dims[4] = {1, img_c, img_h, img_w}; // nchw
@@ -115,46 +115,50 @@ cv::Mat HMapInferTengine::Inference(const cv::Mat &image) {
         fprintf(stderr, "Get output images failed\n");
         exit(1);
     }
-    cv::Mat heatmap = cv::Mat(out_dim_[1], out_dim_[2], CV_8UC3, output_uint8);
+    cv::Mat heatmap = cv::Mat(out_dim_[1], out_dim_[2], CV_8UC4, output_uint8);
 
     /* postprocess */
     cv::Size out_size = image.size();
     heatmap = PostProcess(heatmap);
-    return heatmap;
+
+    cv::Mat out_heatmap;
+    cv::resize(heatmap, out_heatmap, out_size, 0, 0, cv::INTER_NEAREST);
+
+    return out_heatmap;
 }
 
 cv::Mat HMapInferTengine::PreProcess(const cv::Mat &image) {
     // Resize image
-    printf("Resize %d %d to %d %d\n", image.cols, image.rows, src_size_.width, src_size_.height);
-    cv::Mat resized_img = image;
-    cv::resize(resized_img, resized_img, src_size_, 0, 0, cv::INTER_LINEAR);
-    resized_img = resized_img.reshape((src_size_.height, src_size_.width, 1));
+    // printf("Resize %d %d to %d %d\n", image.cols, image.rows, this->infer_size_wh_.width, this->infer_size_wh_.height);
+    cv::Mat resized_img;
+    cv::resize(image, resized_img, this->infer_size_wh_, 0, 0, cv::INTER_LINEAR);
+
     return resized_img;
 }
 
 cv::Mat HMapInferTengine::PostProcess(cv::Mat &image) {
     // Dequantize
-    image.convertTo(image, CV_32FC3);
-    image = (image - cv::Scalar(output_zero_point, output_zero_point, output_zero_point)) * output_scale;
+    image.convertTo(image, CV_32FC4);
+    image = (image - cv::Scalar(output_zero_point, output_zero_point, output_zero_point, output_zero_point)) * output_scale;
 
     // Sigmoid
     image = Sigmoid(image); // sigmoid
 
     // TODO: clip min value temporarily
-    cv::Mat mask = image < 0.2;
+    cv::Mat mask = image < this->hmap_intensity_thre_;
     image.setTo(0, mask);
-    image.convertTo(image, CV_8UC3, 255);
+    image.convertTo(image, CV_8UC4, 255);
 
     return image;
 }
 
 cv::Mat HMapInferTengine::Sigmoid(const cv::Mat &image) {
-    cv::Mat dst_img = cv::Mat(image.rows, image.cols, CV_32FC3);
+    cv::Mat dst_img = cv::Mat(image.rows, image.cols, CV_32FC4);
     for (int i = 0; i < image.rows; i++) {
         for (int j = 0; j < image.cols; j++) {
             for (int k = 0; k < image.channels(); k++) {
-                float value = image.at<cv::Vec3f>(i, j)[k];
-                dst_img.at<cv::Vec3f>(i, j)[k] = 1 / (1 + exp(-value));
+                float value = image.at<cv::Vec4f>(i, j)[k];
+                dst_img.at<cv::Vec4f>(i, j)[k] = 1 / (1 + exp(-value));
             }
         }
     }

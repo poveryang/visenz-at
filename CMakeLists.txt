@@ -1,4 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
+
+# SET(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc)
+# SET(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++)
+
 project(ViSenz-AT)
 
 # Set AT version
@@ -9,8 +13,13 @@ configure_file("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/versi
 message(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
 
 # Build options
-option(ENABLE_AT_TEST "Build AT UnitTest" ON)
+option(ENABLE_AT_TEST "Build AT UnitTest" OFF)
 option(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
+
+# Build setting
+set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # Load dependent library
 if (${DEVICE} MATCHES "vs1000p")
@@ -18,6 +27,7 @@ if (${DEVICE} MATCHES "vs1000p")
     add_definitions(-DUSE_TENGINE)
     set(NPU_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libtengine_api")
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+    # set(OpenCV_DIR "/home/lsa/project/barcode-sdk/3rdparty/opencv_aarch64/opencv_aarch64/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs600|vs800p")
     message(STATUS "Using nvtai backend")
     add_definitions(-DUSE_NVTAI)

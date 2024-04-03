@@ -20,20 +20,9 @@ public:
 
     cv::Mat PostProcess(cv::Mat &image) override;
 
-    void SetSrcSize(const cv::Size &size) {
-        src_size_ = size;
-    }
-
-    void SetDstSize(const cv::Size &size) {
-        dst_size_ = size;
-    }
-
     static cv::Mat Sigmoid(const cv::Mat &image);
 
 private:
-    cv::Size src_size_ = cv::Size(640, 400);
-    cv::Size dst_size_ = cv::Size(640, 400);
-
     // quantization parameters
     float input_scale = 0.f;
     int input_zero_point = 0;

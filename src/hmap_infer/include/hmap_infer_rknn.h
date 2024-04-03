@@ -18,19 +18,8 @@ public:
 
     cv::Mat PostProcess(cv::Mat &image) override;
 
-    void SetSrcSize(const cv::Size &size) {
-        src_size_ = size;
-    }
-
-    void SetDstSize(const cv::Size &size) {
-        dst_size_ = size;
-    }
 
 private:
-    // Size of input and output
-    cv::Size src_size_ = cv::Size(640, 400);
-    cv::Size dst_size_ = cv::Size(640, 400);
-
     // Model context
     rknn_context rknn_context_{};
     unsigned char* model_ = nullptr;

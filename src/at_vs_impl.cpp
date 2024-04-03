@@ -16,6 +16,7 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap) {
         printf("[AT4VS] Heatmap is enabled\n");
 #ifdef USE_TENGINE
         hmap_obj = std::make_shared<HMapInferTengine>();
+        hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
         hmap_obj->Init("/usr/scanner/algorithm/hmap-v7-qat-tmp-uint8-2.tmfile");
 #elif USE_NVTAI
         std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
@@ -27,6 +28,7 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap) {
 #elif USE_RKNN
         printf("[AT4VS] Using RKNN for heatmap inference\n");
         hmap_obj = std::make_shared<HMapInferRK>();
+        hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
         hmap_obj->Init("/usr/scanner/algorithm/hmap-v2.rknn");
 #else
         printf("[AT4VS] Heatmap is enabled but no inference engine is specified\n");

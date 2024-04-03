@@ -39,6 +39,30 @@ public:
     void IdentifyHotspot(Hotspot &new_hotspot);
 
     static double CalcHotsIOU(const Hotspot &hot1, const Hotspot &hot2);
+
+    inline void SetInferSize(const cv::Size2i size)
+    {
+        this->infer_size_wh_ = size;
+    }
+
+    inline cv::Size2i GetInferInputSize() const
+    {
+        return this->infer_size_wh_;
+    }
+
+    inline void SetHmapIntensityThreshold(float thre)
+    {
+        this->hmap_intensity_thre_ = thre;
+    }
+
+    inline float GetHmapIntensityThreshold() const
+    {
+        return this->hmap_intensity_thre_;
+    }
+
+protected:
+    cv::Size2i infer_size_wh_ = cv::Size2i(1280, 800);
+    float hmap_intensity_thre_ = 0.2;
 };
 
 #endif //HMAP_INFER_BASE_H

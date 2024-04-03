@@ -35,3 +35,4 @@
 *.app
 /test/drivers/
 /3rdparty/
+/.vscode/

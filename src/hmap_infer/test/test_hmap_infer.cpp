@@ -4,6 +4,8 @@
 
 #ifdef USE_RKNN
 #include "hmap_infer_rknn.h"
+#elif USE_TENGINE
+#include "hmap_infer_tengine.h"
 #endif
 
 int main(int argc, char **argv) {
@@ -43,17 +45,25 @@ int main(int argc, char **argv) {
     std::shared_ptr<HMapInferBase> hmap_infer;
 #ifdef USE_RKNN
     hmap_infer = std::make_shared<HMapInferRK>();
+#elif USE_TENGINE
+    hmap_infer = std::make_shared<HMapInferTengine>();
+    hmap_infer->SetInferSize(cv::Size2i(1280, 800));
+    hmap_infer->SetHmapIntensityThreshold(0.2);
+#endif
     hmap_infer->Init(model_path);
     cv::Mat heatmap = hmap_infer->Inference(image);
-#endif
-    cv::imwrite("./heatmap.png", heatmap);
+
+    std::vector<cv::Mat> heatmap_channels;
+    cv::split(heatmap, heatmap_channels);
+    cv::Mat heatmap_sum = heatmap_channels[0] + heatmap_channels[1] + heatmap_channels[2] + heatmap_channels[3];
+    cv::Mat heatmap_canvas;
+    cv::applyColorMap(heatmap_sum, heatmap_canvas, cv::COLORMAP_JET);
+    cv::imwrite("./heatmap.png", heatmap_canvas);
 
     /* Blend image and heatmap */
     cv::Mat blend_img;
     cv::cvtColor(image, image, cv::COLOR_GRAY2BGR);
-    cv::cvtColor(heatmap, heatmap, cv::COLOR_RGB2BGR);
-    cv::resize(heatmap, heatmap, image.size());
-    cv::addWeighted(image, 0.5, heatmap, 0.5, 0, blend_img);
+    cv::addWeighted(image, 0.5, heatmap_canvas, 0.5, 0, blend_img);
     cv::imwrite("./blend.png", blend_img);
 
     return 0;

@@ -75,7 +75,7 @@ void HMapInferRK::Init(const std::string &model_path) {
     memset(inputs_, 0, sizeof(inputs_));
     inputs_[0].index = 0;
     inputs_[0].type  = RKNN_TENSOR_INT8;
-    inputs_[0].size  = src_size_.width * src_size_.height * 1 * sizeof(uint8_t);
+    inputs_[0].size  = this->infer_size_wh_.width * this->infer_size_wh_.height * 1 * sizeof(uint8_t);
     inputs_[0].fmt   = RKNN_TENSOR_NHWC;
 }
 
@@ -123,17 +123,17 @@ cv::Mat HMapInferRK::Inference(const cv::Mat &image) {
 
 cv::Mat HMapInferRK::PreProcess(const cv::Mat &image) {
     // Resize image
-    printf("Resize %d %d to %d %d\n", image.cols, image.rows, src_size_.width, src_size_.height);
+    printf("Resize %d %d to %d %d\n", image.cols, image.rows, this->infer_size_wh_.width, this->infer_size_wh_.height);
     cv::Mat resized_img = image;
-    cv::resize(resized_img, resized_img, src_size_, 0, 0, cv::INTER_LINEAR);
-    resized_img = resized_img.reshape((src_size_.height, src_size_.width, 1));
+    cv::resize(resized_img, resized_img, this->infer_size_wh_, 0, 0, cv::INTER_LINEAR);
+    resized_img = resized_img.reshape((this->infer_size_wh_.height, this->infer_size_wh_.width, 1));
     return resized_img;
 }
 
 cv::Mat HMapInferRK::PostProcess(cv::Mat &chw_buffer) {
-    // Reshape tempBuffer(3, h * w) to (h, w, 3)
-    std::vector<cv::Mat> chs(3);
-    for (int i = 0; i < 3; ++i)
+    // Reshape tempBuffer(4, h * w) to (h, w, 4)
+    std::vector<cv::Mat> chs(4);
+    for (int i = 0; i < 4; ++i)
     {
         cv::Mat ch_buffer = chw_buffer.row(i);
         cv::exp(ch_buffer, ch_buffer);
@@ -145,9 +145,9 @@ cv::Mat HMapInferRK::PostProcess(cv::Mat &chw_buffer) {
     cv::merge(chs, hwc_img);
 
     // TODO: clip min value temporarily
-    cv::Mat mask = hwc_img < 0.2;
+    cv::Mat mask = hwc_img < this->hmap_intensity_thre_;
     hwc_img.setTo(0, mask);
-    hwc_img.convertTo(hwc_img, CV_8UC3, 255);
+    hwc_img.convertTo(hwc_img, CV_8UC4, 255);
 
     return hwc_img;
 }
