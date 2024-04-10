@@ -6,11 +6,15 @@
 
 #ifdef USE_SMVC
 #include "cap_smvc.h"
+#elif USE_V4L2
+#include "cap_v4l2.h"
 #endif
+
 
 // Device information for different devices
 std::map<std::string, DeviceInfo> dev_infos = {
         {"vs2000p", vs2000p_info},
+        {"vs1000p", vs1000p_info}
 };
 
 void TestATOnline(const std::string& dev_name,

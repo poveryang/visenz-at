@@ -1,17 +1,14 @@
-#include "cap_aarch64.h"
+#include "cap_v4l2.h"
 
 
-CamCapture::CamCapture(const std::string &dev_name) {
-    // Get sensor parameters
-    sensor_t sensor_params = sensor_map[dev_name];
-    int sensor_fps = sensor_params.fps;
-    int sensor_width = sensor_params.width;
-    int sensor_height = sensor_params.height;
-    int sensor_raw_bit = sensor_params.raw_bit;
-
+CamCapture::CamCapture(const std::string &sensor_name,
+                       int sensor_width,
+                       int sensor_height,
+                       int sensor_format,
+                       int sensor_fps) {
     // Initialize camera
     vcap.openDevice();
-    vcap.initDevice(sensor_fps, sensor_width, sensor_height, sensor_raw_bit);
+    vcap.initDevice(sensor_fps, sensor_width, sensor_height, sensor_format);
     vcap.startCapture();
     vcap.setLightAim(0);
     vcap.setStrobeEnable(0);
@@ -22,7 +19,7 @@ CamCapture::~CamCapture() {
     vcap.closeDevice();
 }
 
-cv::Mat CamCapture::CapImg(at::CamParams &cam_params) const {
+cv::Mat CamCapture::CapImg(CamParams &cam_params) const {
     // Set camera parameters
     for (int i = 0; i < cam_params.lights.size(); i++) {
         vcap.setLightBright(i, cam_params.lights[i]);
