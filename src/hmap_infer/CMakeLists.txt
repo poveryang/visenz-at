@@ -6,7 +6,7 @@ option(BUILD_UNIT_TEST "Build unit test" ON)
 option(BUILD_EVAL "Build eval to go through dataset" ON)
 
 # Configure npu backend
- if (${DEVICE} MATCHES "vs1000p")
+ if (${DEVICE} MATCHES "vs1000p|vs2000")
      message(STATUS "Using tengine backend")
      add_definitions(-DUSE_TENGINE)
      set(NPU_API_DIR "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libtengine_api")

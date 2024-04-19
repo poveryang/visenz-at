@@ -76,9 +76,10 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al) {
 bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, bool update_best) {
     /* Calc metrics in current frame */
     CalcMetrics(image);
-    printf("target brt = %d\n", brt_target);
+    // printf("target brt = %d\n", brt_target);
 
     if (abs(status_cur.brt - brt_target) < thres_brt_diff || ++num_qt >= max_num_qt) {
+        std::cout << "access target brt" << std::endl;
         num_qt = 0;
         if (update_best){
             UpdateBestParams();
@@ -136,11 +137,21 @@ bool AEImpl::StepTune(const cv::Mat &image) {
 void AEImpl::CalcMetrics(const cv::Mat &image) {
     /* Calc metrics */
     double brt =-1, entropy = -1, contrast = -1;
+    auto start = std::chrono::high_resolution_clock::now();
     brt = CalcMeanBrt(image);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
+    std::cout << "CalcMeanBrt time: " << duration.count() / 1000 << std::endl;
     if (!enable_roi) {
+        std::cout << "using entropy" << std::endl;
+        start = std::chrono::high_resolution_clock::now();
         entropy = CalcEntropy(image);
+        end = std::chrono::high_resolution_clock::now();
+        duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
+        std::cout << "CalcEntropy time: " << duration.count() / 1000 << std::endl;
         ent_exp_map[entropy] = params_next;
     } else {
+        std::cout << "using contrast" << std::endl;
         contrast = CalcContrast(image(roi));
         double score = roi_weight * 0.9 + contrast * 0.1;
         ct_exp_map[score] = params_next;
@@ -153,8 +164,8 @@ void AEImpl::CalcMetrics(const cv::Mat &image) {
     status_cur.entropy = entropy;
     status_cur.contrast = contrast;
     status_cur.Print();  // print status
-    printf("; roi = (%.2f, %.2f, %.2f, %.2f), hot_intensity = %.2f\n",
-           roi.x, roi.y, roi.width, roi.height, roi_weight);
+    // printf("; roi = (%.2f, %.2f, %.2f, %.2f), hot_intensity = %.2f\n",
+    //        roi.x, roi.y, roi.width, roi.height, roi_weight);
 }
 
 void AEImpl::UpdateBestParams() {
@@ -191,29 +202,32 @@ void AEImpl::CalcScaleFactors(int brt_target) {
 
     /* linear regression of et and brt first */
     double max_et_scale, min_et_scale;
-    LinearRegEtCurve(max_et_scale, min_et_scale);
+    LinearRegEtCurve(max_et_scale, min_et_scale);  // 只计算et的曲线
 
     if (et_ori_scale > max_et_scale) {
+        std::cout << "et_ori_scale max range" << std::endl; 
         et_real_scale = max_et_scale;
         et_odd_scale = et_ori_scale / max_et_scale;
     } else if (et_ori_scale < min_et_scale) {
+        std::cout << "et_ori_scale min range" << std::endl; 
         et_real_scale = min_et_scale;
         et_odd_scale = et_ori_scale / min_et_scale;
     } else {
+        std::cout << "et_ori_scale middle range" << std::endl; 
         et_real_scale = et_ori_scale;
         et_odd_scale = 1.0;
     }
 
     /* limit real EG scale range and calculate odd scale */
-    double eg_max_scale, eg_min_scale, eg_real_scale, eg_odd_scale;
-    eg_max_scale = double(MAX_EG) / status_cur.params.exp_gain;
-    eg_min_scale = double(MIN_EG) / status_cur.params.exp_gain;
-    if (eg_ori_scale > eg_max_scale) {
-        eg_real_scale = eg_max_scale;
-        eg_odd_scale = eg_ori_scale / eg_max_scale;
-    } else if (eg_ori_scale < eg_min_scale) {
-        eg_real_scale = eg_min_scale;
-        eg_odd_scale = eg_ori_scale / eg_min_scale;
+    double max_eg_scale, min_eg_scale, eg_real_scale, eg_odd_scale;
+    max_eg_scale = double(MAX_EG) / status_cur.params.exp_gain;
+    min_eg_scale = double(MIN_EG) / status_cur.params.exp_gain;
+    if (eg_ori_scale > max_eg_scale) {
+        eg_real_scale = max_eg_scale;
+        eg_odd_scale = eg_ori_scale / max_eg_scale;
+    } else if (eg_ori_scale < min_eg_scale) {
+        eg_real_scale = min_eg_scale;
+        eg_odd_scale = eg_ori_scale / min_eg_scale;
     } else {
         eg_real_scale = eg_ori_scale;
         eg_odd_scale = 1.0;
@@ -225,8 +239,8 @@ void AEImpl::CalcScaleFactors(int brt_target) {
 
     scale_et = std::max(scale_et, min_et_scale);
     scale_et = std::min(scale_et, max_et_scale);
-    scale_eg = std::max(scale_eg, eg_min_scale);
-    scale_eg = std::min(scale_eg, eg_max_scale);
+    scale_eg = std::max(scale_eg, min_eg_scale);
+    scale_eg = std::min(scale_eg, max_eg_scale);
 }
 
 void AEImpl::ScaleExpParams() {
@@ -234,7 +248,7 @@ void AEImpl::ScaleExpParams() {
     int eg_cur = status_cur.params.exp_gain;
     double real_gain =  eg_cur * EG_QUANT_SCALE;
     double brt_cur = status_cur.brt;
-    double brt_cur_et = brt_cur / real_gain;
+    double brt_cur_et = brt_cur / real_gain;  // 除以eg后，得到的就是由et提供的亮度
 
     params_next.exp_time = static_cast<int>(((brt_cur_et * scale_et) - et_intercept) / et_slope);
     params_next.exp_gain = static_cast<int>(round(eg_cur * scale_eg));
@@ -340,26 +354,30 @@ void AEImpl::LinearRegEtCurve(double &max_et_scale, double &min_et_scale) {
     /* info of current and previous status */
     double et_cur = status_cur.params.exp_time;
     double eg_cur = status_cur.params.exp_gain * EG_QUANT_SCALE;
-    double brt_cur_et = status_cur.brt / eg_cur;
+    double brt_cur_et = status_cur.brt / eg_cur;     // 除以eg后，得到的就是由et提供的亮度
 
     double et_prev = status_prev.params.exp_time;
     double eg_prev = status_prev.params.exp_gain * EG_QUANT_SCALE;
-    double brt_prev_et = status_prev.brt / eg_prev;
+    double brt_prev_et = status_prev.brt / eg_prev;  // 除以eg后，得到的就是由et提供的亮度
 
     /* Check if meet the condition of linear regression */
-    bool not_oue = (status_prev.brt >= thres_ue_brt && status_prev.brt<= thres_oe_brt) &&
-                   (status_cur.brt >= thres_ue_brt && status_cur.brt<= thres_oe_brt);
+    bool not_oue = (status_prev.brt >= thres_ue_brt && status_prev.brt<= thres_oe_brt) &&    //  5 <= status_prev.brt <= 250
+                   (status_cur.brt >= thres_ue_brt && status_cur.brt<= thres_oe_brt);        //  5 <= status_cur.brt <= 250
     bool mono_inc = (brt_cur_et - brt_prev_et) * (et_cur - et_prev) > 0;
     bool meet_gap = abs(et_cur - et_prev) >= min_fit_gap;
 
+    // et为横轴，brt为纵轴的一次函数
+
     /* Fit line function of et and brt by two points */
     if (meet_gap && not_oue && mono_inc) {
-        et_slope = (brt_cur_et - brt_prev_et) / (et_cur - et_prev);
-        et_intercept = brt_cur_et - et_slope * et_cur;
+        et_slope = (brt_cur_et - brt_prev_et) / (et_cur - et_prev);   // k = (y2-y1) / (x2-x1)
+        et_intercept = brt_cur_et - et_slope * et_cur;                // b = y2 - k*x2
     } else {
-        et_slope = (brt_cur_et) / double(et_cur);
-        et_intercept = 0;
+        et_slope = (brt_cur_et) / double(et_cur);        // 截距为0时，k = y / x
+        et_intercept = 0;                             
     }
+
+    std::cout << "et_slope " << et_slope << "  et_intercept " << et_intercept << std::endl;
 
     /* calc max and min et scale */
     double max_brt = std::min((MAX_ET * et_slope + et_intercept), 255.0);

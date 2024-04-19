@@ -36,3 +36,6 @@
 /test/drivers/
 /3rdparty/
 /.vscode/
+/test/3rdparty/libBarcode/vs1000p/
+/test/3rdparty/libBarcode/vs2000/
+/test/3rdparty/libBarcode/vs2000p/

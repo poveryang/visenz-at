@@ -1,7 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-# SET(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc)
-# SET(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++)
+# for tengine
+set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc)
+set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++)
+
+# # for novaic
+# set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc)
+# set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++)
 
 project(ViSenz-AT)
 
@@ -22,8 +27,9 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # Load OpenCV
-if (${DEVICE} MATCHES "vs1000p")
-    set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+if (${DEVICE} MATCHES "vs1000p|vs2000")
+    # set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
+    set(OpenCV_DIR "/home/lsa/project/barcode-sdk/3rdparty/opencv_aarch64/opencv_aarch64/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs600|vs800p")
     SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs2000p")

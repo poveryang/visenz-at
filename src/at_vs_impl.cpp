@@ -135,7 +135,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
     switch (*phase) {
         case AEQT: {
             printf("[AT4VS] AEQT Running: \n");
-            ae_obj.QuickTune(image);
+            ae_obj.QuickTune(image, 64);
             break;
         }
         case AEST: {
@@ -185,7 +185,11 @@ void AT4VsImpl::UpdateNextParams() {
                        ae_obj.params_next.exp_time, ae_obj.params_next.exp_gain,
                        ae_obj.params_next.lights[0], ae_obj.params_next.lights[1],
                        ae_obj.params_next.lights[2], ae_obj.params_next.lights[3]);
+                best_params.lights = ae_obj.params_best.lights;
+                best_params.exp_time = ae_obj.params_best.exp_time;
+                best_params.exp_gain = ae_obj.params_best.exp_gain;
                 *phase++; // Move to the next phase
+                this->timer_start_ = std::chrono::high_resolution_clock::now();
             }
             break;
         }
@@ -211,6 +215,9 @@ void AT4VsImpl::UpdateNextParams() {
                 printf("[AT4VS] AF Done: focus-pos=%d\n\n", af_obj.best_pos);
                 best_params.focus_pos = af_obj.best_pos;
                 *phase++; // Move to the next phase
+                auto timer_end = std::chrono::high_resolution_clock::now();
+                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timer_end-this->timer_start_);
+                std::cout << "first stage af time: " << duration.count() / 1000 << "  ms" << std::endl;
             }
             break;
         }

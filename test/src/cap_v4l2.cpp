@@ -15,8 +15,8 @@ CamCapture::CamCapture(const std::string &sensor_name,
 }
 
 CamCapture::~CamCapture() {
-    vcap.stopCapture();
-    vcap.closeDevice();
+    // vcap.stopCapture();
+    // vcap.closeDevice();
 }
 
 cv::Mat CamCapture::CapImg(CamParams &cam_params) const {
@@ -35,7 +35,7 @@ cv::Mat CamCapture::CapImg(CamParams &cam_params) const {
     sensorParam sensor_params{};
     while (true) {
         int ret = vcap.getNewestFrame(reinterpret_cast<void **>(&frame_buf),
-                                      static_cast<size_t *>(&frame_size), 2000000);
+                                      static_cast<size_t *>(&frame_size), 2000000, 0);
         sensor_params = vcap.getCurrentFrameSensorParam();
         if (ret < 0) {
             printf("Get Newest Frame Error!");

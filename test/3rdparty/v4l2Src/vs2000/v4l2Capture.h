@@ -14,9 +14,15 @@
 #include <linux/videodev2.h>
 #include <iostream>
 #include <mutex>
+#include <unistd.h>
+#include <fcntl.h>
+#include "mem_manager.h"
+#include "sm_light.h"
 
 //#define USE_2M_SENSOR 
-#define BUFFER_NUM				16
+#define BUFFER_NUM				8
+
+#define LIGHT_NUM				10
 
 #define LIGHT_BRIGHT_MAX		24
 //#define DMA_M2M_ENABLE 	
@@ -40,6 +46,12 @@ enum vb2_memory {
 	VB2_MEMORY_MMAP         = 1,
 };
 
+typedef enum {
+    HW_LIGHT_WHITE = 0,
+    HW_LIGHT_RED,
+    HW_LIGHT_BLUE,
+}light_color;
+
 struct sensorParam{
 	unsigned int active; //参数生效标志
 	unsigned int gain;
@@ -48,6 +60,14 @@ struct sensorParam{
 	int focus_state;
 	unsigned int lightBright[16];
 };
+
+struct cam_buffer
+{
+    void *start;
+    unsigned int length;
+    unsigned long phy;
+};
+
 
 class V4L2Capture
 {
@@ -98,11 +118,28 @@ public:
 	int setLightAim(int enable);
 	int setLensFocus(int value);
 	int getLensVaild(void);
-	int	getMaxLensValue(void);
-	int getMaxExposure(void);
-	int getMaxGain(void);
-    int get1000Plightboardversion(void);
-	int fps = 30;
+    int getLightNumber(void);
+    light_color getLightColor(void);
+    char *getMcuVersion(char *buf);
+	int getMaxLensValue(void);
+    int getMaxExposure(void);
+    int getMaxGain(void);
+	void LightStayOn(int enable);
+    /**
+     * @brief set_fd_non_inheritable, Set resources not to be occupied by processes
+     * @param fd
+     */
+    void set_fd_non_inheritable(int fd)
+    {
+        int flags = fcntl(fd, F_GETFD);
+        if (flags != -1)
+        {
+            fcntl(fd, F_SETFD, flags | FD_CLOEXEC);
+        }
+    }
+
+    int write_device_param(const char *data , int data_len);
+    int fps = 30;
 
 private:
     int initBuffers();
@@ -112,18 +149,21 @@ private:
 		void   *start[NUM_PLANES];
 		size_t	length[NUM_PLANES];
 	};
-	
-	struct buffer *buffers;
 
-    const char *devName = "/dev/video0";	
+    struct buffer *v4l2_buffers;
+    struct sm_mem_dev *memDev;
+    cam_buffer userptr_buffers[BUFFER_NUM];
+
+    const char *devName = "/dev/video0";
     const char *subName = "/dev/v4l-subdev0";
+    int light_current_version = -1 ;
 #ifdef USE_2M_SENSOR
 
     int mWidth = 1600;
     int mHeight = 1300;
 #else
-    int mWidth = 1280;
-    int mHeight = 800;
+    int mWidth = 2448;
+    int mHeight = 2048;
 #endif
     //const int capFMT = V4L2_PIX_FMT_NV12;//V4L2_PIX_FMT_SBGGR8;
     const int capFMT_8Bit = V4L2_PIX_FMT_SBGGR8;
@@ -131,16 +171,16 @@ private:
     int gain = 16;
     int exposure = 2233;
     int sWidth = 0xFFFF;
-    
+	int last_mode = 0;
+
     int fdCam = -1;	
     int subfb = -1;    
     int frameIndex;
-    int light_status = 0;
-	int strobe_state = 0;   
- 
-    struct sensorParam app_param,cur_param;
-	
+    int memory_type = V4L2_MEMORY_USERPTR; //V4L2_MEMORY_MMAP使用v4l2框架的拷贝 V4L2_MEMORY_USERPTR是使用sdma拷贝
+
+    struct sensorParam app_param, cur_param;
     struct timeval m_newframetime;
-	
+    int focus_type = -1;
+	int light_contrl = -1;	
     std::mutex mtx;
 };

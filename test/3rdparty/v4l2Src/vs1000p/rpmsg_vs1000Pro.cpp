@@ -94,7 +94,7 @@ int Rpmsg::Rpmsg_RecvData(void)
         ret = read(fd_rpmsg, rcv_buf, sizeof(rcv_buf));
         printf("%s %d rcv_buf = %s\n", __func__, __LINE__, rcv_buf);
     }
-    printf("%s %d rcv_buf\n", __func__, __LINE__ );
+    // printf("%s %d rcv_buf\n", __func__, __LINE__ );
     return ret;
 }
 
@@ -292,12 +292,57 @@ int Rpmsg::setLightTime(int time)
         time = MIN_LIGHT_TIME;
     }
 	time = time + LIGHT_BEFORE_TIME;
-    //sprintf(command, "%s%1d%1d", time_head,  ((time >> 8) & 0xFF) , (time & 0xFF));
 	snprintf(command, sizeof(command), "%s%d", time_head, time);
 
     ret = Rpmsg_SendDate(command, strlen(command));
-//	printf("smore command = %s\n",command);
 	return 0;
 }
 
+int Rpmsg::setBuzzerStatus(int value)
+{
+    int ret = 0;
 
+    char command[20] = { 0 };
+    sprintf(command, "%s%d", buzzer_state, value);
+    ret = Rpmsg_SendDate(command, strlen(command));
+
+    return ret >= 0 ? 0 : -1; 
+}
+
+int Rpmsg::setBuzzrConfig(int period,int dutycycle)
+{
+    int ret = 0;
+
+    char command[25] = { 0 };
+    sprintf(command, "%s%d-%d", buzzer_config, period, dutycycle);
+    ret = Rpmsg_SendDate(command, strlen(command));
+
+    return ret >= 0 ? 0 : -1;     
+}
+
+int Rpmsg::setBuzzerTime(int time)
+{
+    int ret = 0;
+
+    char command[20] = { 0 };
+    sprintf(command, "%s%d", buzzer_time, time);
+    ret = Rpmsg_SendDate(command, strlen(command));
+
+    return ret >= 0 ? 0 : -1; 
+}
+
+int Rpmsg::get_lightboard_version(void)
+{
+    int ret = 0;
+
+    char command[10] = { 0 };
+    sprintf(command, "%s", light_board_version);
+    ret |= Rpmsg_SendDate(command, strlen(command));
+    ret |= Rpmsg_RecvData();
+    if (strncmp(rcv_buf, "old", 3) == 0){
+        ret = 0;
+    }else{
+        ret = 1;
+    }
+    return ret;  
+}

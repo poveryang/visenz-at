@@ -1,5 +1,6 @@
 #include "af_impl.h"
 #include "af_config.h"
+#include <chrono>
 
 using namespace af;
 
@@ -27,7 +28,7 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
 
     /* variables for roi */
     this->enable_roi = false;
-    this->roi = cv::Rect2d(0, 0, 0, 0);
+    this->roi = af_conf.ROI;
 
     /* misc */
     this->win_size = af_alg_conf.win_size;
@@ -39,15 +40,22 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
     this->id_hots.clear();
 
     /* init the sampler and get the first sample */
-    ResetSamples();
+    // ResetSamples();
+    this->pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);  // 第一步的时候必须要使用step sampling，否则无法覆盖全区域
+                                                                                  // step要自适应于min max focus，不同平台的min max差别很大
     GetNextSample();
 }
 
 void AFImpl::Run(const cv::Mat &image) {
+    auto start = std::chrono::high_resolution_clock::now();
     CalcFocusValue(image);
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
+    // std::cout << "CalcFocusValue time: " << duration.count() / 1000 << std::endl;
 
     if (start_fit) {
-        PolynomialFit();
+        // PolynomialFit();
+        end_iter = true;
     } else if (enable_hmap) {
         AnalysisHotspots();
     } else {
@@ -58,36 +66,16 @@ void AFImpl::Run(const cv::Mat &image) {
 }
 
 void AFImpl::CalcFocusValue(const cv::Mat &image) {
-    cv::Mat image_clone = image.clone();
-    if (enable_roi) {
-        image_clone = image_clone(roi);
-    }
+    cv::Mat resized_img;
+    cv::resize(image, resized_img, cv::Size(), 0.5, 0.5);
 
-    // resize the image if the image is too large
-    if (image_clone.cols > 1280 || image_clone.rows > 800) {
-        double scale = std::min(1280.0 / image_clone.cols, 800.0 / image_clone.rows);
-        cv::resize(image_clone, image_clone, cv::Size(), scale, scale);
-    }
+    cv::Mat img_grad;
+    cv::Sobel(resized_img, img_grad, CV_32FC1, 1, 1, 5);
+    cv::Mat tmp1 = cv::abs(img_grad);
+    double acc = acc = cv::sum(tmp1)[0];
 
-    cv::Mat x_grad, y_grad;
-    cv::Sobel(image_clone, x_grad, CV_32FC1, 1, 0, 11);
-    cv::Sobel(image_clone, y_grad, CV_32FC1, 0, 1, 11);
-
-    double acc = 0;
-    int cols = image_clone.cols;
-    int rows = image_clone.rows;
-#pragma omp parallel for reduction(+ : acc) default(none) shared(x_grad, y_grad, rows, cols)
-    for (int row = 1; row < rows - 1; ++row) {
-        auto ptr_x = x_grad.ptr<float>(row);
-        auto ptr_y = y_grad.ptr<float>(row);
-        for (int col = 1; col < cols - 1; ++col) {
-            acc += ptr_x[col] * ptr_x[col];
-            acc += ptr_y[col] * ptr_y[col];
-        }
-    }
-
-    pos_with_fv[next_pos] = acc;
-    pos_fv_recorder[next_pos] = acc;
+    this->pos_with_fv[next_pos] = acc;
+    this->pos_fv_recorder[next_pos] = acc;
     printf("Focus pos=%d, focus value=%.2e\n", next_pos, acc);
 }
 
@@ -141,15 +129,55 @@ void AFImpl::AnalysisFvCurve() {
         ApplyMaxFv(pos_vec, peak_idx);
         UpdateStatus(pos_vec, peak_idx);
         printf("Apply max fv in pos %d\n", pos_cur_center);
+        this->best_pos = pos_cur_center;
     } else {
         /* Situation 2: Sampling in progress: search for peak in the focus value curve */
         std::vector<int> pos_vec;
         std::vector<double> fv_vec;
         GetPosFv(pos_vec, fv_vec);
-        int peak_idx = SlidingWinSearch(fv_vec, win_size, false);
+        int peak_idx = SlidingWinSearch(fv_vec, win_size, false); // win_size default = 5
+
+        if (fv_vec.size() > 1 && peak_idx < 0)
+        {
+            // 先判断是否是单调递减，按照现在的采样方法，主要的采样点都是在中间焦段，理论上fv_vec是二次凸函数
+            // 但如果最佳的焦距落在全焦段的前端，那么这种采样方法下的fv_vec基本就是单调递减，需要提前退出后续采样
+            // 如果fv_vec是一直单调递增的，就会正常走完后面的采样流程
+            bool mono_decreasing = true;
+            for(int i=1; i<fv_vec.size()-1; i++)
+            {
+                if(fv_vec[i] - fv_vec[i-1] > 0)
+                {
+                    mono_decreasing = false;
+                    break;
+                }
+            }
+
+            // 如果前一半都在单调递减，就直接跳出
+            int total_sample_num = fv_vec.size() + this->pos_samples.size();
+            float early_stop_ratio = 0.3;
+            if (mono_decreasing && 
+                fv_vec.size() >= total_sample_num * early_stop_ratio && 
+                fv_vec.size() > 3)
+            {
+                std::cout << "triger mono decreasing early stop" << std::endl;
+                this->best_pos = pos_vec[0];
+                UpdateStatus(pos_vec, 0);
+                std::vector<int> tmp_pos_samples(this->pos_samples.begin(), this->pos_samples.end());
+                this->pos_samples.clear();
+                for(auto ele : tmp_pos_samples)
+                {
+                    if(ele < pos_vec[0])
+                    {
+                        this->pos_samples.emplace_back(ele);
+                    }
+                }
+            }
+        }
+
         if (peak_idx != -1) {
+            printf("Found peak fv in pos %d\n", pos_vec[peak_idx]);   // 在前面的判断中，如果不是单调递减的话，找到了peak之后，也会提前退出
             UpdateStatus(pos_vec, peak_idx);
-            printf("Found peak fv in pos %d\n", pos_cur_center);
+            this->best_pos = pos_cur_center;
         }
     }
 }
@@ -230,6 +258,9 @@ void AFImpl::UpdateStatus(std::vector<int> &pos_vec, int peak_idx) {
         abs(pos_cur_center - pos_start) < 6 ||
         abs(pos_cur_center - pos_end) < 6) {
         start_fit = true;  // TODO: 20, 6 is a magic number
+        end_iter = true;
+        pos_samples.clear();
+        return;
     }
 
     /* Reset the samples */
@@ -243,14 +274,15 @@ void AFImpl::ResetSamples() {
 
     /* Sample the position */
     if (start_fit) {
-//        printf("Fitting sampling: start = %d, end = %d, step = %d\n", pos_cur_center-6, pos_cur_center+6, 2);
+        // printf("Fitting sampling: start = %d, end = %d, step = %d\n", pos_cur_center-6, pos_cur_center+6, 2);
         pos_samples = sampler.StepSampling(pos_cur_center - 6, pos_cur_center + 6, 2);
     } else if (enable_hmap) {
 //        printf("HMap sampling: start = %d, end = %d, step = %d\n", pos_start, pos_end, hmap_pos_step);
         pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);
     } else {
-//        printf("Center sampling: start = %d, end = %d, center = %d\n", pos_start, pos_end, pos_cur_center);
+        printf("sparse sampling: start = %d, end = %d, center = %d\n", pos_start, pos_end, pos_cur_center);
         pos_samples = sampler.SparseSampling(pos_start, pos_end, pos_cur_center);
+        // pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);
     }
     win_size = std::max(3, static_cast<int>(pos_samples.size() / 2));
 
@@ -283,6 +315,9 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
     if (n < win_size) {
         return peak_idx;
     }
+
+    double cur_max = *std::max_element(val_vec.begin(), val_vec.end());
+    double peak_thre = cur_max * 2 / 3;  //如果找到的peak无法大于最大值的2/3，则有可能是个毛刺
 
     /* Monotonicity check (when all the samples are collected) */
     if (mono_check) {
@@ -317,7 +352,7 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
                 break;
             }
         }
-        if (is_peak) {
+        if (is_peak && val_vec[i] > peak_thre) {
             peak_idx = i;
             break;
         }
@@ -365,7 +400,7 @@ void AFImpl::ElasticRangeAdjust(std::vector<int> &pos_vec, int peak_idx) {
 void AFImpl::GetPosFv(std::vector<int> &pos_vec, std::vector<double> &fv_vec) {
     pos_vec.clear();
     fv_vec.clear();
-    for (auto &pos_fv: pos_with_fv) {
+    for (auto &pos_fv: this->pos_with_fv) {
         pos_vec.push_back(pos_fv.first);
         fv_vec.push_back(pos_fv.second);
     }

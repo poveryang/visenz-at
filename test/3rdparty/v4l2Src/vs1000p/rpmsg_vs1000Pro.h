@@ -11,7 +11,7 @@
 #define LIGHT_NUM				(4)
 #define MIN_LIGHT_TIME          (30)
 #define MAX_LIGHT_TIME          (2000)
-#define LIGHT_BEFORE_TIME		(1000)
+#define LIGHT_BEFORE_TIME		(800)
 
 struct light_info
 {
@@ -149,6 +149,13 @@ public:
     
 	int setLightTime(int time);
 
+    int setBuzzerStatus(int value);
+
+    int setBuzzrConfig(int period,int dutycycle);
+
+    int get_lightboard_version(void);
+
+    int setBuzzerTime(int time);
 private:
     const char *rpmsg_name = "/dev/ttyRPMSG30";     
     const char *light_head = "light";       //light head   
@@ -156,8 +163,12 @@ private:
     const char *led_head = "led";           //led head
     const char *plc_head = "plc";           //plc head   
 	const char *time_head = "exposure";     //time head
+    const char *buzzer_state = "buzzer_state";
+    const char *buzzer_config = "buzzer_config";
+    const char *buzzer_time = "buzzer_time";
     const char *camera_open = "camera1";
     const char *camera_close = "camera0";
+    const char *light_board_version = "version";
     const char* const COMMAND_KEY0 = "key10";
     const char* const COMMAND_KEY1 = "key11";
     const char* const COMMAND_PLC10 = "plc10";

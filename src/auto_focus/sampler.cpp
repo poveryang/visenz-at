@@ -19,10 +19,16 @@ std::vector<int> Sampler::StepSampling(int start, int end, int step) {
     }
 
     /* Reverse the sampling positions if needed, and turn the reverse flag */
-    if (reverse) {
-        std::reverse(samples.begin(), samples.end());
+    // if (reverse) {
+    //     std::reverse(samples.begin(), samples.end());
+    // }
+    // reverse = !reverse;
+
+    printf("StepSampling, samples: ");
+    for (int sample : samples) {
+        printf("%d ", sample);
     }
-    reverse = !reverse;
+    printf("\n");
 
     return samples;
 }
@@ -63,10 +69,10 @@ std::vector<int> Sampler::SparseSampling(int start, int end, int center) {
     }
 
     /* Reverse the sampling positions if needed, and turn the reverse flag */
-    if (reverse) {
-        std::reverse(samples.begin(), samples.end());
-    }
-    reverse = !reverse;
+    // if (reverse) {
+    //     std::reverse(samples.begin(), samples.end());
+    // }
+    // reverse = !reverse;
 
     printf("SparseSampling, samples: ");
     for (int sample : samples) {

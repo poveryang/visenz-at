@@ -5,6 +5,7 @@
 #include "af_interface.h"
 #include "ae_interface.h"
 #include "hmap_infer_base.h"
+#include <chrono>
 
 class AT4VsImpl : public ATImplBase {
 public:
@@ -65,6 +66,7 @@ public:
 
 private:
     bool enable_hmap_;
+    std::chrono::_V2::system_clock::time_point timer_start_;
 };
 
 #endif //AT_VS_IMPL_H

@@ -54,7 +54,7 @@ namespace ae {
 
         void Print() const {
             params.Print();
-            printf("brt=%.2f, entropy=%.2f, contrast=%.2f; ", brt, entropy, contrast);
+            printf("brt=%.2f, entropy=%.2f, contrast=%.2f; \n", brt, entropy, contrast);
         }
     };
 
