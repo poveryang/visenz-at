@@ -41,6 +41,11 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
 
     /* init the sampler and get the first sample */
     // ResetSamples();
+
+    if(this->pos_start < 1)
+    {
+        this->pos_start = 1;
+    }
     this->pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);  // 第一步的时候必须要使用step sampling，否则无法覆盖全区域
                                                                                   // step要自适应于min max focus，不同平台的min max差别很大
     GetNextSample();

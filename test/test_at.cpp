@@ -153,7 +153,7 @@ void TestATOnline(const std::string& dev_name,
 
     // Get final image and print best parameters
     cam_params = at_obj.GetBestParams();
-    ar_params = at_obj.GetARParams();
+    // ar_params = at_obj.GetARParams();
     cv::Mat final_img = cap.CapImg(cam_params);
     // cv::imwrite("./at_res/final.png", final_img);
     std::cout << "first stage finish" << std::endl;

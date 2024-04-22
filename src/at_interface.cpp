@@ -22,6 +22,10 @@ bool ATInterface::Run(const cv::Mat &image) {
         return true;
     } else {
         at_impl_->UpdateNextParams();
+        if(*at_impl_->phase == END)
+        {
+            return true;
+        }
         return false;
     }
 }

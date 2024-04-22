@@ -79,10 +79,10 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, bool update_best) {
     // printf("target brt = %d\n", brt_target);
 
     if (abs(status_cur.brt - brt_target) < thres_brt_diff || ++num_qt >= max_num_qt) {
-        std::cout << "access target brt" << std::endl;
         num_qt = 0;
         if (update_best){
-            UpdateBestParams();
+            // UpdateBestParams();
+            params_best = params_next;
         }
         return true;
     } else {
@@ -137,19 +137,18 @@ bool AEImpl::StepTune(const cv::Mat &image) {
 void AEImpl::CalcMetrics(const cv::Mat &image) {
     /* Calc metrics */
     double brt =-1, entropy = -1, contrast = -1;
-    auto start = std::chrono::high_resolution_clock::now();
     brt = CalcMeanBrt(image);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
-    std::cout << "CalcMeanBrt time: " << duration.count() / 1000 << std::endl;
     if (!enable_roi) {
-        std::cout << "using entropy" << std::endl;
-        start = std::chrono::high_resolution_clock::now();
-        entropy = CalcEntropy(image);
-        end = std::chrono::high_resolution_clock::now();
-        duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
-        std::cout << "CalcEntropy time: " << duration.count() / 1000 << std::endl;
-        ent_exp_map[entropy] = params_next;
+        // std::cout << "using entropy" << std::endl;
+        // start = std::chrono::high_resolution_clock::now();
+        // entropy = CalcEntropy(image);
+        // end = std::chrono::high_resolution_clock::now();
+        // duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
+        // std::cout << "CalcEntropy time: " << duration.count() / 1000 << std::endl;
+        // ent_exp_map[entropy] = params_next;
+        // std::cout << "entropy map " << entropy << "  brt " << brt << "  ";
+        // params_next.Print();
+        // std::cout << std::endl;
     } else {
         std::cout << "using contrast" << std::endl;
         contrast = CalcContrast(image(roi));
@@ -205,15 +204,12 @@ void AEImpl::CalcScaleFactors(int brt_target) {
     LinearRegEtCurve(max_et_scale, min_et_scale);  // 只计算et的曲线
 
     if (et_ori_scale > max_et_scale) {
-        std::cout << "et_ori_scale max range" << std::endl; 
         et_real_scale = max_et_scale;
         et_odd_scale = et_ori_scale / max_et_scale;
     } else if (et_ori_scale < min_et_scale) {
-        std::cout << "et_ori_scale min range" << std::endl; 
         et_real_scale = min_et_scale;
         et_odd_scale = et_ori_scale / min_et_scale;
     } else {
-        std::cout << "et_ori_scale middle range" << std::endl; 
         et_real_scale = et_ori_scale;
         et_odd_scale = 1.0;
     }
@@ -376,8 +372,6 @@ void AEImpl::LinearRegEtCurve(double &max_et_scale, double &min_et_scale) {
         et_slope = (brt_cur_et) / double(et_cur);        // 截距为0时，k = y / x
         et_intercept = 0;                             
     }
-
-    std::cout << "et_slope " << et_slope << "  et_intercept " << et_intercept << std::endl;
 
     /* calc max and min et scale */
     double max_brt = std::min((MAX_ET * et_slope + et_intercept), 255.0);
