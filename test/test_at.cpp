@@ -153,11 +153,11 @@ void TestATOnline(const std::string& dev_name,
 
     // Get final image and print best parameters
     cam_params = at_obj.GetBestParams();
-    // ar_params = at_obj.GetARParams();
-    cv::Mat final_img = cap.CapImg(cam_params);
+    // cv::Mat final_img = cap.CapImg(cam_params);
     // cv::imwrite("./at_res/final.png", final_img);
-    std::cout << "first stage finish" << std::endl;
+    // std::cout << "first stage finish" << std::endl;
 
+/*
     smartmore::barcode::BarcodeRequest input = {final_img};
     smartmore::barcode::BarcodeResponse output;
     auto decode_start = std::chrono::high_resolution_clock::now();
@@ -254,7 +254,7 @@ void TestATOnline(const std::string& dev_name,
             cam_params.focus_pos = static_cast<int>(round(best_pos));
         }
     }
-
+*/
     //
     // 下面需要分情况讨论
     // 1、 如果之前没有定位结果，就以图片亮度step=20为搜索，也就是target brightness={128, 108, 148, 88, 168, 68, 188, 48, 208}
@@ -325,19 +325,18 @@ void TestATOnline(const std::string& dev_name,
 */
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
-    std::cout << "11111111111111 decode time: " << decode_duration.count() / 1000 << std::endl;
     std::cout << "22222222222222  at time: " << duration.count() / 1000 << std::endl;
     std::cout << "refine finish" << std::endl;
-    final_img = cap.CapImg(cam_params);
+    cv::Mat final_img = cap.CapImg(cam_params);
     cv::imwrite("./at_res/final_refined.png", final_img);
 
-    cv::Mat final_canvas;
-    cv::cvtColor(final_img, final_canvas, cv::COLOR_GRAY2BGR);
-    for(auto r : code_regions)
-    {
-        cv::rectangle(final_canvas, r, {0,255,0}, 1);
-    }
-    cv::imwrite("./at_res/final_canvas.png", final_canvas);
+    // cv::Mat final_canvas;
+    // cv::cvtColor(final_img, final_canvas, cv::COLOR_GRAY2BGR);
+    // for(auto r : code_regions)
+    // {
+    //     cv::rectangle(final_canvas, r, {0,255,0}, 1);
+    // }
+    // cv::imwrite("./at_res/final_canvas.png", final_canvas);
 
     printf(">>>>>===== AT has been ended <<<<<=====\n\n");
 }

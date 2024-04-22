@@ -4,6 +4,38 @@
 
 using namespace af;
 
+namespace
+{
+
+std::vector<double> FitQuadratic(const std::vector<int> &x, const std::vector<double> &y)
+{
+    cv::Mat A = cv::Mat::zeros(cv::Size(3, int(x.size())), CV_64FC1);
+    for (int i = 0; i < x.size(); i++) {
+        A.at<double>(i, 0) = x[i] * x[i];
+        A.at<double>(i, 1) = x[i];
+        A.at<double>(i, 2) = 1;
+    }
+
+    cv::Mat B = cv::Mat::zeros(cv::Size(1, int(y.size())), CV_64FC1);
+    for (int i = 0; i < y.size(); i++) {
+        B.at<double>(i, 0) = y[i];
+    }
+
+    cv::Mat tmp1 = A.t() * A;
+    cv::Mat tmp2 = A.t() * B;
+
+    cv::Mat result = cv::Mat::zeros(cv::Size(1, 3), CV_64FC1);
+    cv::solve(tmp1, tmp2, result);
+    double a = result.at<double>(0, 0);
+    double b = result.at<double>(1, 0);
+    double c = result.at<double>(2, 0);
+
+    return {a, b, c};   // quadratic formula: y = a*x^2 + b*x + c
+}
+
+}
+
+
 AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
     /* basic variables */
     this->end_iter = false;
@@ -51,37 +83,58 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
     GetNextSample();
 }
 
-void AFImpl::Run(const cv::Mat &image) {
-    auto start = std::chrono::high_resolution_clock::now();
-    CalcFocusValue(image);
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end-start);
-    // std::cout << "CalcFocusValue time: " << duration.count() / 1000 << std::endl;
+void AFImpl::Run(const cv::Mat &image, const std::vector<cv::Rect> &rois) {
+    CalcFocusValue(image, rois);
 
     if (start_fit) {
         // PolynomialFit();
-        end_iter = true;
-    } else if (enable_hmap) {
-        AnalysisHotspots();
-    } else {
+        
+        this->RefineFocus();
+    } 
+    // else if (enable_hmap) {
+    //     AnalysisHotspots();
+    // } 
+    else {
         AnalysisFvCurve();
     }
 
     GetNextSample();
 }
 
-void AFImpl::CalcFocusValue(const cv::Mat &image) {
-    cv::Mat resized_img;
-    cv::resize(image, resized_img, cv::Size(), 0.5, 0.5);
+void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &rois) {
+    std::vector<cv::Mat> roi_imgs;
+    if(roi.empty())     // 没有传入roi，说明出于第一阶段调整，且barcode sdk没有传入roi，此时使用全图计算清晰度，默认resize以提高速度
+    {
+        cv::Mat resized_img;
+        cv::resize(image, resized_img, cv::Size(), 0.5, 0.5);
+        roi_imgs.emplace_back(resized_img);
+    }
+    else     // 当传入roi时，只处理roi的内容，如果roi过大，默认resize以提高速度
+    {
+        for(const auto &region : rois)
+        {
+            cv::Mat roi_img = image(region);
+            if (roi_img.cols > 1280 || roi_img.rows > 800) 
+            {
+                float scale = std::min(1280.0 / roi_img.cols, 800.0 / roi_img.rows);
+                cv::resize(roi_img, roi_img, cv::Size(), scale, scale);
+            }
+            roi_imgs.emplace_back(roi_img);
+        }
+    }
 
-    cv::Mat img_grad;
-    cv::Sobel(resized_img, img_grad, CV_32FC1, 1, 1, 5);
-    cv::Mat tmp1 = cv::abs(img_grad);
-    double acc = acc = cv::sum(tmp1)[0];
+    double sharpness_score = 0;
+    for(const auto &roi_img : roi_imgs)
+    {
+        cv::Mat img_grad;
+        cv::Sobel(roi_img, img_grad, CV_32FC1, 1, 1, 5);
+        cv::Mat tmp1 = cv::abs(img_grad);
+        sharpness_score += cv::sum(tmp1)[0];
+    }
 
-    this->pos_with_fv[next_pos] = acc;
-    this->pos_fv_recorder[next_pos] = acc;
-    printf("Focus pos=%d, focus value=%.2e\n", next_pos, acc);
+    this->pos_with_fv[next_pos] = sharpness_score;
+    this->pos_fv_recorder[next_pos] = sharpness_score;
+    printf("Focus pos=%d, focus value=%.2e\n", next_pos, sharpness_score);
 }
 
 void AFImpl::AnalysisHotspots() {
@@ -132,6 +185,7 @@ void AFImpl::AnalysisFvCurve() {
         std::vector<int> pos_vec;
         int peak_idx;
         ApplyMaxFv(pos_vec, peak_idx);
+        std::cout << "find max fv in pos " << pos_vec[peak_idx] << std::endl;
         UpdateStatus(pos_vec, peak_idx);
         printf("Apply max fv in pos %d\n", pos_cur_center);
         this->best_pos = pos_cur_center;
@@ -236,6 +290,49 @@ void AFImpl::PolynomialFit() {
     printf("Polynomial fit: poly_max_pos=%d, y_max_pos=%d\n", poly_max_pos, y_max_pos);
 }
 
+void AFImpl::RefineFocus()
+{
+    if (!this->pos_samples.empty()) {  // 如果this->pos_samples里面还有数据，说明这一轮还没拍完照，还不需要处理
+        return;
+    } else {      // 这一轮拍完照后，开始拟合二次函数,af结束
+        end_iter = true;
+    }
+
+    std::vector<int> sampling_pos;
+    std::vector<double> sampling_sharpness;
+    GetPosFv(sampling_pos, sampling_sharpness);
+
+    if(sampling_sharpness.size() > 2)
+    {
+        int min_limit_pos = *std::min_element(sampling_pos.begin(), sampling_pos.end());
+        int max_limit_pos = *std::max_element(sampling_pos.begin(), sampling_pos.end());
+        std::cout << "fit quadratic" << std::endl;
+        std::vector<double> coeffs = FitQuadratic(sampling_pos, sampling_sharpness);
+        this->best_pos = -coeffs[1] / (2 * coeffs[0]);
+        if (this->best_pos < min_limit_pos)
+        {
+            std::cout << "smaller than min_limit, pre is " << this->best_pos << std::endl;
+            this->best_pos = min_limit_pos;
+        }
+        else if(this->best_pos > max_limit_pos)
+        {
+            std::cout << "greater than max_limit, pre is " << this->best_pos << std::endl;
+            this->best_pos = max_limit_pos;
+        }
+        double peak_sharpness = coeffs[0] * best_pos * best_pos + coeffs[1] * best_pos + coeffs[2];
+        std::cout << "RefineFocus fit best_pos: " << best_pos << ", sharpness score: " << peak_sharpness << std::endl;
+    }
+    else
+    {
+        auto max_sharpness_it = std::max_element(sampling_sharpness.begin(), sampling_sharpness.end());
+        int max_sharpness_idx = std::distance(sampling_sharpness.begin(), max_sharpness_it);
+        this->best_pos = sampling_pos[max_sharpness_idx];
+        std::cout << "RefineFocus find best_pos: " << this->best_pos << std::endl;
+    }
+
+    std::cout << "RefineFocus finish" << std::endl;
+}
+
 void AFImpl::UpdateStatus(std::vector<int> &pos_vec, int peak_idx) {
     /* Check if the peak is found */
     if (peak_idx == -1) {
@@ -263,9 +360,10 @@ void AFImpl::UpdateStatus(std::vector<int> &pos_vec, int peak_idx) {
         abs(pos_cur_center - pos_start) < 6 ||
         abs(pos_cur_center - pos_end) < 6) {
         start_fit = true;  // TODO: 20, 6 is a magic number
-        end_iter = true;
-        pos_samples.clear();
-        return;
+        std::cout << "set start_fit true" << std::endl;
+        // end_iter = true;
+        // pos_samples.clear();
+        // return;
     }
 
     /* Reset the samples */
@@ -280,14 +378,17 @@ void AFImpl::ResetSamples() {
     /* Sample the position */
     if (start_fit) {
         // printf("Fitting sampling: start = %d, end = %d, step = %d\n", pos_cur_center-6, pos_cur_center+6, 2);
-        pos_samples = sampler.StepSampling(pos_cur_center - 6, pos_cur_center + 6, 2);
+        // pos_samples = sampler.StepSampling(pos_cur_center - 6, pos_cur_center + 6, 2);
+        const int range = 3;
+        const int step = 5;
+        printf("Fitting sampling: start = %d, end = %d, step = %d\n", pos_cur_center - range * step, pos_cur_center + range * step, step);
+        pos_samples = sampler.StepSampling(pos_cur_center - range*step, pos_cur_center + range*step, step);
     } else if (enable_hmap) {
-//        printf("HMap sampling: start = %d, end = %d, step = %d\n", pos_start, pos_end, hmap_pos_step);
+        // printf("HMap sampling: start = %d, end = %d, step = %d\n", pos_start, pos_end, hmap_pos_step);
         pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);
     } else {
         printf("sparse sampling: start = %d, end = %d, center = %d\n", pos_start, pos_end, pos_cur_center);
         pos_samples = sampler.SparseSampling(pos_start, pos_end, pos_cur_center);
-        // pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);
     }
     win_size = std::max(3, static_cast<int>(pos_samples.size() / 2));
 

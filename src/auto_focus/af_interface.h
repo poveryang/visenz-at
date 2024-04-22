@@ -13,6 +13,8 @@ namespace af {
         std::vector<HotspotInfo> id_hots;   // the information of the hotspots
         HotspotInfo dummy_hotspot;          // the dummy hotspot
 
+        bool start_fit = false;
+
     public:
         /** @brief The default constructor. */
         AFInterface();
@@ -32,7 +34,7 @@ namespace af {
          *  @param img the input image
          *  @param hmap the heat map of the input image
          */
-        void Run(const cv::Mat &img, const cv::Mat &hmap = cv::Mat());
+        void Run(const cv::Mat &img, const std::vector<cv::Rect> &rois={});
 
     private:
         /* the implementation object of the AF algorithm */

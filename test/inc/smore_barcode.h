@@ -37,7 +37,20 @@ public:
     void Reset() override {
     };
 
-    std::vector <cv::Rect> Decode(const cv::Mat &image, ARParams &ar_params) override {
+    std::vector<cv::Rect> GetSdkRois()
+    {
+        std::vector<cv::Rect> rois;
+        auto sdk_rois = this->barcode_sdk_->GetRois();
+        for(const auto &roi : sdk_rois)
+        {
+            rois.emplace_back(cv::boundingRect(roi));
+        }
+
+        return rois;
+    }
+
+    std::vector <cv::Rect> Decode(const cv::Mat &image) override {
+        /*
         smartmore::barcode::BarcodeRequest input = {image};
         smartmore::barcode::BarcodeResponse output;
         barcode_sdk_->Run(input, output);
@@ -185,6 +198,46 @@ public:
         }
 
         return rects;
+        */
+    
+        smartmore::barcode::BarcodeRequest input = {image};
+        smartmore::barcode::BarcodeResponse output;
+        auto decode_start = std::chrono::high_resolution_clock::now();
+        this->barcode_sdk_->Run(input, output);
+        auto decode_end = std::chrono::high_resolution_clock::now();
+        auto decode_duration = std::chrono::duration_cast<std::chrono::microseconds>(decode_end-decode_start);
+
+        // bool decode_success = false;
+        std::vector<cv::Rect> code_regions;  // 计算码区的清晰度，作为评判标准
+        for(const auto &result : output.results)
+        {
+            if(result.detect_succeed)
+            {
+                // author:  lushaoan
+                // comment: 这个判断看起来很多余，因为result.type是由sdk设置的时候就已经确定，看起来不会返回错误的类型
+                //          但是，由于pdf417的存在，当sdk.SetBarcodeType(kCode2D)的情况下，会跑一维码的分类和精定位模型
+                //          就会导致在result.detect_succeed的内容里会包含一维码的结果
+                //          假如场景中同时有一维码和二维码，且两者需要的焦距是不一样的话，就会导致对焦错误，因为被一维码的定位结果影响了
+                if(!smartmore::barcode::IsIntersect(result.type, this->barcode_sdk_->GetBarcodeType()))
+                {
+                    continue;
+                }
+
+                std::vector<cv::Point> pts = {
+                    result.precise_locate_corner_boxes[0],
+                    result.precise_locate_corner_boxes[1],
+                    result.precise_locate_corner_boxes[2],
+                    result.precise_locate_corner_boxes[3]};
+                
+                code_regions.emplace_back(cv::boundingRect(pts));
+            }
+            // if(result.decode_succeed)
+            // {
+            //     decode_success = true;
+            // }
+        }
+
+        return code_regions;
     };
 
 };

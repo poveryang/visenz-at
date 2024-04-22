@@ -9,6 +9,8 @@ AFInterface::AFInterface() {
     id_hots.clear();
     dummy_hotspot.positions.clear();
     dummy_hotspot.intensities.clear();
+
+    this->start_fit = false;
 }
 
 void AFInterface::Init(AFConf &af_conf, bool en_hmap) {
@@ -17,21 +19,22 @@ void AFInterface::Init(AFConf &af_conf, bool en_hmap) {
     next_pos = af_impl_->next_pos;
 }
 
-void AFInterface::Run(const cv::Mat &img, const cv::Mat &hmap) {
+void AFInterface::Run(const cv::Mat &img, const std::vector<cv::Rect> &rois) {
     /* Extract the hotspots from the heat map */
-    if (enable_hmap && !hmap.empty()) {
-//        cv::imwrite("/tmp/at_res/hmap_pos_" + std::to_string(next_pos) + ".png", hmap);
-        ExtractHotspots(hmap);
-        af_impl_->id_hots = id_hots;
-    }
+    // if (enable_hmap && !hmap.empty()) {
+    //     ExtractHotspots(hmap);
+    //     af_impl_->id_hots = id_hots;
+    // }
     /* Run the AF algorithm and update variables */
-    af_impl_->Run(img);
+    af_impl_->Run(img, rois);
+
+    this->start_fit = this->af_impl_->start_fit;
 
     next_pos = af_impl_->next_pos;
     enable_hmap = af_impl_->enable_hmap;
     end_iter = af_impl_->end_iter;
     if (end_iter) {
-        best_pos = af_impl_->best_pos;
+        this->best_pos = af_impl_->best_pos;
         id_hots.clear();
         dummy_hotspot.positions.clear();
         dummy_hotspot.intensities.clear();

@@ -35,6 +35,11 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap) {
         enable_hmap_ = false;
 #endif
     }
+
+    this->code_regions.clear();
+    this->sdk_rois.clear();
+    this->run_decode_finish = false;
+
 }
 
 void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
@@ -59,8 +64,11 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
 
     /* Initialize submodules configuration */
     LoadCamConf(cam_conf);
-    ar_obj.Init(barcode_wrapper);
+    // ar_obj.Init(barcode_wrapper);
     pipeline.clear();
+
+    this->barcode_wrapper_ = &barcode_wrapper;
+    this->sdk_rois = this->barcode_wrapper_->GetSdkRois();
 
     if (en_ae | en_af) {
         ae_obj.Init(ae_conf, en_al, enable_hmap);
@@ -150,12 +158,44 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
         }
         case AF: {
             printf("[AT4VS] AF Running: \n");
-            if (af_obj.enable_hmap) {
-                cv::Mat hmap = hmap_obj->Inference(image);
-                af_obj.Run(image, hmap);
-            } else {
-                af_obj.Run(image);
+            // if (af_obj.enable_hmap) {
+            //     cv::Mat hmap = hmap_obj->Inference(image);
+            //     af_obj.Run(image, hmap);
+            // } else {
+            //     af_obj.Run(image);
+            // }
+
+            if(!af_obj.start_fit)  // 还没有进入fit阶段，说明还没有跑解码函数，此时使用sdk本身设置的roi
+            {
+                af_obj.Run(image, this->sdk_rois);  
             }
+            else                   // 进入fit阶段，使用decode函数的结果
+            {
+                af_obj.Run(image, this->code_regions);
+            }
+
+            // 当跑完第一阶段的大致对焦后，start_fit会置位，此时会跑一次解码算法，得到code_regions，之后fit阶段就会只关注code_regions的区域
+            if(af_obj.start_fit && !this->run_decode_finish)
+            {
+                // 如果没有定位到码，就不需要跑后面的refine了，会在UpdateNextParams()里更新
+                this->code_regions = this->barcode_wrapper_->Decode(image);  
+                for(auto &region : this->code_regions)
+                {
+                    // 防止越界
+                    region.x = std::max(0, region.x);
+                    region.y = std::max(0, region.y);
+                    if(region.br().x > image.cols-1)
+                    {
+                        region.width = image.cols - region.x;
+                    }
+                    if(region.br().y > image.rows-1)
+                    {
+                        region.height = image.rows - region.y;
+                    }
+                }
+                this->run_decode_finish = true;
+            }
+
             break;
         }
         case AR: {
@@ -218,6 +258,7 @@ void AT4VsImpl::UpdateNextParams() {
                 auto timer_end = std::chrono::high_resolution_clock::now();
                 auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timer_end-this->timer_start_);
                 std::cout << "first stage af time: " << duration.count() / 1000 << "  ms" << std::endl;
+
             }
             break;
         }

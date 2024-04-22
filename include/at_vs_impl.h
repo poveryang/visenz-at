@@ -67,6 +67,12 @@ public:
 private:
     bool enable_hmap_;
     std::chrono::_V2::system_clock::time_point timer_start_;
+
+
+    BarcodeWrapperBase *barcode_wrapper_{};
+    std::vector<cv::Rect> sdk_rois;
+    bool run_decode_finish = false;
+    std::vector<cv::Rect> code_regions;
 };
 
 #endif //AT_VS_IMPL_H

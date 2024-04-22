@@ -52,7 +52,9 @@ class BarcodeWrapperBase {
 public:
     virtual void Reset() = 0;
 
-    virtual std::vector<cv::Rect> Decode(const cv::Mat &image, ARParams &ar_params) = 0;
+    virtual std::vector<cv::Rect> GetSdkRois() = 0;
+
+    virtual std::vector<cv::Rect> Decode(const cv::Mat &image) = 0;
 
     virtual void SetOriginParams() = 0;
 };
@@ -70,7 +72,7 @@ public:
     };
 
     void Decode(const cv::Mat &image, ARParams &ar_params) {
-        barcode_wrapper_->Decode(image, ar_params);
+        barcode_wrapper_->Decode(image);
     };
 
     void ResetOriParams() {

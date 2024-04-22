@@ -67,16 +67,18 @@ namespace af {
 
         explicit AFImpl(AFConf &af_conf, bool enable_hmap=false);
 
-        void Run(const cv::Mat &image);
+        void Run(const cv::Mat &image, const std::vector<cv::Rect> &rois={});
 
     private:
-        void CalcFocusValue(const cv::Mat &image);
+        void CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &rois={});
 
         void AnalysisHotspots();
 
         void AnalysisFvCurve();
 
         void PolynomialFit();
+
+        void RefineFocus();
 
         void UpdateStatus(std::vector<int> &pos_vec, int peak_idx);
 
