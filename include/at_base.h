@@ -82,7 +82,7 @@ public:
     CamParams next_params, best_params;
 
     /* Variable that stores the barcode parameters. */
-    ARParams ar_params;
+    ARInfo ar_info;
 
 public:
     ATImplBase() = default;
@@ -97,6 +97,8 @@ public:
     virtual void SequentialExec(const cv::Mat &image) = 0;
 
     virtual void UpdateNextParams() = 0;
+
+    virtual void SetRoi(const cv::Rect &roi) = 0;
 };
 
 #endif  // AT_PARAMS_H

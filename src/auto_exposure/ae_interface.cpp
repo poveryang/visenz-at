@@ -6,6 +6,8 @@ AEInterface::AEInterface() {
     this->end_qt = false;
     this->end_st = false;
     this->enable_hmap = false;
+
+    this->ae_fail = false;
 }
 
 void AEInterface::Init(AEConf &ae_cam_conf, bool en_al, bool en_hmap) {
@@ -19,11 +21,12 @@ void AEInterface::Init(AEConf &ae_cam_conf, bool en_al, bool en_hmap) {
     params_next = ae_impl_->params_next;
 }
 
-void AEInterface::QuickTune(const cv::Mat &image, int brt_target) {
+void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois) {
     /* Quick tuning */
-    end_qt = ae_impl_->QuickTune(image, brt_target);
+    this->end_qt = ae_impl_->QuickTune(image, brt_target, true, rois);
     params_next = ae_impl_->params_next;
-    if (end_qt) {
+    this->ae_fail = ae_impl_->ae_fail;
+    if (this->end_qt) {
         params_best = ae_impl_->params_best;
     }
 }

@@ -4,27 +4,27 @@
 #include "barcode.h"
 #include "ar_base.h"
 
-struct BarcodeParams {
-    smartmore::barcode::BarcodeType barcode_type;
-    int dl_nums_instance;
-    // 1D code params
-    smartmore::barcode::Polarity polarity_1d;
-    smartmore::barcode::RunningMode running_mode_1d;
-    int nums_max_output_1d;
-    // 2D code params
-    smartmore::barcode::Polarity polarity_2d;
-    smartmore::barcode::MirrorType mirror_type_2d;
-    smartmore::barcode::RunningMode running_mode_2d;
-    smartmore::barcode::DMEdgeType dm_edge_type;
-    smartmore::barcode::DMShapeType dm_shape_type;
-    bool check_digit_enable_code39;
-    int nums_max_output_2d;
-};
+// struct BarcodeParams {
+//     smartmore::barcode::BarcodeType barcode_type;
+//     int dl_nums_instance;
+//     // 1D code params
+//     smartmore::barcode::Polarity polarity_1d;
+//     smartmore::barcode::RunningMode running_mode_1d;
+//     int nums_max_output_1d;
+//     // 2D code params
+//     smartmore::barcode::Polarity polarity_2d;
+//     smartmore::barcode::MirrorType mirror_type_2d;
+//     smartmore::barcode::RunningMode running_mode_2d;
+//     smartmore::barcode::DMEdgeType dm_edge_type;
+//     smartmore::barcode::DMShapeType dm_shape_type;
+//     bool check_digit_enable_code39;
+//     int nums_max_output_2d;
+// };
 
 class BarcodeWrapper : public BarcodeWrapperBase {
 private:
     smartmore::barcode::Barcode *barcode_sdk_;
-    BarcodeParams origin_params;
+    // BarcodeParams origin_params;
 
 public:
     explicit BarcodeWrapper(smartmore::barcode::Barcode &barcode_sdk) {
@@ -37,19 +37,19 @@ public:
     void Reset() override {
     };
 
-    std::vector<cv::Rect> GetSdkRois()
-    {
-        std::vector<cv::Rect> rois;
-        auto sdk_rois = this->barcode_sdk_->GetRois();
-        for(const auto &roi : sdk_rois)
-        {
-            rois.emplace_back(cv::boundingRect(roi));
-        }
+    // std::vector<cv::Rect> GetSdkRois()
+    // {
+    //     std::vector<cv::Rect> rois;
+    //     auto sdk_rois = this->barcode_sdk_->GetRois();
+    //     for(const auto &roi : sdk_rois)
+    //     {
+    //         rois.emplace_back(cv::boundingRect(roi));
+    //     }
 
-        return rois;
-    }
+    //     return rois;
+    // }
 
-    std::vector <cv::Rect> Decode(const cv::Mat &image) override {
+    std::vector <cv::Rect> Decode(const cv::Mat &image, ARInfo &out_arinfo) override {
         /*
         smartmore::barcode::BarcodeRequest input = {image};
         smartmore::barcode::BarcodeResponse output;
@@ -202,12 +202,11 @@ public:
     
         smartmore::barcode::BarcodeRequest input = {image};
         smartmore::barcode::BarcodeResponse output;
-        auto decode_start = std::chrono::high_resolution_clock::now();
         this->barcode_sdk_->Run(input, output);
-        auto decode_end = std::chrono::high_resolution_clock::now();
-        auto decode_duration = std::chrono::duration_cast<std::chrono::microseconds>(decode_end-decode_start);
 
-        // bool decode_success = false;
+        out_arinfo.reset();
+        std::vector<std::array<int, 2>> qr_versions;
+        std::vector<std::array<int, 2>> dm_versions;
         std::vector<cv::Rect> code_regions;  // 计算码区的清晰度，作为评判标准
         for(const auto &result : output.results)
         {
@@ -231,10 +230,43 @@ public:
                 
                 code_regions.emplace_back(cv::boundingRect(pts));
             }
-            // if(result.decode_succeed)
-            // {
-            //     decode_success = true;
-            // }
+            
+            if(result.decode_succeed)
+            {
+                auto type_it = std::find(out_arinfo.successful_code_type.begin(), out_arinfo.successful_code_type.end(), result.type);
+                if(type_it != out_arinfo.successful_code_type.end())
+                {
+                    out_arinfo.successful_code_type.emplace_back(result.type); // 记录解码成功的码制
+                }
+
+                if(result.type == smartmore::barcode::BarcodeType::kQrcode)
+                {
+                    auto ver_it = std::find(qr_versions.begin(), qr_versions.end(), result.version);
+                    if(ver_it != qr_versions.end())
+                    {
+                        qr_versions.emplace_back(result.version);
+                    }
+                }
+                else if(result.type == smartmore::barcode::BarcodeType::kDmcode)
+                {
+                    auto ver_it = std::find(dm_versions.begin(), dm_versions.end(), result.version);
+                    if(ver_it != dm_versions.end())
+                    {
+                        dm_versions.emplace_back(result.version);
+                    }
+                }                
+                
+            }
+        }
+
+        // 若找到多个qr/dm版本，说明是多码，此时ar结果保持-1
+        if(qr_versions.size() == 1)
+        {
+            out_arinfo.qr_version = qr_versions[0];
+        }
+        if(dm_versions.size() == 1)
+        {
+            out_arinfo.dm_version = dm_versions[0];
         }
 
         return code_regions;

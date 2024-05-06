@@ -24,7 +24,7 @@ namespace ae {
          * @param image input image
          * @param brt_target target brightness
          */
-        void QuickTune(const cv::Mat &image, int brt_target=128);
+        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={});
 
         /**
          * Tuning exposure parameters stepwise
@@ -41,6 +41,7 @@ namespace ae {
         bool enable_hmap;
         bool end_qt;
         bool end_st;
+        bool ae_fail;
         AEParams params_next, params_best;
 
     private:

@@ -1,3 +1,10 @@
+/*
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:48:02
+ * @Copyright: Copyright (c) 2022
+ */
 #include "at_vs_impl.h"
 
 #ifdef USE_TENGINE
@@ -11,33 +18,33 @@
 
 AT4VsImpl::AT4VsImpl(bool enable_hmap) {
     /* Load heat-map generator if enabled */
-    enable_hmap_ = enable_hmap;
-    if (enable_hmap_) {
-        printf("[AT4VS] Heatmap is enabled\n");
-#ifdef USE_TENGINE
-        hmap_obj = std::make_shared<HMapInferTengine>();
-        hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
-        hmap_obj->Init("/usr/scanner/algorithm/hmap-v7-qat-tmp-uint8-2.tmfile");
-#elif USE_NVTAI
-        std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
-        int input_width = 1280;
-        int input_height = 800;
-        hmap_obj = std::make_shared<NvtAIInferenceEngine>(model_path, input_width, input_height);
-        hmap_obj->Init();
-        hmap_obj->LoadModel();  // TODO: delay loading model after camera is initialized
-#elif USE_RKNN
-        printf("[AT4VS] Using RKNN for heatmap inference\n");
-        hmap_obj = std::make_shared<HMapInferRK>();
-        hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
-        hmap_obj->Init("/usr/scanner/algorithm/hmap-v2.rknn");
-#else
-        printf("[AT4VS] Heatmap is enabled but no inference engine is specified\n");
-        enable_hmap_ = false;
-#endif
-    }
+//     enable_hmap_ = enable_hmap;
+//     if (enable_hmap_) {
+//         printf("[AT4VS] Heatmap is enabled\n");
+// #ifdef USE_TENGINE
+//         hmap_obj = std::make_shared<HMapInferTengine>();
+//         hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
+//         hmap_obj->Init("/usr/scanner/algorithm/hmap-v7-qat-tmp-uint8-2.tmfile");
+// #elif USE_NVTAI
+//         std::string model_path = "/usr/scanner/algorithm/nvt_model.bin";
+//         int input_width = 1280;
+//         int input_height = 800;
+//         hmap_obj = std::make_shared<NvtAIInferenceEngine>(model_path, input_width, input_height);
+//         hmap_obj->Init();
+//         hmap_obj->LoadModel();  // TODO: delay loading model after camera is initialized
+// #elif USE_RKNN
+//         printf("[AT4VS] Using RKNN for heatmap inference\n");
+//         hmap_obj = std::make_shared<HMapInferRK>();
+//         hmap_obj->SetInferSize(cv::Size2i(1920, 1200));  // please get size from corresponding device
+//         hmap_obj->Init("/usr/scanner/algorithm/hmap-v2.rknn");
+// #else
+//         printf("[AT4VS] Heatmap is enabled but no inference engine is specified\n");
+//         enable_hmap_ = false;
+// #endif
+//     }
 
+    this->at_roi = cv::Rect(0, 0, 0, 0);
     this->code_regions.clear();
-    this->sdk_rois.clear();
     this->run_decode_finish = false;
 
 }
@@ -68,7 +75,7 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
     pipeline.clear();
 
     this->barcode_wrapper_ = &barcode_wrapper;
-    this->sdk_rois = this->barcode_wrapper_->GetSdkRois();
+    this->enable_al = en_al;
 
     if (en_ae | en_af) {
         ae_obj.Init(ae_conf, en_al, enable_hmap);
@@ -86,14 +93,14 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
         af_obj.next_pos = cam_conf.init_pos;
     }
 
-    if (en_ae) {
-        ae_obj.Init(ae_conf, en_al, enable_hmap);
-        pipeline.emplace_back(AEST);
-    } else {
-        ae_obj.params_next.exp_time = ae_conf.init_et;
-        ae_obj.params_next.exp_gain = ae_conf.init_eg;
-        ae_obj.params_next.lights = ae_conf.init_intensities;
-    }
+    // if (en_ae) {
+    //     ae_obj.Init(ae_conf, en_al, enable_hmap);
+    //     pipeline.emplace_back(AEST);
+    // } else {
+    //     ae_obj.params_next.exp_time = ae_conf.init_et;
+    //     ae_obj.params_next.exp_gain = ae_conf.init_eg;
+    //     ae_obj.params_next.lights = ae_conf.init_intensities;
+    // }
 
     if (en_ar) {
         pipeline.emplace_back(AR);
@@ -139,21 +146,34 @@ void AT4VsImpl::LoadCamConf(CamConf &cam_conf) {
     ae_conf.init_intensities = cam_conf.init_intensities;
 }
 
+void AT4VsImpl::SetRoi(const cv::Rect &roi)
+{
+    this->at_roi = roi;
+}
+
 void AT4VsImpl::SequentialExec(const cv::Mat &image) {
     switch (*phase) {
         case AEQT: {
             printf("[AT4VS] AEQT Running: \n");
-            ae_obj.QuickTune(image, 64);
+            std::vector<cv::Rect> ae_rois;
+            ae_rois.clear();
+            if(this->at_roi.width > 0)
+            {
+                ae_rois.emplace_back(this->at_roi);
+            }
+            ae_obj.QuickTune(image, 64, ae_rois);
             break;
         }
         case AEST: {
             printf("[AT4VS] AEST Running: \n");
-            if (ae_obj.enable_hmap) {
-                cv::Mat hmap = hmap_obj->Inference(image);
-                ae_obj.StepTune(image, hmap);
-            } else {
-                ae_obj.StepTune(image);
-            }
+            // if (ae_obj.enable_hmap) {
+            //     cv::Mat hmap = hmap_obj->Inference(image);
+            //     ae_obj.StepTune(image, hmap);
+            // } else {
+            //     ae_obj.StepTune(image);
+            // }
+
+            ae_obj.StepTune(image);
             break;
         }
         case AF: {
@@ -165,20 +185,11 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
             //     af_obj.Run(image);
             // }
 
-            if(!af_obj.start_fit)  // 还没有进入fit阶段，说明还没有跑解码函数，此时使用sdk本身设置的roi
-            {
-                af_obj.Run(image, this->sdk_rois);  
-            }
-            else                   // 进入fit阶段，使用decode函数的结果
-            {
-                af_obj.Run(image, this->code_regions);
-            }
-
             // 当跑完第一阶段的大致对焦后，start_fit会置位，此时会跑一次解码算法，得到code_regions，之后fit阶段就会只关注code_regions的区域
             if(af_obj.start_fit && !this->run_decode_finish)
             {
                 // 如果没有定位到码，就不需要跑后面的refine了，会在UpdateNextParams()里更新
-                this->code_regions = this->barcode_wrapper_->Decode(image);  
+                this->code_regions = this->barcode_wrapper_->Decode(image, this->ar_info);  
                 for(auto &region : this->code_regions)
                 {
                     // 防止越界
@@ -193,14 +204,46 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
                         region.height = image.rows - region.y;
                     }
                 }
+
+                // 如果解码函数没有定位到码，但上位机设置了roi的话，就使用上位机的roi作为refine的区域
+                if(this->code_regions.empty() && this->at_roi.width > 0)
+                {
+                    this->code_regions.emplace_back(this->at_roi);
+                }
+
+                std::cout << "code_regions " << std::endl;
+                for(auto ele : this->code_regions)
+                {
+                    std::cout << ele << std::endl;
+                }
+
+                // if(this->code_regions.empty())
+                // {
+                //     this->*phase--;
+                // }
                 this->run_decode_finish = true;
+            }
+
+            if(!af_obj.start_fit)  // 还没有进入fit阶段，说明还没有跑解码函数，此时使用sdk本身设置的roi
+            {
+                std::vector<cv::Rect> af_rois;
+                af_rois.clear();
+                if(this->at_roi.width > 0)
+                {
+                    af_rois.emplace_back(this->at_roi);
+                }
+                af_obj.Run(image, af_rois);  
+            }
+            else                   // 进入fit阶段，使用decode函数的结果
+            {
+                af_obj.Run(image, this->code_regions);
             }
 
             break;
         }
         case AR: {
             printf("[AT4VS] AR Running");
-            ar_obj.Decode(image, ar_params);
+            this->barcode_wrapper_->Decode(image, this->ar_info);
             break;
         }
         case END: {
@@ -229,8 +272,13 @@ void AT4VsImpl::UpdateNextParams() {
                 best_params.exp_time = ae_obj.params_best.exp_time;
                 best_params.exp_gain = ae_obj.params_best.exp_gain;
                 *phase++; // Move to the next phase
-                this->timer_start_ = std::chrono::high_resolution_clock::now();
             }
+            if (ae_obj.ae_fail)
+            {
+                std::cout << "ae fail, pipeline end" << std::endl;
+                this->phase = pipeline.end()-1;
+            }
+
             break;
         }
         case AEST: {
@@ -255,18 +303,11 @@ void AT4VsImpl::UpdateNextParams() {
                 printf("[AT4VS] AF Done: focus-pos=%d\n\n", af_obj.best_pos);
                 best_params.focus_pos = af_obj.best_pos;
                 *phase++; // Move to the next phase
-                auto timer_end = std::chrono::high_resolution_clock::now();
-                auto duration = std::chrono::duration_cast<std::chrono::microseconds>(timer_end-this->timer_start_);
-                std::cout << "first stage af time: " << duration.count() / 1000 << "  ms" << std::endl;
-
             }
             break;
         }
         case AR: {
             printf("[AT4VS] AR Done\n\n");
-            if (!ar_params.read_1D && !ar_params.read_2D) {
-                ar_obj.ResetOriParams();
-            }
             *phase++; // Move to the next phase
             break;
         }

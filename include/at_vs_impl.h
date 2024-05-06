@@ -18,10 +18,10 @@ public:
     ae::AEConf ae_conf;
 
     /* Object and params of AR */
-    ARInterface ar_obj;
+    // ARInterface ar_obj;
 
     /* Object of Hmap */
-    std::shared_ptr<HMapInferBase> hmap_obj;
+    // std::shared_ptr<HMapInferBase> hmap_obj;
 
 public:
     /**
@@ -64,15 +64,16 @@ public:
      */
     void LoadCamConf(CamConf &cam_conf);
 
+    void SetRoi(const cv::Rect &roi) override;
+
 private:
     bool enable_hmap_;
-    std::chrono::_V2::system_clock::time_point timer_start_;
-
 
     BarcodeWrapperBase *barcode_wrapper_{};
-    std::vector<cv::Rect> sdk_rois;
+    cv::Rect at_roi;
     bool run_decode_finish = false;
     std::vector<cv::Rect> code_regions;
+    bool enable_al = false;
 };
 
 #endif //AT_VS_IMPL_H

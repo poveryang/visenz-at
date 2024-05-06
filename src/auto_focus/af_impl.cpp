@@ -80,6 +80,7 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
     }
     this->pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);  // 第一步的时候必须要使用step sampling，否则无法覆盖全区域
                                                                                   // step要自适应于min max focus，不同平台的min max差别很大
+    this->fit_pos_num = 0;
     GetNextSample();
 }
 
@@ -99,11 +100,19 @@ void AFImpl::Run(const cv::Mat &image, const std::vector<cv::Rect> &rois) {
     }
 
     GetNextSample();
+    std::cout << " AFImpl::Run " << std::endl;
+    std::cout << "next pos: " << this->next_pos << std::endl;
+    std::cout << "remain pos_samples: ";
+    for(auto ele : this->pos_samples)
+    {
+        std::cout << ele << ", ";
+    }
+    std::cout << std::endl;
 }
 
 void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &rois) {
     std::vector<cv::Mat> roi_imgs;
-    if(roi.empty())     // 没有传入roi，说明出于第一阶段调整，且barcode sdk没有传入roi，此时使用全图计算清晰度，默认resize以提高速度
+    if(rois.empty())     // 没有传入roi，说明出于第一阶段调整，且barcode sdk没有传入roi，此时使用全图计算清晰度，默认resize以提高速度
     {
         cv::Mat resized_img;
         cv::resize(image, resized_img, cv::Size(), 0.5, 0.5);
@@ -114,6 +123,7 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
         for(const auto &region : rois)
         {
             cv::Mat roi_img = image(region);
+
             if (roi_img.cols > 1280 || roi_img.rows > 800) 
             {
                 float scale = std::min(1280.0 / roi_img.cols, 800.0 / roi_img.rows);
@@ -221,14 +231,18 @@ void AFImpl::AnalysisFvCurve() {
                 std::cout << "triger mono decreasing early stop" << std::endl;
                 this->best_pos = pos_vec[0];
                 UpdateStatus(pos_vec, 0);
-                std::vector<int> tmp_pos_samples(this->pos_samples.begin(), this->pos_samples.end());
-                this->pos_samples.clear();
-                for(auto ele : tmp_pos_samples)
+                if(!this->start_fit)
                 {
-                    if(ele < pos_vec[0])
+                    std::vector<int> tmp_pos_samples(this->pos_samples.begin(), this->pos_samples.end());
+                    this->pos_samples.clear();
+                    for(auto ele : tmp_pos_samples)
                     {
-                        this->pos_samples.emplace_back(ele);
+                        if(ele < pos_vec[0])
+                        {
+                            this->pos_samples.emplace_back(ele);
+                        }
                     }
+                    std::cout << "mono decreasing clear pos samples" << std::endl;
                 }
             }
         }
@@ -302,7 +316,8 @@ void AFImpl::RefineFocus()
     std::vector<double> sampling_sharpness;
     GetPosFv(sampling_pos, sampling_sharpness);
 
-    if(sampling_sharpness.size() > 2)
+    // 有足够多点的时候，使用拟合二次函数求最高点，否则直接找最大值
+    if(sampling_sharpness.size() > this->fit_pos_num / 2 + 1)
     {
         int min_limit_pos = *std::min_element(sampling_pos.begin(), sampling_pos.end());
         int max_limit_pos = *std::max_element(sampling_pos.begin(), sampling_pos.end());
@@ -329,6 +344,16 @@ void AFImpl::RefineFocus()
         this->best_pos = sampling_pos[max_sharpness_idx];
         std::cout << "RefineFocus find best_pos: " << this->best_pos << std::endl;
     }
+
+    // std::cout << "sampling_sharpness.size() " << sampling_sharpness.size() << ",  " << this->fit_pos_num << std::endl;
+    // if (sampling_sharpness.size() <= this->fit_pos_num / 2 + 1)
+    // {
+    //     std::cout << "too few sampling_sharpness" << std::endl;
+    //     auto max_sharpness_it = std::max_element(sampling_sharpness.begin(), sampling_sharpness.end());
+    //     int max_sharpness_idx = std::distance(sampling_sharpness.begin(), max_sharpness_it);
+    //     this->best_pos = sampling_pos[max_sharpness_idx];
+    //     std::cout << "RefineFocus find best_pos: " << this->best_pos << std::endl;
+    // }
 
     std::cout << "RefineFocus finish" << std::endl;
 }
@@ -383,6 +408,20 @@ void AFImpl::ResetSamples() {
         const int step = 5;
         printf("Fitting sampling: start = %d, end = %d, step = %d\n", pos_cur_center - range * step, pos_cur_center + range * step, step);
         pos_samples = sampler.StepSampling(pos_cur_center - range*step, pos_cur_center + range*step, step);
+        
+        auto it = std::find(this->pos_samples.begin(), this->pos_samples.end(), pos_cur_center);
+        if(it != this->pos_samples.end())
+        {
+            this->pos_samples.erase(it);
+            this->pos_samples.insert(this->pos_samples.begin(), pos_cur_center);  // 把这个值移动到第一个位置，需要这张照片用来定位码区
+        }
+        printf("StepSampling, samples: ");
+        for (int sample : this->pos_samples) {
+            printf("%d ", sample);
+        }
+        printf("\n");
+
+        this->fit_pos_num = range * 2 + 1;
     } else if (enable_hmap) {
         // printf("HMap sampling: start = %d, end = %d, step = %d\n", pos_start, pos_end, hmap_pos_step);
         pos_samples = sampler.StepSampling(pos_start, pos_end, hmap_pos_step);
@@ -393,15 +432,15 @@ void AFImpl::ResetSamples() {
     win_size = std::max(3, static_cast<int>(pos_samples.size() / 2));
 
     /* If pos has been sampled before, add it to the pos_with_fv and remove it from the pos_samples*/
-    for (auto it = pos_samples.begin(); it != pos_samples.end();) {
-        if (pos_fv_recorder.find(*it) != pos_fv_recorder.end()) {
-            pos_with_fv[*it] = pos_fv_recorder[*it];
-            it = pos_samples.erase(it);
-            win_size += 1;
-        } else {
-            it++;
-        }
-    }
+    // for (auto it = pos_samples.begin(); it != pos_samples.end();) {
+    //     if (pos_fv_recorder.find(*it) != pos_fv_recorder.end()) {
+    //         pos_with_fv[*it] = pos_fv_recorder[*it];
+    //         it = pos_samples.erase(it);
+    //         win_size += 1;
+    //     } else {
+    //         it++;
+    //     }
+    // }
 }
 
 void AFImpl::GetNextSample() {

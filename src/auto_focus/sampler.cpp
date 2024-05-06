@@ -24,11 +24,11 @@ std::vector<int> Sampler::StepSampling(int start, int end, int step) {
     // }
     // reverse = !reverse;
 
-    printf("StepSampling, samples: ");
-    for (int sample : samples) {
-        printf("%d ", sample);
-    }
-    printf("\n");
+    // printf("StepSampling, samples: ");
+    // for (int sample : samples) {
+    //     printf("%d ", sample);
+    // }
+    // printf("\n");
 
     return samples;
 }

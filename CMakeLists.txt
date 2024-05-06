@@ -37,6 +37,11 @@ elseif (${DEVICE} MATCHES "vs2000p")
 endif ()
 find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
+# Load Barcode SDK
+set(Barcode_ROOT "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode")
+set(Barcode_INC "${Barcode_ROOT}/${DEVICE}/include")
+file(GLOB Barcode_LIBS "${Barcode_ROOT}/${DEVICE}/lib/*.*")
+
 # Build AT submodules
 add_subdirectory("./src/auto_exposure/")
 add_subdirectory("./src/auto_focus/")
@@ -46,8 +51,22 @@ add_subdirectory("./src/hmap_infer/")
 file(GLOB AT_SRC "src/*.cpp")
 add_library(AT SHARED ${AT_SRC})
 
-target_include_directories(AT PUBLIC "./include" "src/auto_exposure" "src/auto_focus" "src/infer_hmap" ${PROJECT_BINARY_DIR})
-target_link_libraries(AT PUBLIC AE AF HmapInfer ${OpenCV_LIBS})
+target_include_directories(
+    AT PUBLIC 
+    "./include" 
+    "src/auto_exposure" 
+    "src/auto_focus" 
+    "src/infer_hmap" 
+    ${Barcode_INC}
+    ${PROJECT_BINARY_DIR})
+
+target_link_libraries(
+    AT PUBLIC 
+    AE 
+    AF 
+    HmapInfer 
+    ${OpenCV_LIBS}
+    ${Barcode_LIBS})
 
 # Build AT test(optional)
 if (${ENABLE_AT_TEST})

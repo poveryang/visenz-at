@@ -69,6 +69,8 @@ namespace ae {
         int MAX_LT, MIN_INTENSITY, MAX_INTENSITY;
         int IMG_WIDTH, IMG_HEIGHT;
 
+        int init_eg;
+
         /* Basic variables */
         bool oob_max;                               // out of max bound
         bool oob_min;                               // out of min bound
@@ -87,6 +89,10 @@ namespace ae {
         double et_slope, et_intercept;
         int min_fit_gap;
 
+        int tuning_count;
+        int max_tuning_count;
+        bool ae_fail;
+
         /* Metrics values with corresponding exposure params */
         std::vector<std::vector<int>> lights_sets;   // sets of lights
         std::vector<int> brt_list;                   // list of target brightness
@@ -103,15 +109,15 @@ namespace ae {
 
         bool StepTune(const cv::Mat &image);
 
-        bool QuickTune(const cv::Mat &image, int brt_target=128, bool update_best=true);
+        bool QuickTune(const cv::Mat &image, int brt_target=128, bool update_best=true, const std::vector<cv::Rect> &rois={});
 
         void UpdateBestParams();
 
-        void CalcMetrics(const cv::Mat &image);
+        void CalcMetrics(const cv::Mat &image, const std::vector<cv::Rect> &rois);
 
         void ScaleExpParams();
 
-        static double CalcMeanBrt(const cv::Mat &image);
+        static double CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &rois);
 
         static double CalcEntropy(const cv::Mat &image);
 

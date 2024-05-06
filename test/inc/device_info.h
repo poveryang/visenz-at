@@ -68,9 +68,9 @@ DeviceInfo vs1000p_info = {
                 .lens_type = 0,
                 .start_pos = 1,
                 .end_pos = 410,
-                .ae_mode = 0,
+                .ae_mode = 1,
                 .init_et = 1000,
-                .init_eg = 16,
+                .init_eg = 32,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }
@@ -97,9 +97,9 @@ DeviceInfo vs1000p_200w_info = {
                 .lens_type = 0,
                 .start_pos = 1,
                 .end_pos = 410,
-                .ae_mode = 0,
+                .ae_mode = 1,
                 .init_et = 1000,
-                .init_eg = 16,
+                .init_eg = 40,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }
@@ -128,7 +128,7 @@ DeviceInfo vs2000_500w_info = {
                 .end_pos = 410,
                 .ae_mode = 0,
                 .init_et = 1000,
-                .init_eg = 16,
+                .init_eg = 40,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }
@@ -157,7 +157,7 @@ DeviceInfo vs2000_2000w_info = {
                 .end_pos = 410,
                 .ae_mode = 0,
                 .init_et = 1000,
-                .init_eg = 16,
+                .init_eg = 40,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }

@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
 project(TEST_AT)
 
-# Load Barcode SDK
-set(Barcode_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libBarcode")
-set(Barcode_INC "${Barcode_ROOT}/${DEVICE}/include")
-file(GLOB Barcode_LIBS "${Barcode_ROOT}/${DEVICE}/lib/*.*")
+# # Load Barcode SDK
+# set(Barcode_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libBarcode")
+# set(Barcode_INC "${Barcode_ROOT}/${DEVICE}/include")
+# file(GLOB Barcode_LIBS "${Barcode_ROOT}/${DEVICE}/lib/*.*")
 
 # Load Smvc(prebuilt-lib) or V4L2(source-code)
 if (${DEVICE} MATCHES "vs1000p|vs2000")

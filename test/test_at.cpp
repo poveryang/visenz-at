@@ -21,7 +21,7 @@ std::map<std::string, DeviceInfo> dev_infos = {
         {"vs2000500w", vs2000_500w_info},
         {"vs20002000w", vs2000_2000w_info}
 };
-
+/*
 float CalcSharpness(const cv::Mat &image, const std::vector<cv::Rect> &code_regions) 
 {
     float acc = 0;
@@ -80,6 +80,7 @@ std::vector<float> FitQuadratic(const std::vector<int> &x, const std::vector<flo
 
     return {a, b, c};   // quadratic formula: y = a*x^2 + b*x + c
 }
+*/
 
 void TestATOnline(const std::string& dev_name,
                   bool enable_hmap = true,
@@ -96,7 +97,7 @@ void TestATOnline(const std::string& dev_name,
     at::ATInterface at_obj(enable_hmap);
 
     // Set AR parameters and Barcode wrapper
-    ARParams ar_params;
+    // ARParams ar_params;
     smartmore::barcode::Barcode barcode_sdk("./config/default/");
     if(dev_name == "vs1000p")
     {
@@ -129,10 +130,13 @@ void TestATOnline(const std::string& dev_name,
         barcode_sdk.SetBarcodeType(smartmore::barcode::BarcodeType::kCode1D | smartmore::barcode::BarcodeType::kCode2D);
     }
     barcode_sdk.SetNumsMaxOutput2D(5);
+
     BarcodeWrapper barcode_wrapper(barcode_sdk);
 
     // Set enable flags of the four algorithms
     at_obj.Init(dev_info.cam_conf, barcode_wrapper, enable_al, enable_af, enable_ae, enable_ar);
+    // at_obj.SetRoi(cv::Rect(328,321,75,75));
+
     // Execute AT algorithm
     std::string at_version = at::ATInterface::GetVersion();
     printf(">>>>>===== AT version: %s <<<<<=====\n", at_version.c_str());

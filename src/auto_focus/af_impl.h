@@ -97,6 +97,8 @@ namespace af {
         void GetPosFv(std::vector<int> &pos_vec, std::vector<double> &fv_vec);
 
         cv::Rect2d ExpandRect(const cv::Rect2d &rect) const;
+
+        int fit_pos_num = 0;
     };
 }
 

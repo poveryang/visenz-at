@@ -48,6 +48,8 @@ namespace at {
          */
         bool Run(const cv::Mat &image);
 
+        void SetRoi(const cv::Rect &roi);
+
         /**
          * Get the next camera parameters.
          *
@@ -67,7 +69,7 @@ namespace at {
          *
          * @return best camera parameters.
          */
-        ARParams GetARParams();
+        ARInfo GetARInfo();
 
         /**
          * Get the version of the AT.

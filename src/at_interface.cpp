@@ -40,8 +40,13 @@ CamParams ATInterface::GetBestParams() {
     return at_impl_->best_params;
 }
 
-ARParams ATInterface::GetARParams() {
-    return at_impl_->ar_params;
+void ATInterface::SetRoi(const cv::Rect &roi)
+{
+    this->at_impl_->SetRoi(roi);
+}
+
+ARInfo ATInterface::GetARInfo() {
+    return at_impl_->ar_info;
 }
 
 std::string ATInterface::GetVersion() {
