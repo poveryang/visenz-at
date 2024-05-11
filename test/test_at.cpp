@@ -9,6 +9,8 @@
 #include "cap_smvc.h"
 #elif USE_V4L2
 #include "cap_v4l2.h"
+#elif USE_NOVAIC
+#include "cap_aarch32.h"
 #endif
 #include <chrono>
 
@@ -19,7 +21,8 @@ std::map<std::string, DeviceInfo> dev_infos = {
         {"vs1000p", vs1000p_info},
         {"vs1000p200w", vs1000p_200w_info},
         {"vs2000500w", vs2000_500w_info},
-        {"vs20002000w", vs2000_2000w_info}
+        {"vs20002000w", vs2000_2000w_info},
+        {"vs800p", vs800p_info}
 };
 /*
 float CalcSharpness(const cv::Mat &image, const std::vector<cv::Rect> &code_regions) 
@@ -91,7 +94,11 @@ void TestATOnline(const std::string& dev_name,
                   const std::string &code_type="2d") {
     // Prepare capture object
     DeviceInfo dev_info = dev_infos[dev_name];
+#ifdef USE_V4L2
     CamCapture cap(dev_info.sensor_name, dev_info.sensor_width, dev_info.sensor_height, dev_info.sensor_format);
+#elif USE_NOVAIC
+    CamCapture cap(dev_name);
+#endif
 
     // Initialize AT algorithm
     at::ATInterface at_obj(enable_hmap);
@@ -115,6 +122,10 @@ void TestATOnline(const std::string& dev_name,
     {
         barcode_sdk.SetConfigSignature("nxp2000w");
     }
+    else if(dev_name == "vs800p")
+    {
+        barcode_sdk.SetConfigSignature("novaic150w");
+    }
     barcode_sdk.LoadConfig("./config/default/config.json");
 
     if(code_type == "1d")
@@ -135,7 +146,7 @@ void TestATOnline(const std::string& dev_name,
 
     // Set enable flags of the four algorithms
     at_obj.Init(dev_info.cam_conf, barcode_wrapper, enable_al, enable_af, enable_ae, enable_ar);
-    // at_obj.SetRoi(cv::Rect(328,321,75,75));
+    // at_obj.SetRoi(cv::Rect(215,468,137,137));
 
     // Execute AT algorithm
     std::string at_version = at::ATInterface::GetVersion();
@@ -359,7 +370,7 @@ int main(int argc, char *argv[]) {
         std::string code_type = argv[2];
 
         // TestATOnline(dev_name, enable_hmap, enable_al, enable_af, enable_ae, enable_ar);
-        TestATOnline(dev_name, false, false, true, false, false, code_type);
+        TestATOnline(dev_name, false, true, true, true, false, code_type);
     } else {
         std::string dev_name = argv[1];
         TestATOnline(dev_name);

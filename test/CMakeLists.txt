@@ -19,11 +19,11 @@ elseif (${DEVICE} MATCHES "vs2000p")
     file(GLOB Smvc_LIBS "${Smvc_ROOT}/${DEVICE}/lib/*.so")
     set(CAP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/cap_smvc.cpp")
 elseif (${DEVICE} MATCHES "vs600|vs800p")
-    add_definitions(-DUSE_SMVC)
+    add_definitions(-DUSE_NOVAIC)
     set(Smvc_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/libSmvc")
     set(Smvc_INC "${Smvc_ROOT}/${DEVICE}/inc")
     file(GLOB Smvc_LIBS "${Smvc_ROOT}/${DEVICE}/lib/*.so")
-    set(CAP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/cap_smvc.cpp")
+    set(CAP_SRC "${CMAKE_CURRENT_SOURCE_DIR}/src/cap_aarch32.cpp")
 endif()
 
 # Build AT_TEST
@@ -48,9 +48,30 @@ target_include_directories(TEST_AT PUBLIC
         ${OpenCV_INCLUDE_DIRS}
 )
 
+add_executable(TEST_CAP
+        ${V4L2_SRC}
+        ${CAP_SRC}
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_cap.cpp
+)
 
+target_link_libraries(TEST_CAP PUBLIC
+        AT
+        ${OpenCV_LIBS}
+        ${Smvc_LIBS}
+)
+
+target_include_directories(TEST_CAP PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/inc
+        ${Smvc_INC}
+        ${V4L2_ROOT}
+        ${OpenCV_INCLUDE_DIRS}
+)
 
 # Install
 INSTALL(TARGETS TEST_AT
+        DESTINATION bin
+)
+
+INSTALL(TARGETS TEST_CAP
         DESTINATION bin
 )

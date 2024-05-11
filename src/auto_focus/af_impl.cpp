@@ -87,9 +87,7 @@ AFImpl::AFImpl(AFConf &af_conf, bool enable_hmap) {
 void AFImpl::Run(const cv::Mat &image, const std::vector<cv::Rect> &rois) {
     CalcFocusValue(image, rois);
 
-    if (start_fit) {
-        // PolynomialFit();
-        
+    if (start_fit) {    
         this->RefineFocus();
     } 
     // else if (enable_hmap) {
@@ -413,7 +411,9 @@ void AFImpl::ResetSamples() {
         if(it != this->pos_samples.end())
         {
             this->pos_samples.erase(it);
-            this->pos_samples.insert(this->pos_samples.begin(), pos_cur_center);  // 把这个值移动到第一个位置，需要这张照片用来定位码区
+            // 把这个值移动到第一个位置，算法流程会先拍这个位置，
+            // 在AT4VsImpl::SequentialExec()的AF phase中，会先拍这个焦距的图跑解码函数，用来定位码区
+            this->pos_samples.insert(this->pos_samples.begin(), pos_cur_center);  
         }
         printf("StepSampling, samples: ");
         for (int sample : this->pos_samples) {
@@ -445,7 +445,7 @@ void AFImpl::ResetSamples() {
 
 void AFImpl::GetNextSample() {
     if (!pos_samples.empty()) {
-        next_pos = pos_samples.front();
+        next_pos = pos_samples.front();   // 取位置时，从头开始拿
         pos_samples.erase(pos_samples.begin());
     } else {
         next_pos = best_pos;

@@ -45,3 +45,8 @@ cv::Mat CamCapture::CapImg(CamParams &cam_params) const {
 
     return image;
 }
+
+void CamCapture::SetLightState(int enable) const
+{
+    sm_set_light_state(enable);
+}

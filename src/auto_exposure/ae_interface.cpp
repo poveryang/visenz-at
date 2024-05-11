@@ -31,6 +31,16 @@ void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vec
     }
 }
 
+void AEInterface::UpdateLights()
+{
+    // lights 更新失败，说明已经没有灯光组合
+    if (!this->ae_impl_->UpdateLights())
+    {
+        this->ae_fail = true;
+    }
+    params_next = ae_impl_->params_next;
+}
+
 void AEInterface::StepTune(const cv::Mat &image, const cv::Mat &hmap) {
     /* Extract the hotspot from the heatmap if the heatmap is not empty */
     if (enable_hmap && !hmap.empty()) {

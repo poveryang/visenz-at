@@ -1,10 +1,17 @@
+/*
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:48:02
+ * @Copyright: Copyright (c) 2022
+ */
 #ifndef AT_VS_IMPL_H
 #define AT_VS_IMPL_H
 
 #include "at_base.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-#include "hmap_infer_base.h"
+// #include "hmap_infer_base.h"
 #include <chrono>
 
 class AT4VsImpl : public ATImplBase {
@@ -74,6 +81,18 @@ private:
     bool run_decode_finish = false;
     std::vector<cv::Rect> code_regions;
     bool enable_al = false;
+    cv::Mat cached_image;
+    
+    std::vector<int> ae_target_brt;     // aest时的目标亮度，此时这个值是对于全图的
+    int ae_target_brt_idx;
+
+    std::vector<int> refine_code_brt;   // refine时的目标亮度，此时这个值是对于码区的
+    int refine_code_brt_idx;
+    bool refine_ae_finish;
+
+    bool af_take_onemore;
+    bool af_take_onemore_finish;
+
 };
 
 #endif //AT_VS_IMPL_H

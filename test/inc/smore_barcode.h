@@ -233,8 +233,9 @@ public:
             
             if(result.decode_succeed)
             {
+                std::cout << "decoder result success " << result.result << std::endl;
                 auto type_it = std::find(out_arinfo.successful_code_type.begin(), out_arinfo.successful_code_type.end(), result.type);
-                if(type_it != out_arinfo.successful_code_type.end())
+                if(type_it == out_arinfo.successful_code_type.end())
                 {
                     out_arinfo.successful_code_type.emplace_back(result.type); // 记录解码成功的码制
                 }
@@ -242,7 +243,7 @@ public:
                 if(result.type == smartmore::barcode::BarcodeType::kQrcode)
                 {
                     auto ver_it = std::find(qr_versions.begin(), qr_versions.end(), result.version);
-                    if(ver_it != qr_versions.end())
+                    if(ver_it == qr_versions.end())
                     {
                         qr_versions.emplace_back(result.version);
                     }
@@ -250,7 +251,7 @@ public:
                 else if(result.type == smartmore::barcode::BarcodeType::kDmcode)
                 {
                     auto ver_it = std::find(dm_versions.begin(), dm_versions.end(), result.version);
-                    if(ver_it != dm_versions.end())
+                    if(ver_it == dm_versions.end())
                     {
                         dm_versions.emplace_back(result.version);
                     }

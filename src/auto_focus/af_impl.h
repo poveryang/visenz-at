@@ -69,6 +69,10 @@ namespace af {
 
         void Run(const cv::Mat &image, const std::vector<cv::Rect> &rois={});
 
+        void ResetSamples();
+
+        void GetNextSample();
+
     private:
         void CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &rois={});
 
@@ -81,10 +85,6 @@ namespace af {
         void RefineFocus();
 
         void UpdateStatus(std::vector<int> &pos_vec, int peak_idx);
-
-        void ResetSamples();
-
-        void GetNextSample();
 
         static int SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mono_check);
 

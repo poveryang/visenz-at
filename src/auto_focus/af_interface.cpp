@@ -32,13 +32,23 @@ void AFInterface::Run(const cv::Mat &img, const std::vector<cv::Rect> &rois) {
 
     next_pos = af_impl_->next_pos;
     enable_hmap = af_impl_->enable_hmap;
-    end_iter = af_impl_->end_iter;
-    if (end_iter) {
+    this->end_iter = af_impl_->end_iter;
+    if (this->end_iter) {
         this->best_pos = af_impl_->best_pos;
         id_hots.clear();
         dummy_hotspot.positions.clear();
         dummy_hotspot.intensities.clear();
     }
+}
+
+void AFInterface::ResetSamples()
+{
+    this->end_iter = false;
+    this->af_impl_->end_iter = false;
+
+    this->af_impl_->ResetSamples();
+    this->af_impl_->GetNextSample();
+    this->next_pos = this->af_impl_->next_pos;
 }
 
 void AFInterface::ExtractHotspots(const cv::Mat &hmap, double intensity_thresh) {

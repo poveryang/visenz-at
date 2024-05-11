@@ -24,6 +24,9 @@ public:
     ~CamCapture();
 
     cv::Mat CapImg(CamParams& cam_params) const;
+
+    void SetLightState(int enable) const;
+
 public:
     int camera_number;
     int sensor_width;

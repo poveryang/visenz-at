@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.10)
 
-# for tengine
-set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc)
-set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++)
-
-# # for novaic
-# set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc)
-# set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++)
+if (${DEVICE} MATCHES "vs1000p|vs2000")
+    set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc)
+    set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++)
+elseif(${DEVICE} MATCHES "vs600|vs800p")
+    set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc)
+    set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++)
+endif()
 
 project(ViSenz-AT)
 
@@ -31,7 +31,8 @@ if (${DEVICE} MATCHES "vs1000p|vs2000")
     # set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
     set(OpenCV_DIR "/home/lsa/project/barcode-sdk/3rdparty/opencv_aarch64/opencv_aarch64/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs600|vs800p")
-    SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
+    # SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
+    set(OpenCV_DIR "/home/lsa/project/barcode-sdk/3rdparty/opencv-4.5.2-contrib-linux-aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs2000p")
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
 endif ()
@@ -45,7 +46,6 @@ file(GLOB Barcode_LIBS "${Barcode_ROOT}/${DEVICE}/lib/*.*")
 # Build AT submodules
 add_subdirectory("./src/auto_exposure/")
 add_subdirectory("./src/auto_focus/")
-add_subdirectory("./src/hmap_infer/")
 
 # Build AT library
 file(GLOB AT_SRC "src/*.cpp")
@@ -56,7 +56,6 @@ target_include_directories(
     "./include" 
     "src/auto_exposure" 
     "src/auto_focus" 
-    "src/infer_hmap" 
     ${Barcode_INC}
     ${PROJECT_BINARY_DIR})
 
@@ -64,9 +63,27 @@ target_link_libraries(
     AT PUBLIC 
     AE 
     AF 
-    HmapInfer 
     ${OpenCV_LIBS}
-    ${Barcode_LIBS})
+    ${Barcode_LIBS}
+)
+
+    
+if(${DEVICE} MATCHES "vs600|vs800p")
+    LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+    include(fetch/Novaic)
+    find_package(Novaic REQUIRED)
+    install(FILES ${Novaic_Install_LIBRARIES}  DESTINATION ./${TARGET_ARCHITECTURE}/lib)
+
+    target_include_directories(
+        AT PUBLIC 
+        ${Novaic_INCLUDE_DIR}
+    )
+
+    target_link_libraries(
+        AT PUBLIC 
+        ${Novaic_LIBRARIES}
+    )
+endif()
 
 # Build AT test(optional)
 if (${ENABLE_AT_TEST})

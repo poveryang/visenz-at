@@ -67,6 +67,7 @@ enum ATPhase {
     AEQT,  // Quick Tuning Exposure params (with lights)
     AEST,  // Step Tuning Exposure params (with lights)
     AF,    // Auto Focus
+    REFINE,  // AT refine，在定位到码区的情况下，先ae调整码区亮度，再跑af， 都是使用码区位置来做
     AR,    // Auto Recognition (barcode)
     END,
 };

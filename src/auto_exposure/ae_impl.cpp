@@ -42,7 +42,7 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al) {
             }
         }
         std::vector<int> close_all(n_lights, 0);
-        lights_sets = {polarized, unpolarized, all};
+        lights_sets = {close_all, polarized, unpolarized, all};
     } else {
         lights_sets = {ae_conf.init_intensities};
     }
@@ -78,26 +78,29 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al) {
 
     // 每次切换灯光，都会重新计数tuning_step，当超过max_tuning_step后，就是切换到下一组灯光
     this->tuning_count = 0;
-    this->max_tuning_count = 10;
+    this->max_tuning_count = 15;
     this->ae_fail = false;    
 }
 
 bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, bool update_best, const std::vector<cv::Rect> &rois) {
     /* Calc metrics in current frame */
+    std::cout << "ae brt_target " << brt_target << std::endl;
     CalcMetrics(image, rois);
     this->tuning_count += 1;
-    // std::cout << "tuning count " << this->tuning_count << std::endl;
+    std::cout << "ae tuning count " << this->tuning_count << std::endl;
     // cv::imwrite("./ae_" + std::to_string(this->tuning_count) + "_" + std::to_string(int(this->status_cur.brt)) + ".png", image);
 
     if (abs(status_cur.brt - brt_target) < thres_brt_diff) {
         if (update_best){
             // UpdateBestParams();
             params_best = params_next;
+            this->tuning_count = 0;
         }
         return true;
     } else {
-        CalcScaleFactors(brt_target);
-        ScaleExpParams();
+        // CalcScaleFactors(brt_target);
+        // ScaleExpParams();
+        this->UpdateExposureAndGain(brt_target);
 
         if(this->tuning_count > this->max_tuning_count)
         {
@@ -117,6 +120,21 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, bool update_best, c
 
         return false;
     }
+}
+
+bool AEImpl::UpdateLights()
+{
+    this->tuning_count = 0;
+    if(this->lights_sets.empty())
+    {
+        std::cout << "set ae fail, update lights empty" << std::endl;
+        this->ae_fail = true; 
+        return false;
+    }
+    params_next.lights = lights_sets.back();
+    params_next.exp_gain = this->init_eg;
+    lights_sets.pop_back();
+    return true;
 }
 
 bool AEImpl::StepTune(const cv::Mat &image) {
@@ -322,6 +340,7 @@ double AEImpl::CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &ro
             cv::Mat roi_img = image(roi);
             mean_brt += cv::mean(roi_img)[0];
         }
+        mean_brt /= rois.size();
     }
 
     return mean_brt;
@@ -453,4 +472,59 @@ void AEImpl::LinearRegEtCurve(double &max_et_scale, double &min_et_scale) {
 
     std::cout << "max_et_scale " << max_et_scale << ", min_et_scale " << min_et_scale << std::endl;
     std::cout << "*************" << std::endl;
+}
+
+void AEImpl::UpdateExposureAndGain(int brt_target)
+{
+    std::cout << "UpdateExposureAndGain()" << std::endl;
+    float brt_cur = static_cast<float>(this->status_cur.brt);
+    int exposure_cur = this->status_cur.params.exp_time;
+    int gain_cur = this->status_cur.params.exp_gain;
+
+    float total_scale = brt_target * 1.0 / brt_cur;
+
+    float eg_scale = 1.0f;
+    float et_scale = 1.0f;
+    // 当需要降低亮度的时候，由于曝光为0时，是能基本保证亮度为0，因此会限定gain的下限为32，其余分量全压在曝光上
+    if(total_scale < 1)
+    {   
+        std::cout << "decrease brt" << std::endl;
+        // 降亮度的时候，如果gain<init，则不调整eg了
+        if(gain_cur > this->init_eg)
+        {
+            eg_scale = this->init_eg * 1.0f / gain_cur;
+        }
+        et_scale = std::min(total_scale/eg_scale, 1.0f);
+    }
+    else
+    {
+        std::cout << "increase brt" << std::endl;
+        et_scale = total_scale;
+        if(exposure_cur * total_scale > this->MAX_ET)
+        {
+            et_scale = this->MAX_ET * 1.0f / exposure_cur;
+            eg_scale = std::min(2.0f, total_scale / et_scale);
+        }
+        if(gain_cur > 80)
+        {
+            eg_scale = std::min(1.2f, eg_scale);
+        }
+    }
+
+    std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl; 
+
+    int next_et = std::min(int(exposure_cur*et_scale), this->MAX_ET);
+    next_et = std::max(next_et, this->MIN_ET);
+    int next_eg = std::min(int(gain_cur*eg_scale), this->MAX_EG);
+    next_eg = std::max(next_eg, this->MIN_EG);
+    if(next_eg - gain_cur > 30)
+    {
+        std::cout << "limit eg increase in 30" << std::endl;
+        next_eg = gain_cur + 30;
+    }
+
+    std::cout << "next et " << next_et << ",  next eg " << next_eg << std::endl;
+
+    this->params_next.exp_time = next_et;
+    this->params_next.exp_gain = next_eg;
 }

@@ -71,7 +71,7 @@ DeviceInfo vs1000p_info = {
                 .ae_mode = 1,
                 .init_et = 1000,
                 .init_eg = 32,
-                .init_intensities = {1, 1, 1, 1},
+                .init_intensities = {0, 0, 0, 0},
                 .init_pos = 1,
         }
 
@@ -99,7 +99,7 @@ DeviceInfo vs1000p_200w_info = {
                 .end_pos = 410,
                 .ae_mode = 1,
                 .init_et = 1000,
-                .init_eg = 40,
+                .init_eg = 32,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }
@@ -128,7 +128,7 @@ DeviceInfo vs2000_500w_info = {
                 .end_pos = 410,
                 .ae_mode = 0,
                 .init_et = 1000,
-                .init_eg = 40,
+                .init_eg = 32,
                 .init_intensities = {1, 1, 1, 1},
                 .init_pos = 1,
         }
@@ -157,8 +157,37 @@ DeviceInfo vs2000_2000w_info = {
                 .end_pos = 410,
                 .ae_mode = 0,
                 .init_et = 1000,
-                .init_eg = 40,
+                .init_eg = 32,
                 .init_intensities = {1, 1, 1, 1},
+                .init_pos = 1,
+        }
+
+};
+
+DeviceInfo vs800p_info = {
+        .sensor_name = "sc132gs",
+        .sensor_format = 0,  // SM_FMT_RAW12
+        .sensor_width = 1088,
+        .sensor_height = 1288,
+        .cam_conf = {
+                .img_width = 1088,
+                .img_height = 1288,
+                .roi = cv::Rect2d(0, 0, 0, 0),
+                .max_lt = 2000,
+                .min_intensity = 1,
+                .max_intensity = 24,
+                .min_et = 20,
+                .max_et = 40000,
+                .min_eg = 1,
+                .max_eg = 255,
+                .eg_quant_scale = 0.0625,
+                .lens_type = 0,
+                .start_pos = 1,
+                .end_pos = 1023,
+                .ae_mode = 0,
+                .init_et = 1000,
+                .init_eg = 32,
+                .init_intensities = {1},
                 .init_pos = 1,
         }
 

@@ -1,3 +1,10 @@
+/*
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:48:02
+ * @Copyright: Copyright (c) 2022
+ */
 #ifndef AF_INTERFACE_H
 #define AF_INTERFACE_H
 
@@ -35,6 +42,8 @@ namespace af {
          *  @param hmap the heat map of the input image
          */
         void Run(const cv::Mat &img, const std::vector<cv::Rect> &rois={});
+
+        void ResetSamples();
 
     private:
         /* the implementation object of the AF algorithm */

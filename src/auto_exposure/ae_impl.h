@@ -126,6 +126,10 @@ namespace ae {
         void LinearRegEtCurve(double &max_et_scale, double &min_et_scale);
 
         void CalcScaleFactors(int brt_target);
+
+        bool UpdateLights();
+
+        void UpdateExposureAndGain(int brt_target);
     };
 } // ae
 
