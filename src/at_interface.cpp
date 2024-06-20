@@ -1,3 +1,10 @@
+/*
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:48:02
+ * @Copyright: Copyright (c) 2022
+ */
 #include "at_interface.h"
 #include "at_vs_impl.h"
 #include "version.h"
@@ -35,8 +42,6 @@ CamParams ATInterface::GetNextParams() {
 }
 
 CamParams ATInterface::GetBestParams() {
-    printf("[AT4VS] Get best params\n");
-    at_impl_->best_params.Print();
     return at_impl_->best_params;
 }
 

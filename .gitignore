@@ -34,8 +34,5 @@
 *.out
 *.app
 /test/drivers/
-/3rdparty/
+/3rdparty/libBarcode/
 /.vscode/
-/test/3rdparty/libBarcode/vs1000p/
-/test/3rdparty/libBarcode/vs2000/
-/test/3rdparty/libBarcode/vs2000p/

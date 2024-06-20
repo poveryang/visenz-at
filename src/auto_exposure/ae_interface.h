@@ -24,21 +24,14 @@ namespace ae {
          * @param min_eg minimum exposure gain
          * @param max_eg maximum exposure gain
          */
-        void Init(AEConf &ae_conf, bool en_al, bool en_hmap);
+        void Init(AEConf &ae_conf, bool en_al);
 
         /**
          * Tuning exposure parameters to close to the target brightness
          * @param image input image
          * @param brt_target target brightness
          */
-        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={});
-
-        /**
-         * Tuning exposure parameters stepwise
-         * @param image input image
-         * @param hmap heatmap, default is empty
-         */
-        void StepTune(const cv::Mat &image, const cv::Mat &hmap = cv::Mat());
+        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15);
 
         void UpdateLights();
 
@@ -47,17 +40,9 @@ namespace ae {
 
         std::shared_ptr<AEImpl> ae_impl_;
     public:
-        bool enable_hmap;
         bool end_qt;
-        bool end_st;
         bool ae_fail;
         AEParams params_next, params_best;
-
-    private:
-        int img_width_, img_height_;
-        static void LocateMaxHotspot(const cv::Mat &hmap, cv::Rect2d &roi, double &intensity, double hot_thresh = 200);
-
-        cv::Rect2d ExpandRect(const cv::Rect2d &roi);
     };
 }  // namespace ae
 

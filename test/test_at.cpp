@@ -146,7 +146,7 @@ void TestATOnline(const std::string& dev_name,
 
     // Set enable flags of the four algorithms
     at_obj.Init(dev_info.cam_conf, barcode_wrapper, enable_al, enable_af, enable_ae, enable_ar);
-    // at_obj.SetRoi(cv::Rect(215,468,137,137));
+    // at_obj.SetRoi(cv::Rect(455,644,594-455,767-644));
 
     // Execute AT algorithm
     std::string at_version = at::ATInterface::GetVersion();

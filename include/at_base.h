@@ -1,3 +1,10 @@
+/*
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:48:02
+ * @Copyright: Copyright (c) 2022
+ */
 #ifndef AT_PARAMS_H
 #define AT_PARAMS_H
 
@@ -6,34 +13,26 @@
 
 /** @brief Camera configuration.*/
 struct CamConf {
-    /** Image Resolution*/
-    int img_width;                      // image width
-    int img_height;                     // image height
-    cv::Rect2d roi;                     // roi of the image
-
     /** Fill Light control*/
-    int max_lt;                         // maximum light time
-    int min_intensity;                  // minimum light intensity
-    int max_intensity;                  // maximum light intensity
+    int min_intensity;                  // 关灯 0
+    int max_intensity;                  // 开灯 1
 
     /** Exposure control*/
-    int min_et;                         // minimum exposure time
-    int max_et;                         // maximum exposure time
-    int min_eg;                         // minimum exposure gain
-    int max_eg;                         // maximum exposure gain
-    double eg_quant_scale;              // quantization scale of exposure gain
+    int min_et;                         // 从相机获得的最小曝光时间
+    int max_et;                         // 从相机获得的最大曝光时间
+    int min_eg;                         // 从相机获得的最小增益
+    int max_eg;                         // 从相机获得的最大增益
+    int ae_mode;                        // ae的模式，默认 1
+    int init_et;                        // AT 初始化的曝光时间，不同相机不同，可设置
+    int init_eg;                        // AT 初始化的增益，不同相机不同，可设置
+    std::vector<int> init_intensities;  // AT 初始化灯光
 
     /** Focus control*/
-    int lens_type;                      // 0: mechanical lens, 1: liquid lens
-    int start_pos;                      // start position of lens
-    int end_pos;                        // end position of lens
-
-    /** Initial camera parameters*/
-    int ae_mode;                        // 0:auto, 1: shutter priority, 2: gain priority
-    int init_et;                        // initial exposure time
-    int init_eg;                        // initial exposure gain
-    std::vector<int> init_intensities;  // initial light intensities
-    int init_pos;                       // initial position of lens
+    int start_pos;                      // 从相机获得的最小焦距
+    int end_pos;                        // 从相机获得的最大焦距    
+    int init_pos;                       // AT 初始化的焦距，不同相机不同，可设置
+    int coarse_af_step;                 // 粗对焦时的焦距步长，不同相机不同，可设置 
+    int refine_af_step;                 // 精对焦是的焦距步长，不同相机不同，可设置
 };
 
 /** @brief Camera parameters.*/

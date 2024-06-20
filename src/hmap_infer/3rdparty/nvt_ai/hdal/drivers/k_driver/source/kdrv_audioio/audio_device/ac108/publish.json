@@ -1,7 +1,0 @@
-{
-	"jsontype": "module_publish",
-	"publish_src": [
-		"audext_ac108_drv.c",
-		"audext_ac108_main.c"
-	]
-}

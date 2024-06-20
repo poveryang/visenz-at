@@ -1,3 +1,0 @@
-02.00: first version
-02.01: modify VENDOR_AI_OP_PREPROC_PARAM interface
-

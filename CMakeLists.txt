@@ -20,6 +20,7 @@ message(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION
 # Build options(enable at test by default)
 option(ENABLE_AT_TEST "Build AT UnitTest" ON)
 option(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
+option(BUILD_WITH_LOG "Build With Log" ON)
 
 # Build setting
 set(CMAKE_BUILD_TYPE Release)
@@ -37,6 +38,10 @@ elseif (${DEVICE} MATCHES "vs2000p")
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
 endif ()
 find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
+
+if (BUILD_WITH_LOG)
+    add_definitions(-DBUILD_WITH_LOG)
+endif()
 
 # Load Barcode SDK
 set(Barcode_ROOT "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode")

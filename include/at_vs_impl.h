@@ -24,12 +24,6 @@ public:
     ae::AEInterface ae_obj;
     ae::AEConf ae_conf;
 
-    /* Object and params of AR */
-    // ARInterface ar_obj;
-
-    /* Object of Hmap */
-    // std::shared_ptr<HMapInferBase> hmap_obj;
-
 public:
     /**
      * @brief AT4VsImpl constructor

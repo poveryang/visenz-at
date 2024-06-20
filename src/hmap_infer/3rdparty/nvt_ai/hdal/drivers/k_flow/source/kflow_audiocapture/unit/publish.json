@@ -1,9 +1,0 @@
-{
-	"jsontype": "module_publish",
-	"publish_src": [
-		"linux/isf_audcap_drv.c",
-		"linux/isf_audcap_main.c",
-		"linux/isf_audcap_proc.c",
-		"isf_audcap/isf_audcap_export.c"
-	]
-}

@@ -1,8 +1,0 @@
-{
-	"jsontype": "module_publish",
-	"publish_src": [
-		"audlib_filt_drv.c",
-		"audlib_filt_main.c",
-		"audlib_filt_export.c"
-	]
-}

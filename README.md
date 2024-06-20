@@ -1,29 +1,29 @@
+<!--
+ * @Author: Lu ShaoAn, Smartmore Corporation
+ * @Brief: 
+ * @Version: 0.1
+ * @Date: 2024-04-10 14:46:32
+ * @Copyright: Copyright (c) 2022
+-->
 # ViSenz_AT4VS
 
-Camera auto tuning algorithms for Smore-ViScanner.
-
-## Change log
-
----
-### v3.3.3 --- 2022-11-21
-
-**Feat**：
-- 支持光源分控，如用户界面指定开关偏振光，不再同步调整非偏振光；
-- 流程中判断AE开关与否，以确定AE4AF模块的下一步动作；
-- 新增对VS1000Pro@2M曝光时间上限1000ms的支持。
-
-**Fix**:
-- 通过程序逻辑判断，规避关闭AE时可能导致的AF crash。
-
----
-### v3.3.2 --- 2022-11-08
-
-**Refactor**:
-- 重构AT对外接口，使功能逻辑更清晰
-- 重构内部执行流程，使兼容不同下游视觉任务(不限于解码)
-
-**Added**:
-- AE模块中新增快速曝光控制功能，用于进行粗曝光控制
-- AF模块前默认执行粗曝光控制，避免在完全过曝或欠曝条件下出现的对焦失败
-- AT执行过程中，在关键采样点执行解码任务并分析码区图像质量，最终成像结果取最优样本位置
-
+编译及运行步骤
+1. copy想要运行的机型的barcode sdk文件夹到 3rdparty/libBarcode中，文件夹名与CMakeLists.txt对应，如： 
+   ./3rdparty/libBarcode/vs800p/ 
+   ./3rdparty/libBarcode/vs1000p/  
+2. 配置CMakeLists.txt中，根据机型选择正确的编译器路径（CMAKE_C_COMPILER， CMAKE_CXX_COMPILER）和opencv路径  
+3. 正常使用cmake生成可执行文件和库文件  
+   ```
+   mkdir build 
+   cd build  
+   cmake .. -DDEVICE=vs1000p  # DEVICE必填，要根据机型选择对应的编译器和opencv路径和libbarcode文件，其他option看情况选择
+   make
+   ```
+4. 把libBarcode中的模型文件、lib文件、config文件，和libAT.so、TEST_AT 拷入扫码器中，并设置好相应路径  
+5. 设置好扫码器的库搜索路径  
+   `
+   export LD_LIBRATY_PATH = /usr/scanner/debug/at/full_at/libs/
+   `
+6. 运行TEST_AT，给好相应的命令行参数
+   ./TEST_AT vs1000p 2d
+   

@@ -1,6 +1,0 @@
-{
-	"jsontype": "module_publish",
-	"publish_src": [
-		"videosprite_open.c"
-	]
-}
