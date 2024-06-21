@@ -14,7 +14,8 @@
 // #include "hmap_infer_base.h"
 #include <chrono>
 
-class AT4VsImpl : public ATImplBase {
+class AT4VsImpl : public ATImplBase 
+{
 public:
     /* Object and conf of AF */
     af::AFInterface af_obj;

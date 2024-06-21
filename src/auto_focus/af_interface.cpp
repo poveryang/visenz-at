@@ -10,14 +10,16 @@
 
 using namespace af;
 
-AFInterface::AFInterface() {
+AFInterface::AFInterface() 
+{
     this->end_iter = false;
     this->next_pos = -1;
     this->best_pos = -1;
     this->start_fit = false;
 }
 
-void AFInterface::Init(AFConf &af_conf) {
+void AFInterface::Init(AFConf &af_conf) 
+{
     af_impl_ = std::make_shared<AFImpl>(af_conf);
     this->next_pos = af_impl_->next_pos;
 
@@ -26,7 +28,8 @@ void AFInterface::Init(AFConf &af_conf) {
     this->start_fit = false;
 }
 
-void AFInterface::Run(const cv::Mat &img, const std::vector<cv::Rect> &rois) {
+void AFInterface::Run(const cv::Mat &img, const std::vector<cv::Rect> &rois) 
+{
     /* Run the AF algorithm and update variables */
     af_impl_->Run(img, rois);
 
@@ -34,7 +37,8 @@ void AFInterface::Run(const cv::Mat &img, const std::vector<cv::Rect> &rois) {
 
     next_pos = af_impl_->next_pos;
     this->end_iter = af_impl_->end_iter;
-    if (this->end_iter) {
+    if (this->end_iter) 
+    {
         this->best_pos = af_impl_->best_pos;
     }
 }

@@ -195,7 +195,7 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
             et_scale = this->max_et * 1.0f / cur_exposure;
             eg_scale = std::min(2.0f, total_scale / et_scale);
         }
-        if(cur_eg > 80)
+        if(cur_eg > 80)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
         {
             eg_scale = std::min(1.2f, eg_scale);
         }
@@ -209,7 +209,7 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
     next_et = std::max(next_et, this->min_et);
     int next_eg = std::min(int(cur_eg*eg_scale), this->max_eg);
     next_eg = std::max(next_eg, this->min_eg);
-    if(next_eg - cur_eg > 30)
+    if(next_eg - cur_eg > 30)   // 限制增益的增长，以免超调
     {
         #ifdef BUILD_WITH_LOG
             std::cout << "limit eg increase in 30" << std::endl;

@@ -7,20 +7,23 @@
  */
 #include "at_vs_impl.h"
 
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+//
+//  发版记得在cmake中更新版本，重新编译后再发布
+//
+// !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-AT4VsImpl::AT4VsImpl(bool enable_hmap) {
+AT4VsImpl::AT4VsImpl(bool enable_hmap) 
+{
     this->ae_target_brt = {64, 32, 96, 16, 128};
     this->refine_code_brt = {64, 32};
 }
 
 void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
-                     bool en_al, bool en_af, bool en_ae, bool en_ar) {
+                     bool en_al, bool en_af, bool en_ae, bool en_ar) 
+{
     printf("[AT4VS] Initializing: \nAL(%d), AF(%d), AE(%d), AR(%d)\nInit Params:", en_al, en_af, en_ae, en_ar);
-    CamParams init_params{
-            cam_conf.init_et,
-            cam_conf.init_eg,
-            cam_conf.init_intensities,
-            cam_conf.init_pos};
+    CamParams init_params{cam_conf.init_et, cam_conf.init_eg, cam_conf.init_intensities, cam_conf.init_pos};
     #ifdef BUILD_WITH_LOG
         init_params.Print();
     #endif
@@ -132,7 +135,8 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
     #endif
 }
 
-void AT4VsImpl::LoadCamConf(CamConf &cam_conf) {
+void AT4VsImpl::LoadCamConf(CamConf &cam_conf) 
+{
     /* Load AF configuration */
     af_conf.start_pos = cam_conf.start_pos;
     af_conf.end_pos = cam_conf.end_pos;
@@ -157,7 +161,8 @@ void AT4VsImpl::SetRoi(const cv::Rect &roi)
     this->at_roi = roi;
 }
 
-void AT4VsImpl::SequentialExec(const cv::Mat &image) {
+void AT4VsImpl::SequentialExec(const cv::Mat &image) 
+{
     switch (*phase) 
     {
         case ATPhase::AEQT: 
@@ -408,20 +413,25 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image) {
             #endif
             break;
         }
-        default: {
+        default: 
+        {
             fprintf(stderr, "Invalid phase!\n");
             break;
         }
     }
 }
 
-void AT4VsImpl::UpdateNextParams() {
-    switch (*phase) {
-        case ATPhase::AEQT: {
+void AT4VsImpl::UpdateNextParams() 
+{
+    switch (*phase) 
+    {
+        case ATPhase::AEQT: 
+        {
             next_params.lights = ae_obj.params_next.lights;
             next_params.exp_time = ae_obj.params_next.exp_time;
             next_params.exp_gain = ae_obj.params_next.exp_gain;
-            if (ae_obj.end_qt) {
+            if (ae_obj.end_qt) 
+            {
                 #ifdef BUILD_WITH_LOG
                     printf("[AT4VS] AEQT Done: exp-time=%d, exp-gain=%d, lights=%d,%d,%d,%d\n\n",
                         ae_obj.params_next.exp_time, ae_obj.params_next.exp_gain,
@@ -449,10 +459,12 @@ void AT4VsImpl::UpdateNextParams() {
 
             break;
         }
-        case ATPhase::AF: {
+        case ATPhase::AF: 
+        {
             next_params.focus_pos = af_obj.next_pos;
             // af完了的时候，需要跑一次解码，根据是否定位到码来决定是否还需要调整曝光
-            if (af_obj.end_iter && !this->af_take_onemore_finish) {
+            if (af_obj.end_iter && !this->af_take_onemore_finish) 
+            {
                 #ifdef BUILD_WITH_LOG
                     printf("[AT4VS] AF Done: focus-pos=%d\n\n", af_obj.best_pos);
                 #endif
@@ -518,7 +530,8 @@ void AT4VsImpl::UpdateNextParams() {
             }
             break;
         }
-        case ATPhase::AEST: {
+        case ATPhase::AEST: 
+        {
             next_params.lights = ae_obj.params_next.lights;
             next_params.exp_time = ae_obj.params_next.exp_time;
             next_params.exp_gain = ae_obj.params_next.exp_gain;
@@ -598,7 +611,8 @@ void AT4VsImpl::UpdateNextParams() {
 
             break;
         }
-        case ATPhase::REFINE: {
+        case ATPhase::REFINE: 
+        {
             next_params.lights = ae_obj.params_next.lights;
             next_params.exp_time = ae_obj.params_next.exp_time;
             next_params.exp_gain = ae_obj.params_next.exp_gain;
@@ -677,20 +691,23 @@ void AT4VsImpl::UpdateNextParams() {
 
             break;
         }
-        case ATPhase::AR: {
+        case ATPhase::AR: 
+        {
             #ifdef BUILD_WITH_LOG
                 printf("[AT4VS] AR Done\n\n");
             #endif
             *phase++; // Move to the next phase
             break;
         }
-        case ATPhase::END: {
+        case ATPhase::END: 
+        {
             #ifdef BUILD_WITH_LOG
                 printf("[AT4VS] END\n\n");
             #endif
             break;
         }
-        default: {
+        default: 
+        {
             fprintf(stderr, "Invalid phase!, set phase to end\n");
             this->phase = pipeline.end()-1;
             break;

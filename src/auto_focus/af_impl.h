@@ -11,8 +11,10 @@
 #include <opencv2/opencv.hpp>
 #include "sampler.h"
 
-namespace af {
-    struct HotspotInfo {
+namespace af 
+{
+    struct HotspotInfo 
+    {
         int id;                           // The id of the hotspot
         int type;                         // The type of the barcode in the hotspot
         int area;                         // The area of the hotspot(note: the area isn't same as the rect)
@@ -23,7 +25,8 @@ namespace af {
         std::vector<double> intensities;  // The intensities of the hotspot
     };
 
-    struct AFConf {
+    struct AFConf 
+    {
         /** Position control */
         int start_pos;                   // The start position of the lens
         int end_pos;                     // The end position of the lens
@@ -32,7 +35,8 @@ namespace af {
         int refine_step;
     };
 
-    class AFImpl {
+    class AFImpl 
+    {
     public:
         /* basic variables */
         bool end_iter;                          // Flag to indicate whether the AF algorithm is done
@@ -90,6 +94,5 @@ namespace af {
         bool first_stage_;
     };
 }
-
 
 #endif //AF_IMPL_H

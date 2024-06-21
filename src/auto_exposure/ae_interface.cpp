@@ -9,24 +9,28 @@
 
 using namespace ae;
 
-AEInterface::AEInterface() {
+AEInterface::AEInterface() 
+{
     this->end_qt = false;
     this->ae_fail = false;
 }
 
-void AEInterface::Init(AEConf &ae_cam_conf, bool en_al) {
+void AEInterface::Init(AEConf &ae_cam_conf, bool en_al) 
+{
     this->end_qt = false;
     this->ae_fail = false;
     ae_impl_ = std::make_shared<AEImpl>(ae_cam_conf, en_al);
     params_next = ae_impl_->params_next;
 }
 
-void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre) {
+void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre) 
+{
     /* Quick tuning */
     this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre);
     params_next = ae_impl_->params_next;
     this->ae_fail = ae_impl_->ae_fail;
-    if (this->end_qt) {
+    if (this->end_qt) 
+    {
         params_best = ae_impl_->params_best;
     }
 }

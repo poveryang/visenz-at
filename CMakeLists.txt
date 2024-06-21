@@ -11,7 +11,7 @@ endif()
 project(ViSenz-AT)
 
 # Set AT version
-set(AT_VERSION_MAJOR 4)
+set(AT_VERSION_MAJOR 5)
 set(AT_VERSION_MINOR 0)
 set(AT_VERSION_PATCH 0)
 configure_file("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
