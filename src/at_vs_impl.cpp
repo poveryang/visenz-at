@@ -174,6 +174,9 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
             ae_rois.clear();
             if(this->at_roi.width > 0)
             {
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "exec aeqt using setting roi " << this->at_roi << std::endl;
+                #endif
                 ae_rois.emplace_back(this->at_roi);
             }
 
@@ -247,6 +250,9 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 // 如果解码函数没有定位到码，但上位机设置了roi的话，就使用上位机的roi作为refine的区域
                 if(this->code_regions.empty() && this->at_roi.width > 0)
                 {
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "af coarse phase finish, no code detected, using setting roi " << this->at_roi << std::endl;
+                    #endif
                     this->code_regions.emplace_back(this->at_roi);
                 }
                 
@@ -277,12 +283,19 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                     }
                 }
 
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "af coarse phase using roi " << std::endl;
+                    for(auto ele : af_rois)
+                    {
+                        std::cout << ele << std::endl;
+                    }
+                #endif
                 this->af_obj.Run(image, af_rois);  
             }
             else                   // 进入fit阶段，使用decode函数的结果
             {
                 #ifdef BUILD_WITH_LOG
-                    std::cout << "exec af code_regions " << std::endl;
+                    std::cout << "exec fit stage af code_regions " << std::endl;
                     for(auto ele : this->code_regions)
                     {
                         std::cout << ele << std::endl;
@@ -481,6 +494,7 @@ void AT4VsImpl::UpdateNextParams()
                 this->af_take_onemore_finish = false;
                 #ifdef BUILD_WITH_LOG
                     std::cout << "UpdateNextParams phase==af, run decode()" << std::endl;
+                    std::cout << "at_roi " << this->at_roi << std::endl;
                 #endif
                 this->code_regions = this->barcode_wrapper_->Decode(this->cached_image, this->ar_info, this->at_roi);
                 #ifdef BUILD_WITH_LOG

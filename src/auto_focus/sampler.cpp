@@ -11,7 +11,8 @@ void Sampler::Init(int border_left, int border_right, int max_n) {
 std::vector<int> Sampler::StepSampling(int start, int end, int step) {
     /* Calculate the sampling positions by using the step */
     std::vector<int> samples;
-    for (int i = start; i <= end; i += step) {
+    for (int i = start; i <= end; i += step) 
+    {
         if (i < border_left_ || i > border_right_) {
             continue;
         }

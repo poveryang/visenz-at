@@ -77,7 +77,7 @@ void AFImpl::Run(const cv::Mat &image, const std::vector<cv::Rect> &rois)
 {
     CalcFocusValue(image, rois);
 
-    if (start_fit) 
+    if (this->start_fit) 
     {    
         this->RefineFocus();
     } 
@@ -105,7 +105,12 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
     if(rois.empty())     // 没有传入roi，说明出于第一阶段调整，且barcode sdk没有传入roi，此时使用全图计算清晰度，默认resize以提高速度
     {
         cv::Mat resized_img;
-        cv::resize(image, resized_img, cv::Size(), 0.5, 0.5);
+        float scale_ratio = 0.5;
+        if (image.rows > 2500)
+        {
+            scale_ratio = 0.25;
+        }
+        cv::resize(image, resized_img, cv::Size(), scale_ratio, scale_ratio, cv::INTER_NEAREST);
         roi_imgs.emplace_back(resized_img);
     }
     else     // 当传入roi时，只处理roi的内容，如果roi过大，默认resize以提高速度
@@ -126,9 +131,23 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
     double sharpness_score = 0;
     for(const auto &roi_img : roi_imgs)
     {
-        cv::Mat img_grad;
-        cv::Sobel(roi_img, img_grad, CV_32FC1, 1, 1, 5);
-        cv::Mat tmp1 = cv::abs(img_grad);
+        // cv::Mat img_grad;
+        // cv::Sobel(roi_img, img_grad, CV_32FC1, 1, 1, 5);
+        // cv::Mat tmp1 = cv::abs(img_grad);
+        // sharpness_score += cv::sum(tmp1)[0];
+        
+        cv::Mat img_grad_x, img_grad_y;
+        cv::Sobel(roi_img, img_grad_x, CV_32FC1, 1, 0, 5);
+        cv::Sobel(roi_img, img_grad_y, CV_32FC1, 0, 1, 5);
+
+        int min_grad = 15;       // 这里需要实验，在coarse和fit阶段，是否需要使用不同thre, coarse阶段用更大的thre
+        cv::Mat thre_map_x, thre_map_y;
+        cv::threshold(img_grad_x, thre_map_x, min_grad, 1, cv::THRESH_BINARY);
+        cv::threshold(img_grad_y, thre_map_y, min_grad, 1, cv::THRESH_BINARY);
+        cv::multiply(img_grad_x, thre_map_x, img_grad_x);
+        cv::multiply(img_grad_y, thre_map_y, img_grad_y);
+
+        cv::Mat tmp1 = cv::abs(img_grad_x) + cv::abs(img_grad_y);
         sharpness_score += cv::sum(tmp1)[0];
     }
     if (!rois.empty())
@@ -193,7 +212,7 @@ void AFImpl::AnalysisFvCurve()
             if (mono_decreasing)
             {
                 //假如是真的单调递减的曲线，front的值会比back的值高很多，进不了这个if
-                if (fv_vec.front() < fv_vec.back() * 1.3)  
+                if (fv_vec.front() < fv_vec.back() * 1.5)  
                 {
                     mono_decreasing = false;
                 }
@@ -347,7 +366,7 @@ void AFImpl::UpdateStatus(std::vector<int> &pos_vec, int peak_idx)
         abs(pos_cur_center - pos_start) < this->refine_step * this->refine_range ||
         abs(pos_cur_center - pos_end) < this->refine_step * this->refine_range) 
     {
-        start_fit = true;  
+        this->start_fit = true;  
         #ifdef BUILD_WITH_LOG
             std::cout << "set start_fit true" << std::endl;
         #endif
@@ -372,7 +391,7 @@ void AFImpl::ResetSamples()
         std::cout << "AFImpl::ResetSamples start_fit " << start_fit << std::endl;
     #endif
     /* Sample the position */
-    if (start_fit) 
+    if (this->start_fit) 
     {
         const int range = this->refine_range;
         const int step = this->refine_step;
@@ -500,6 +519,16 @@ void AFImpl::ApplyMaxFv(std::vector<int> &pos_vec, int &peak_idx)
     pos_vec;
     std::vector<double> fv_vec;
     GetPosFv(pos_vec, fv_vec);
+
+    #ifdef BUILD_WITH_LOG
+        std::cout << "AFImpl::ApplyMaxFv" << std::endl;
+        std::cout << "fv_vec: ";
+        for(auto ele : fv_vec)
+        {
+            std::cout << ele << ",";
+        }
+        std::cout << std::endl;
+    #endif
 
     // peak index is the index of the max fv
     peak_idx = static_cast<int>(
