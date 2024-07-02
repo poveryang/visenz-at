@@ -495,7 +495,7 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
             {
                 continue;
             }
-            if (val_vec[i] <= val_vec[i + offset]*found_peak_thre_ratio) 
+            if (val_vec[i] <= val_vec[i + offset]*found_peak_thre_ratio)  // 每个点和周围[-r, r]的点对比，如果存在 周围点 *found_peak_thre_ratio 大于当前点，则不认为是peak
             {
                 is_peak = false;
                 break;
@@ -507,6 +507,48 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
             this->first_stage_ = false;
             peak_idx = i;
             break;
+        }
+
+        // 上面的查找，无法处理鞍点的情况，如以下数列是真实数据[2.03576e+07,3.13974e+07,2.94129e+07,1.80958e+07,1.56925e+07]
+        // 3.13974e+07,2.94129e+07 这两个数据的存在，这两个数大小相似，导致无法通过 found_peak_thre_ratio
+        // 进而需要通过loop全焦段后，通过ApplyMaxFv()才能找到最大值，会浪费非常多时间
+        // 
+        // 下面这里，就是再给window search一个机会，如果在窗口内，最大值比最小值大过一定比例，也认为找到了peak
+        if (!is_peak && this->first_stage_)   
+        {
+            const float win_thre_ratio = 1.8;
+            std::vector<double> win_data;
+            win_data.clear();
+            for (int offset = -r; offset <= r; offset++) 
+            {
+                if(i + offset < 0 || i + offset >= n)   // 如果分析数据不足，则直接跳出
+                {
+                    break;
+                }
+                win_data.emplace_back(val_vec[i+offset]);
+            }
+
+            if(win_data.size() == win_size)
+            {
+                auto win_max_it = std::max_element(win_data.begin(), win_data.end());
+                auto win_min_it = std::min_element(win_data.begin(), win_data.end());
+                if (*win_max_it > *win_min_it * win_thre_ratio)
+                {
+                    int temp_peak = std::distance(win_data.begin(), win_max_it);
+                    if (temp_peak == win_data.size() - 1) //如果找到的最大值是在search range的最末尾，不能把这个当作真正的最大值，因为后面可能还有更大的
+                    {
+                        continue;
+                    }
+
+                    temp_peak = temp_peak - r + i;
+                    if(val_vec[temp_peak] > peak_thre)
+                    {
+                        this->first_stage_ = false;
+                        peak_idx = temp_peak;
+                        break;
+                    }
+                }
+            }
         }
     }
 
