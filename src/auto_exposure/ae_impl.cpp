@@ -25,28 +25,37 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
         std::vector<int> polarized;
         std::vector<int> unpolarized;
         size_t n_lights = ae_conf.init_intensities.size();
-        for (size_t i = 0; i < n_lights; i++) 
+        if (n_lights > 1)
+        {
+            for (size_t i = 0; i < n_lights; i++) 
+            {
+                all.emplace_back(this->max_intensity);
+                if (i < n_lights / 2) 
+                {
+                    polarized.emplace_back(0);
+                    unpolarized.emplace_back(this->max_intensity);
+                } 
+                else 
+                {
+                    polarized.emplace_back(this->max_intensity);
+                    unpolarized.emplace_back(0);
+                }
+            }
+            // std::vector<int> close_all(n_lights, 0);
+            // lights_sets = {close_all, polarized, unpolarized, all};
+            this->lights_sets = {polarized, unpolarized, all};
+        }
+        else
         {
             all.emplace_back(this->max_intensity);
-            if (i < n_lights / 2) 
-            {
-                polarized.emplace_back(0);
-                unpolarized.emplace_back(this->max_intensity);
-            } 
-            else 
-            {
-                polarized.emplace_back(this->max_intensity);
-                unpolarized.emplace_back(0);
-            }
+            this->lights_sets = {all};
         }
-        std::vector<int> close_all(n_lights, 0);
-        lights_sets = {close_all, polarized, unpolarized, all};
     } 
     else 
     {
-        lights_sets = {ae_conf.init_intensities};
+        this->lights_sets = {ae_conf.init_intensities};
     }
-    params_next.lights = lights_sets.back();
+    params_next.lights = this->lights_sets.back();
     this->lights_sets.pop_back();
 
     // 每次切换灯光，都会重新计数tuning_step，当超过max_tuning_step后，就是切换到下一组灯光
@@ -55,7 +64,7 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     this->ae_fail = false;    
 }
 
-bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre) 
+bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch) 
 {
     /* Calc metrics in current frame */
     #ifdef BUILD_WITH_LOG
@@ -77,26 +86,38 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
     {
         if(this->tuning_count > this->max_tuning_count)
         {
-            if(this->lights_sets.empty())
+            if (enable_switch)
             {
-                // 在quick tune阶段，当试完所有灯光组合，仍无法达到brt target后，宣布ae失败，等待上层处理
                 #ifdef BUILD_WITH_LOG
-                    std::cout << "set ae fail" << std::endl;
+                    std::cout << "ae enable_switch=true" << std::endl;
                 #endif
-                // this->tuning_count = 0; // 这里不一定需要清零，程序的运行有可能是以下逻辑：
-                                           // 1、在 AEST 时试遍了所有灯光，都没达到需要的亮度，此时 this->tuning_count > this->max_tuning_count
-                                           // 2、状态会跳转到REFINE
-                                           // 3、REFINE的第一步是调节ae，就会再进一次这个函数，那么也不会再调了，因为怎么也调不到了
+                if(this->lights_sets.empty())
+                {
+                    // 在quick tune阶段，当试完所有灯光组合，仍无法达到brt target后，宣布ae失败，等待上层处理
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "set ae fail" << std::endl;
+                    #endif
+                    this->tuning_count = 0;
+                    this->ae_fail = true; 
+                    return false;
+                }
+                
+                this->tuning_count = 0;
+                params_next.lights = this->lights_sets.back();
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "ae impl change lights " << params_next.lights[0] << ", " << params_next.lights[1] << ", " << params_next.lights[2] << ", " << params_next.lights[3] << std::endl;
+                #endif
+                this->lights_sets.pop_back();
+            }
+            else
+            {
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "ae enable_switch=false, set ae fail, but not change lights" << std::endl;
+                #endif
+                this->tuning_count = 0;
                 this->ae_fail = true; 
                 return false;
             }
-             
-            this->tuning_count = 0;
-            params_next.lights = lights_sets.back();
-            #ifdef BUILD_WITH_LOG
-                std::cout << "ae impl change lights " << params_next.lights[0] << ", " << params_next.lights[1] << ", " << params_next.lights[2] << ", " << params_next.lights[3] << std::endl;
-            #endif
-            lights_sets.pop_back();
         }
 
         this->UpdateExposureAndGain(brt_target);
@@ -116,9 +137,9 @@ bool AEImpl::UpdateLights()
         this->ae_fail = true; 
         return false;
     }
-    params_next.lights = lights_sets.back();
+    params_next.lights = this->lights_sets.back();
     params_next.exp_gain = this->init_eg;
-    lights_sets.pop_back();
+    this->lights_sets.pop_back();
     return true;
 }
 
@@ -178,11 +199,21 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
             std::cout << "decrease brt" << std::endl;
         #endif
         // 降亮度的时候，如果gain<init，则不调整eg了
+        // 这个if是在只有cur_eg > init_eg 的时候，才会调整eg
         if(cur_eg > this->init_eg)
         {
             eg_scale = this->init_eg * 1.0f / cur_eg;
         }
         et_scale = std::min(total_scale/eg_scale, 1.0f);
+
+        if (et_scale < 1 && cur_exposure < this->min_et+1)
+        {
+            #ifdef BUILD_WITH_LOG
+                std::cout << "exposure time down to limit, scale eg at this situation" << std::endl;
+            #endif
+            eg_scale = total_scale;
+            et_scale = 1.0f;
+        }
     }
     else
     {

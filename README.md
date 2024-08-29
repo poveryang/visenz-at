@@ -30,3 +30,14 @@
 
 发布及更新
 **记得在cmake中更新版本**
+
+## Release Notes  
+
+### 5.0.1
+1. 遍历所有灯光仍无法定位到码区时，使用全开灯及AEQT时的曝光作为最终返回值
+2. 修改逻辑，当关闭af只打开ae时，也会走refine流程
+3. 增加target_brt=16、8，以应对极端场景，为了不明显增加整体耗时，删除关灯的轮询，完全覆盖note 1中的修改
+4. 自适应ae_obj.QuickTune() 的threshold = std::min(15, int(target_brt/2))
+5. 增加了ae interface的接口，可从外部清除ae impl中ae_fail的状态，当aeqt失败时，还能在后续的aest或refine中重新调整亮度，
+   毕竟当找到码区后，不需要考虑全图的情况下，或许就能达到想要的亮度
+   该功能在关闭灯光搜索且ae max受限的情况下很有使用价值

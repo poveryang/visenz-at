@@ -21,8 +21,8 @@ struct ARInfo {
     void reset() 
     {
         this->successful_code_type.clear();
-        std::array<int, 2> qr_version = {-1, -1};
-        std::array<int, 2> dm_version = {-1, -1};
+        this->qr_version = {-1, -1};
+        this->dm_version = {-1, -1};
     }
 
     void print()

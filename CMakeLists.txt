@@ -6,6 +6,7 @@ if (${DEVICE} MATCHES "vs1000p|vs2000")
 elseif(${DEVICE} MATCHES "vs600|vs800p")
     set(CMAKE_C_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc)
     set(CMAKE_CXX_COMPILER /home/lsa/project/barcode-sdk/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++)
+    add_definitions(-DBUILD_NOVAIC)
 endif()
 
 project(ViSenz-AT)
@@ -13,7 +14,7 @@ project(ViSenz-AT)
 # Set AT version
 set(AT_VERSION_MAJOR 5)
 set(AT_VERSION_MINOR 0)
-set(AT_VERSION_PATCH 0)
+set(AT_VERSION_PATCH 1)
 configure_file("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
 message(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
 

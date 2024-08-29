@@ -94,7 +94,7 @@ namespace ae {
 
         ~AEImpl() = default;
 
-        bool QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15);
+        bool QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true);
 
         void CalcMetrics(const cv::Mat &image, const std::vector<cv::Rect> &rois);
 

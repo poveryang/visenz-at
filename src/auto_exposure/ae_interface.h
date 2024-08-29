@@ -31,9 +31,11 @@ namespace ae {
          * @param image input image
          * @param brt_target target brightness
          */
-        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15);
+        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true);
 
         void UpdateLights();
+
+        void ClearState();
 
         /** The default destructor. */
         ~AEInterface() = default;

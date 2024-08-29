@@ -76,6 +76,8 @@ private:
     bool run_decode_finish = false;
     std::vector<cv::Rect> code_regions;
     bool enable_al = false;
+    bool enable_ae = false;
+    bool enable_af = false;
     cv::Mat cached_image;
     
     std::vector<int> ae_target_brt;     // aest时的目标亮度，此时这个值是对于全图的
@@ -87,6 +89,11 @@ private:
 
     bool af_take_onemore;
     bool af_take_onemore_finish;
+
+    std::vector<int> base_lights;
+    int base_exp_time;
+    int base_exp_gain;
+    bool set_base;
 
 };
 

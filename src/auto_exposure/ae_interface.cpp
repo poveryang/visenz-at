@@ -23,10 +23,10 @@ void AEInterface::Init(AEConf &ae_cam_conf, bool en_al)
     params_next = ae_impl_->params_next;
 }
 
-void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre) 
+void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch) 
 {
     /* Quick tuning */
-    this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre);
+    this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre, enable_switch);
     params_next = ae_impl_->params_next;
     this->ae_fail = ae_impl_->ae_fail;
     if (this->end_qt) 
@@ -37,10 +37,19 @@ void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vec
 
 void AEInterface::UpdateLights()
 {
+    #ifdef BUILD_WITH_LOG
+        std::cout << "AEInterface::UpdateLights()" << std::endl;
+    #endif
     // lights 更新失败，说明已经没有灯光组合
     if (!this->ae_impl_->UpdateLights())
     {
         this->ae_fail = true;
     }
     params_next = ae_impl_->params_next;
+}
+
+void AEInterface::ClearState()
+{
+    this->ae_impl_->ae_fail = false;
+    this->ae_fail = false;
 }
