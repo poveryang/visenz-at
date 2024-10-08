@@ -44,6 +44,11 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
     this->base_exp_gain = 32;
     this->set_base = false;
 
+    this->refine_statistics_num = 10;
+    this->refine_max_decode_rate = 0.0;
+    this->refine_statistics_cur = 0.0;
+    this->refine_decode_success_count = 0.0;
+
     #ifdef BUILD_WITH_LOG
         std::cout << "ae_target_brt ";
         for(auto ele : this->ae_target_brt)
@@ -161,7 +166,6 @@ void AT4VsImpl::LoadCamConf(CamConf &cam_conf)
     ae_conf.init_et = cam_conf.init_et;
     ae_conf.init_eg = cam_conf.init_eg;
     ae_conf.init_intensities = cam_conf.init_intensities;
-    // ae_conf.init_intensities = {24};
 
     #ifdef BUILD_WITH_LOG
         std::cout << "========= input camera conf: " << std::endl;
@@ -477,27 +481,8 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 std::cout << "]" << std::endl;
             #endif
 
-            // // 当AT结束，如果没有找到码，且 auto_light == true的情况下，打开所有灯光，把最终的输出曝光设置为AEQT时的曝光值
-            // int lights_sum = 0;
-            // for(auto ele : this->best_params.lights)
-            // {
-            //     lights_sum += ele;
-            // }
-            // if (this->enable_al && this->code_regions.empty() && lights_sum < 1)
-            // {
-            //     for(int i=0; i<this->best_params.lights.size(); i++)
-            //     {
-            //         this->best_params.lights[i] = 1;
-            //     }
-            //     this->best_params.exp_time = this->base_exp_time;
-            //     this->best_params.exp_gain = this->base_exp_gain;
-            //     #ifdef BUILD_WITH_LOG
-            //         std::cout << "Cannot find code in the end, turn on all lights and set to aeqt's exp_time" << std::endl;
-            //     #endif
-            // }
-
-            // 当AT结束，如果没有找到码，把最终的输出曝光设置为AEQT时的曝光值
-            if (this->code_regions.empty())
+            // 当AT结束，如果没有解到码，把最终的输出曝光设置为AEQT时的曝光值
+            if (this->ar_info.successful_code_type.empty())
             {
                 this->best_params.lights = this->base_lights;
                 this->best_params.exp_time = this->base_exp_time;
@@ -553,8 +538,6 @@ void AT4VsImpl::UpdateNextParams()
             }
             if (ae_obj.ae_fail)
             {
-                // std::cout << "aeqt fail, pipeline end" << std::endl;
-                // this->phase = pipeline.end()-1;
                 #ifdef BUILD_WITH_LOG
                     std::cout << "aeqt fail, can not reach given brightness, set current to best" << std::endl;
                     std::cout << "aeqt fial, set ae_fail = false" << std::endl;
@@ -566,6 +549,10 @@ void AT4VsImpl::UpdateNextParams()
                 best_params.exp_gain = ae_obj.params_next.exp_gain;
                 *phase++; // Move to the next phase
             }
+
+            this->base_lights = best_params.lights;
+            this->base_exp_time = best_params.exp_time;
+            this->base_exp_gain = best_params.exp_gain;
 
             break;
         }
@@ -665,8 +652,10 @@ void AT4VsImpl::UpdateNextParams()
                     std::cout << "aest ae_obj.end_qt=true, run decode()" << std::endl;
                 #endif
                 auto tmp_code_regions = this->barcode_wrapper_->Decode(this->cached_image, this->ar_info, this->at_roi);
-                // cv::imwrite("/usr/scanner/debug/at/aest_" + std::to_string(this->ae_target_brt[this->ae_target_brt_idx])+".png", this->cached_image);
-                std::cout << "aest target brt " << this->ae_target_brt[this->ae_target_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
+
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "aest target brt " << this->ae_target_brt[this->ae_target_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
+                #endif
                 if(!tmp_code_regions.empty())
                 {
                     this->code_regions = tmp_code_regions;
@@ -747,8 +736,6 @@ void AT4VsImpl::UpdateNextParams()
             }
             if (ae_obj.ae_fail)
             {
-                // std::cout << "aest fail, pipeline end" << std::endl;
-                // this->phase = pipeline.end()-1;
                 #ifdef BUILD_WITH_LOG
                     std::cout << "aest fail, can not reach given brightness, set current to best" << std::endl;
                 #endif
@@ -802,12 +789,89 @@ void AT4VsImpl::UpdateNextParams()
                 #endif
                 this->ae_obj.end_qt = false;
                 auto tmp_code_regions = this->barcode_wrapper_->Decode(this->cached_image, this->ar_info, this->at_roi);
-                // cv::imwrite("/usr/scanner/debug/at/refine_" + std::to_string(this->refine_code_brt[this->refine_code_brt_idx])+".png", this->cached_image);
-                std::cout << "refine ae target brt " << this->refine_code_brt[this->refine_code_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "refine ae target brt " << this->refine_code_brt[this->refine_code_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
+                #endif
                 if(!tmp_code_regions.empty())
                 {
                     this->code_regions = tmp_code_regions;
                 }
+// #ifdef BUILD_NOVAIC
+                #ifdef BUILD_WITH_LOG
+                    std::cout << "check all brt" << std::endl;
+                #endif
+
+                if(this->refine_statistics_cur < this->refine_statistics_num)
+                {
+                    if(!this->ar_info.successful_code_type.empty())
+                    {   
+                        #ifdef BUILD_WITH_LOG
+                            std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode success" << std::endl;
+                        #endif
+                        this->refine_decode_success_count += 1;
+                    }
+                    else
+                    {
+                        #ifdef BUILD_WITH_LOG
+                            std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode fail" << std::endl;
+                        #endif
+                    }
+                    this->refine_statistics_cur += 1;
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "refine_statistics_cur " << this->refine_statistics_cur << std::endl;
+                        std::cout << "refine_decode_success_count " << this->refine_decode_success_count << std::endl;
+                    #endif
+                }
+                else
+                {
+                    float decode_rate = this->refine_decode_success_count / this->refine_statistics_num;
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "finish one loop, decode_rate " << decode_rate << std::endl;
+                    #endif
+                    if (decode_rate > this->refine_max_decode_rate)
+                    {
+                        this->refine_max_decode_rate = decode_rate;
+                        best_params.lights = ae_obj.params_best.lights;
+                        best_params.exp_time = ae_obj.params_best.exp_time;
+                        best_params.exp_gain = ae_obj.params_best.exp_gain;
+                        #ifdef BUILD_WITH_LOG
+                            std::cout << "novaic decode rate update, max is " << decode_rate << std::endl;
+                            std::cout << "    exp_time=" << best_params.exp_time << ", exp_gain=" << best_params.exp_gain << std::endl;
+                        #endif
+                    } 
+                    this->refine_statistics_cur = 0;
+                    this->refine_decode_success_count = 0;
+                    this->refine_code_brt_idx += 1;
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "update loop data, next brt is " << this->refine_code_brt[this->refine_code_brt_idx] << std::endl;
+                    #endif
+
+                    // 当解码率足够高的时候，就不跑后面的亮度了
+                    if(this->refine_max_decode_rate > 0.95)
+                    {
+                        this->refine_code_brt_idx = this->refine_code_brt.size();
+                    }
+                }
+                if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                {
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "novaic refine loop all brt step, refine_ae_finish=true" << std::endl;
+                    #endif
+                    this->refine_ae_finish = true;
+                    if (this->enable_af)           // 要打开了af才能进入 refine af
+                    {
+                        this->af_obj.ResetSamples();
+                    }
+                    else 
+                    {
+                        *phase++;    // 如果没有打开af，如vs600，那么refine ae后直接就到下一阶段，跳过refine af
+                    }
+                    next_params.exp_time = best_params.exp_time;
+                    next_params.exp_gain = best_params.exp_gain;
+                    next_params.focus_pos = af_obj.next_pos;
+                }
+/*
+#else
 
                 if(!this->ar_info.successful_code_type.empty())   // 在调整亮度后，如果能解到码，则直接进入对焦refine
                 {
@@ -875,11 +939,11 @@ void AT4VsImpl::UpdateNextParams()
                         next_params.focus_pos = af_obj.next_pos;
                     }
                 }
+#endif
+*/
             }
             if (ae_obj.ae_fail)
             {
-                // std::cout << "aest fail, pipeline end" << std::endl;
-                // this->phase = pipeline.end()-1;
                 #ifdef BUILD_WITH_LOG
                     std::cout << "refine ae fail, can not reach given brightness, set current to best" << std::endl;
                 #endif

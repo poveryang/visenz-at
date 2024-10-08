@@ -36,3 +36,4 @@
 /test/drivers/
 /3rdparty/libBarcode/
 /.vscode/
+/release/

@@ -11,7 +11,6 @@
 #include "at_base.h"
 #include "af_interface.h"
 #include "ae_interface.h"
-// #include "hmap_infer_base.h"
 #include <chrono>
 
 class AT4VsImpl : public ATImplBase 
@@ -95,6 +94,10 @@ private:
     int base_exp_gain;
     bool set_base;
 
+    int refine_statistics_num;
+    float refine_max_decode_rate;
+    float refine_statistics_cur;
+    float refine_decode_success_count;
 };
 
 #endif //AT_VS_IMPL_H

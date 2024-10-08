@@ -164,7 +164,35 @@ double AEImpl::CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &ro
     double mean_brt = 0;
     if(rois.empty())
     {
-        mean_brt = cv::mean(image)[0];
+        // mean_brt = cv::mean(image)[0];
+
+        std::vector<cv::Rect> sampling_rois;
+        const std::array<int, 2> k_grid_size = {8, 8}; // image会被分割成grid_size份 {rows, cols}
+        const float k_ratio = 0.33;     // 每个grid_size只会取中间部分统计
+        const int k_row_step = image.rows / k_grid_size[0];
+        const int k_col_step = image.cols / k_grid_size[1];
+        // cv::Mat canvas;
+        // cv::cvtColor(image, canvas, cv::COLOR_GRAY2BGR);
+        for(int row=0; row<k_grid_size[0]; row++)
+        {
+            for(int col=0; col<k_grid_size[1]; col++)
+            {
+                cv::Rect roi;
+                roi.x = int(k_col_step * col + k_col_step * (1-k_ratio) / 2);
+                roi.y = int(k_row_step * row + k_row_step * (1-k_ratio) / 2);
+                roi.width = int(k_col_step * k_ratio);
+                roi.height = int(k_row_step * k_ratio);
+
+                sampling_rois.emplace_back(roi);
+                // cv::rectangle(canvas, roi, {0,255,0}, 1);
+            }
+        }
+        for(const auto &roi : sampling_rois)
+        {
+            cv::Mat roi_img = image(roi);
+            mean_brt += cv::mean(roi_img)[0];
+        }
+        mean_brt /= sampling_rois.size();
     }
     else
     {
