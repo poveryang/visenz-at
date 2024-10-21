@@ -13,10 +13,13 @@
 //
 // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+// int af_save_count = 0;
+
 AT4VsImpl::AT4VsImpl(bool enable_hmap) 
 {
-    this->ae_target_brt = {64, 32, 16, 8, 96, 128};
-    this->refine_code_brt = {96, 64, 32};
+    // this->ae_target_brt = {64, 32, 16, 8, 96, 128};
+    this->ae_target_brt = {64, 32, 96, 128};
+    this->refine_code_brt = {64, 96, 32};
 }
 
 void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
@@ -333,7 +336,9 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                         std::cout << ele << std::endl;
                     }
                 #endif
+                // cv::imwrite("/usr/scanner/debug/at/test_img/af/id_"+std::to_string(af_save_count)+".png", image);
                 this->af_obj.Run(image, af_rois);  
+                // af_save_count += 1;
             }
             else                   // 进入fit阶段，使用decode函数的结果
             {
@@ -438,6 +443,12 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 #endif
 
                 int target_thre = std::min(10, int(target_brt/2));
+                // 这里的行为是在run的过程中，就会改变灯光，不在update中再来改变
+                // 不会在灯光(1,1,1,1)中把所有亮度都loop一遍，达不到某个亮度的话，直接跳到下一个亮度
+                // 当(1,1,1,1)的所有都试完之后，再试(1,1,0,0)，再把所有亮度都试一遍
+                // 现在的逻辑是，当去不到某个亮度的时候，会直接改变灯光再试一遍，因为只要亮度满足了，不管哪个灯光，都无所谓
+                // 这样做，速度会更快些
+                // 这里可能会导致某些问题，不同灯光组合，虽然全图亮度是一样的，但是亮的区域不一样
                 this->ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true);
             }
             else
@@ -721,10 +732,7 @@ void AT4VsImpl::UpdateNextParams()
                             std::cout << "AT4VsImpl::UpdateNextParams() AEST updatelights() " << std::endl;
                         #endif
                         this->ae_target_brt_idx = 0;
-                        if(this->enable_al)
-                        {
-                            this->ae_obj.UpdateLights();   // 如果一直都没有解出码，就会导致ae_obj.ae_fail，就会跳出at
-                        }
+                        this->ae_obj.UpdateLights();   // 如果一直都没有解出码，就会导致ae_obj.ae_fail，就会跳出at
                         next_params.lights = ae_obj.params_next.lights;
                         next_params.exp_gain = ae_obj.params_next.exp_gain;
 
@@ -835,7 +843,7 @@ void AT4VsImpl::UpdateNextParams()
                         best_params.exp_time = ae_obj.params_best.exp_time;
                         best_params.exp_gain = ae_obj.params_best.exp_gain;
                         #ifdef BUILD_WITH_LOG
-                            std::cout << "novaic decode rate update, max is " << decode_rate << std::endl;
+                            std::cout << "decode rate update, max is " << decode_rate << std::endl;
                             std::cout << "    exp_time=" << best_params.exp_time << ", exp_gain=" << best_params.exp_gain << std::endl;
                         #endif
                     } 
@@ -855,7 +863,7 @@ void AT4VsImpl::UpdateNextParams()
                 if(this->refine_code_brt_idx >= this->refine_code_brt.size())
                 {
                     #ifdef BUILD_WITH_LOG
-                        std::cout << "novaic refine loop all brt step, refine_ae_finish=true" << std::endl;
+                        std::cout << "refine loop all brt step, refine_ae_finish=true" << std::endl;
                     #endif
                     this->refine_ae_finish = true;
                     if (this->enable_af)           // 要打开了af才能进入 refine af
@@ -955,7 +963,7 @@ void AT4VsImpl::UpdateNextParams()
                 this->refine_ae_finish = true;
             }
 
-            if(this->enable_af)   // 需要加这里的判断，当不打开af的时候，上面的流程会使af_obj.end_iter=true，直接进入下面的if就会phase++
+            if(this->refine_ae_finish && this->enable_af)   // 需要加这里的判断，当不打开af的时候，上面的流程会使af_obj.end_iter=true，直接进入下面的if就会phase++
             {
                 if(af_obj.end_iter)
                 {

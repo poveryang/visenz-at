@@ -110,8 +110,10 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
         {
             scale_ratio = 0.25;
         }
-        cv::resize(image, resized_img, cv::Size(), scale_ratio, scale_ratio, cv::INTER_NEAREST);
-        roi_imgs.emplace_back(resized_img);
+        cv::resize(image, resized_img, cv::Size(), scale_ratio, scale_ratio, cv::INTER_LINEAR);
+        cv::Mat blurred_image;
+        cv::GaussianBlur(resized_img, blurred_image, {5,5}, 0);
+        roi_imgs.emplace_back(blurred_image);
     }
     else     // 当传入roi时，只处理roi的内容，如果roi过大，默认resize以提高速度
     {
@@ -130,12 +132,7 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
 
     double sharpness_score = 0;
     for(const auto &roi_img : roi_imgs)
-    {
-        // cv::Mat img_grad;
-        // cv::Sobel(roi_img, img_grad, CV_32FC1, 1, 1, 5);
-        // cv::Mat tmp1 = cv::abs(img_grad);
-        // sharpness_score += cv::sum(tmp1)[0];
-        
+    {        
         cv::Mat img_grad_x, img_grad_y;
         cv::Sobel(roi_img, img_grad_x, CV_32FC1, 1, 0, 5);
         cv::Sobel(roi_img, img_grad_y, CV_32FC1, 0, 1, 5);
@@ -144,6 +141,13 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
         cv::Mat thre_map_x, thre_map_y;
         cv::threshold(img_grad_x, thre_map_x, min_grad, 1, cv::THRESH_BINARY);
         cv::threshold(img_grad_y, thre_map_y, min_grad, 1, cv::THRESH_BINARY);
+
+        cv::medianBlur(thre_map_x, thre_map_x, 5);
+        cv::medianBlur(thre_map_y, thre_map_y, 5);
+
+        cv::erode(thre_map_x, thre_map_x, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
+        cv::erode(thre_map_y, thre_map_y, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
+
         cv::multiply(img_grad_x, thre_map_x, img_grad_x);
         cv::multiply(img_grad_y, thre_map_y, img_grad_y);
 
@@ -509,47 +513,47 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
             break;
         }
 
-        // 上面的查找，无法处理鞍点的情况，如以下数列是真实数据[2.03576e+07,3.13974e+07,2.94129e+07,1.80958e+07,1.56925e+07]
-        // 3.13974e+07,2.94129e+07 这两个数据的存在，这两个数大小相似，导致无法通过 found_peak_thre_ratio
-        // 进而需要通过loop全焦段后，通过ApplyMaxFv()才能找到最大值，会浪费非常多时间
-        // 
-        // 下面这里，就是再给window search一个机会，如果在窗口内，最大值比最小值大过一定比例，也认为找到了peak
-        if (!is_peak && this->first_stage_)   
-        {
-            const float win_thre_ratio = 1.8;
-            std::vector<double> win_data;
-            win_data.clear();
-            for (int offset = -r; offset <= r; offset++) 
-            {
-                if(i + offset < 0 || i + offset >= n)   // 如果分析数据不足，则直接跳出
-                {
-                    break;
-                }
-                win_data.emplace_back(val_vec[i+offset]);
-            }
+        // // 上面的查找，无法处理鞍点的情况，如以下数列是真实数据[2.03576e+07,3.13974e+07,2.94129e+07,1.80958e+07,1.56925e+07]
+        // // 3.13974e+07,2.94129e+07 这两个数据的存在，这两个数大小相似，导致无法通过 found_peak_thre_ratio
+        // // 进而需要通过loop全焦段后，通过ApplyMaxFv()才能找到最大值，会浪费非常多时间
+        // // 
+        // // 下面这里，就是再给window search一个机会，如果在窗口内，最大值比最小值大过一定比例，也认为找到了peak
+        // if (!is_peak && this->first_stage_)   
+        // {
+        //     const float win_thre_ratio = 2.3;
+        //     std::vector<double> win_data;
+        //     win_data.clear();
+        //     for (int offset = -r; offset <= r; offset++) 
+        //     {
+        //         if(i + offset < 0 || i + offset >= n)   // 如果分析数据不足，则直接跳出
+        //         {
+        //             break;
+        //         }
+        //         win_data.emplace_back(val_vec[i+offset]);
+        //     }
 
-            if(win_data.size() == win_size)
-            {
-                auto win_max_it = std::max_element(win_data.begin(), win_data.end());
-                auto win_min_it = std::min_element(win_data.begin(), win_data.end());
-                if (*win_max_it > *win_min_it * win_thre_ratio)
-                {
-                    int temp_peak = std::distance(win_data.begin(), win_max_it);
-                    if (temp_peak == win_data.size() - 1) //如果找到的最大值是在search range的最末尾，不能把这个当作真正的最大值，因为后面可能还有更大的
-                    {
-                        continue;
-                    }
+        //     if(win_data.size() == win_size)
+        //     {
+        //         auto win_max_it = std::max_element(win_data.begin(), win_data.end());
+        //         auto win_min_it = std::min_element(win_data.begin(), win_data.end());
+        //         if (*win_max_it > *win_min_it * win_thre_ratio)
+        //         {
+        //             int temp_peak = std::distance(win_data.begin(), win_max_it);
+        //             if (temp_peak == win_data.size() - 1) //如果找到的最大值是在search range的最末尾，不能把这个当作真正的最大值，因为后面可能还有更大的
+        //             {
+        //                 continue;
+        //             }
 
-                    temp_peak = temp_peak - r + i;
-                    if(val_vec[temp_peak] > peak_thre)
-                    {
-                        this->first_stage_ = false;
-                        peak_idx = temp_peak;
-                        break;
-                    }
-                }
-            }
-        }
+        //             temp_peak = temp_peak - r + i;
+        //             if(val_vec[temp_peak] > peak_thre)
+        //             {
+        //                 this->first_stage_ = false;
+        //                 peak_idx = temp_peak;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
     }
 
     return peak_idx;
