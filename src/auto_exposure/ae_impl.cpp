@@ -47,7 +47,7 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
             }
             // std::vector<int> close_all(n_lights, 0);
             // lights_sets = {close_all, polarized, unpolarized, all};
-            this->lights_sets = {polarized, unpolarized, all};
+            this->lights_sets = {unpolarized, polarized, all};
         }
         else
         {
@@ -65,7 +65,8 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     // 每次切换灯光，都会重新计数tuning_step，当超过max_tuning_step后，就是切换到下一组灯光
     this->tuning_count = 0;
     this->max_tuning_count = 15;
-    this->ae_fail = false;    
+    this->ae_fail = false; 
+    this->exceed_tunning_count = false;   
 }
 
 bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch) 
@@ -83,6 +84,9 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
     if (abs(status_cur.brt - brt_target) < brt_diff_thre) 
     {
         params_best = params_next;
+        #ifdef BUILD_WITH_LOG
+            std::cout << "reach giving brt, reset tuning_count = 0" << std::endl;
+        #endif
         this->tuning_count = 0;
         return true;
     } 
@@ -90,6 +94,15 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
     {
         if(this->tuning_count > this->max_tuning_count)
         {
+            this->exceed_tunning_count = true;
+            this->tuning_count = 0;
+            if(!enable_switch)
+            {
+                this->ae_fail = true;
+            }
+            return false;
+
+            /*
             if (enable_switch)
             {
                 #ifdef BUILD_WITH_LOG
@@ -122,6 +135,7 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
                 this->ae_fail = true; 
                 return false;
             }
+            */
         }
 
         this->UpdateExposureAndGain(brt_target);
@@ -133,6 +147,7 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
 bool AEImpl::UpdateLights()
 {
     this->tuning_count = 0;
+    this->exceed_tunning_count = false;
     if(this->lights_sets.empty())
     {
         #ifdef BUILD_WITH_LOG
@@ -283,6 +298,7 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
         std::cout << "UpdateExposureAndGain()" << std::endl;
     #endif
     float brt_cur = static_cast<float>(this->status_cur.brt);
+    brt_cur = std::max(brt_cur, 1.0f);  // 防止除零
     int cur_exposure = this->status_cur.params.exp_time;
     int cur_eg = this->status_cur.params.exp_gain;
 

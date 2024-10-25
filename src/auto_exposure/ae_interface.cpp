@@ -13,6 +13,7 @@ AEInterface::AEInterface()
 {
     this->end_qt = false;
     this->ae_fail = false;
+    this->exceed_tunning_count = false;
 }
 
 void AEInterface::Init(AEConf &ae_cam_conf, bool en_al) 
@@ -29,13 +30,14 @@ void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vec
     this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre, enable_switch);
     params_next = ae_impl_->params_next;
     this->ae_fail = ae_impl_->ae_fail;
+    this->exceed_tunning_count = ae_impl_->exceed_tunning_count;
     if (this->end_qt) 
     {
         params_best = ae_impl_->params_best;
     }
 }
 
-void AEInterface::UpdateLights()
+bool AEInterface::UpdateLights()
 {
     #ifdef BUILD_WITH_LOG
         std::cout << "AEInterface::UpdateLights()" << std::endl;
@@ -44,12 +46,22 @@ void AEInterface::UpdateLights()
     if (!this->ae_impl_->UpdateLights())
     {
         this->ae_fail = true;
+        params_next = ae_impl_->params_next;
+        return false;
     }
     params_next = ae_impl_->params_next;
+
+    return true;
 }
 
 void AEInterface::ClearState()
 {
     this->ae_impl_->ae_fail = false;
     this->ae_fail = false;
+}
+
+void AEInterface::ResetTunningCount()
+{
+    this->exceed_tunning_count = false;
+    this->ae_impl_->exceed_tunning_count = false;
 }

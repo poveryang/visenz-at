@@ -83,6 +83,7 @@ namespace ae {
         int tuning_count;
         int max_tuning_count;
         bool ae_fail;
+        bool exceed_tunning_count;
 
         const int MAX_ET_LIMIT = 40000;  // max_et是从相机读回来的，但是at过程中，不需要去到相机的上限，需要给定一个et的最大值为40ms
 

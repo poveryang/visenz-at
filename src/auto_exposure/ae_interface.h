@@ -33,9 +33,11 @@ namespace ae {
          */
         void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true);
 
-        void UpdateLights();
+        bool UpdateLights();
 
         void ClearState();
+
+        void ResetTunningCount();
 
         /** The default destructor. */
         ~AEInterface() = default;
@@ -44,6 +46,7 @@ namespace ae {
     public:
         bool end_qt;
         bool ae_fail;
+        bool exceed_tunning_count;
         AEParams params_next, params_best;
     };
 }  // namespace ae

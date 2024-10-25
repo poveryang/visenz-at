@@ -102,6 +102,7 @@ void AFImpl::Run(const cv::Mat &image, const std::vector<cv::Rect> &rois)
 void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &rois) 
 {
     std::vector<cv::Mat> roi_imgs;
+    bool enable_blur = false;
     if(rois.empty())     // 没有传入roi，说明出于第一阶段调整，且barcode sdk没有传入roi，此时使用全图计算清晰度，默认resize以提高速度
     {
         cv::Mat resized_img;
@@ -114,6 +115,7 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
         cv::Mat blurred_image;
         cv::GaussianBlur(resized_img, blurred_image, {5,5}, 0);
         roi_imgs.emplace_back(blurred_image);
+        enable_blur = true;
     }
     else     // 当传入roi时，只处理roi的内容，如果roi过大，默认resize以提高速度
     {
@@ -142,11 +144,14 @@ void AFImpl::CalcFocusValue(const cv::Mat &image, const std::vector<cv::Rect> &r
         cv::threshold(img_grad_x, thre_map_x, min_grad, 1, cv::THRESH_BINARY);
         cv::threshold(img_grad_y, thre_map_y, min_grad, 1, cv::THRESH_BINARY);
 
-        cv::medianBlur(thre_map_x, thre_map_x, 5);
-        cv::medianBlur(thre_map_y, thre_map_y, 5);
+        if (enable_blur)    // 只有全图的情况下才使用去噪，当给定roi或者已经定位到码，就不需要去噪了，保留更多有效内容
+        {
+            cv::medianBlur(thre_map_x, thre_map_x, 5);
+            cv::medianBlur(thre_map_y, thre_map_y, 5);
 
-        cv::erode(thre_map_x, thre_map_x, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
-        cv::erode(thre_map_y, thre_map_y, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
+            cv::erode(thre_map_x, thre_map_x, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
+            cv::erode(thre_map_y, thre_map_y, cv::Mat(3,3, CV_8UC1, cv::Scalar(1)));
+        }
 
         cv::multiply(img_grad_x, thre_map_x, img_grad_x);
         cv::multiply(img_grad_y, thre_map_y, img_grad_y);

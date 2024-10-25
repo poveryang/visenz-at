@@ -17,7 +17,6 @@
 
 AT4VsImpl::AT4VsImpl(bool enable_hmap) 
 {
-    // this->ae_target_brt = {64, 32, 16, 8, 96, 128};
     this->ae_target_brt = {64, 32, 96, 128};
     this->refine_code_brt = {64, 96, 32};
 }
@@ -449,6 +448,8 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 // 现在的逻辑是，当去不到某个亮度的时候，会直接改变灯光再试一遍，因为只要亮度满足了，不管哪个灯光，都无所谓
                 // 这样做，速度会更快些
                 // 这里可能会导致某些问题，不同灯光组合，虽然全图亮度是一样的，但是亮的区域不一样
+                //
+                // release 5.1.1 中，修改了QuickTune()的逻辑，不会在无法达到给定亮度时调整灯光，而是会走完剩余亮度后再调整灯光
                 this->ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true);
             }
             else
@@ -555,6 +556,7 @@ void AT4VsImpl::UpdateNextParams()
                 #endif
                 ae_obj.ae_fail = false;
                 this->ae_obj.ClearState(); //需要给后面的流程机会，aeqt用的是全图亮度，可能去不到目标亮度，但如果找到码区后，黑白比例更均匀，就有可能能达到目标亮度
+                this->ae_obj.ResetTunningCount();
                 best_params.lights = ae_obj.params_next.lights;
                 best_params.exp_time = ae_obj.params_next.exp_time;
                 best_params.exp_gain = ae_obj.params_next.exp_gain;
@@ -620,6 +622,7 @@ void AT4VsImpl::UpdateNextParams()
                         #endif
                         auto phase_idx = std::distance(this->pipeline.begin(), it);
                         this->phase = this->pipeline.begin() + phase_idx;
+                        this->code_regions.clear();   // 跳转前先清空 code_regions
                     }
                     else     // 没开ae，跳到下一个，ar 或 end
                     {
@@ -627,6 +630,7 @@ void AT4VsImpl::UpdateNextParams()
                             std::cout << "af finish and no code detected, phase++ " << std::endl;
                         #endif
                         *phase++; // Move to the next phase
+                        this->code_regions.clear();  // // 跳转前先清空 code_regions
                     }
                 }
                 else    // 如果解了码的话，开了ae就跳过aest,由于aest默认有refine，所有下面是跳过refine，没开ae就自动跳到下一个
@@ -642,6 +646,7 @@ void AT4VsImpl::UpdateNextParams()
                         std::cout << "af finish and code detected, phase++" << std::endl;
                     #endif
                     *phase++; // Move to the next phase
+                    this->code_regions.clear();   // // 跳转前先清空 code_regions
                 }
             }
             break;
@@ -732,7 +737,7 @@ void AT4VsImpl::UpdateNextParams()
                             std::cout << "AT4VsImpl::UpdateNextParams() AEST updatelights() " << std::endl;
                         #endif
                         this->ae_target_brt_idx = 0;
-                        this->ae_obj.UpdateLights();   // 如果一直都没有解出码，就会导致ae_obj.ae_fail，就会跳出at
+                        this->ae_obj.UpdateLights();   // 如果一直都没有解出码，就会导致ae_obj.ae_fail，就会跳出ae
                         next_params.lights = ae_obj.params_next.lights;
                         next_params.exp_gain = ae_obj.params_next.exp_gain;
 
@@ -742,6 +747,34 @@ void AT4VsImpl::UpdateNextParams()
                     #endif
                 }
             }
+            else
+            {
+                if(!this->ae_obj.exceed_tunning_count)
+                {
+                    break;
+                }
+                else
+                {
+                    this->ae_obj.end_qt = false;
+                    this->ae_target_brt_idx += 1;  // 查询下一个亮度
+                    this->ae_obj.ResetTunningCount();
+                    if(this->ae_target_brt_idx == this->ae_target_brt.size()) // 当前亮度都轮询完之后，更换灯光后重新轮询亮度
+                    {
+                        #ifdef BUILD_WITH_LOG
+                            std::cout << "AT4VsImpl::UpdateNextParams() AEST ae_obj exceed tunning count, updatelights()" << std::endl;
+                        #endif
+                        this->ae_target_brt_idx = 0;
+                        this->ae_obj.UpdateLights();   // 如果一直都没有解出码，就会导致ae_obj.ae_fail，就会跳出ae
+                        next_params.lights = ae_obj.params_next.lights;
+                        next_params.exp_gain = ae_obj.params_next.exp_gain;
+
+                    }
+                    #ifdef BUILD_WITH_LOG
+                        std::cout << "ae_obj exceed tunning count, next brt " << this->ae_target_brt[this->ae_target_brt_idx] << std::endl;
+                    #endif
+                }
+            }
+
             if (ae_obj.ae_fail)
             {
                 #ifdef BUILD_WITH_LOG
@@ -758,6 +791,7 @@ void AT4VsImpl::UpdateNextParams()
                 #endif
                 ae_obj.ae_fail = false;
                 this->ae_obj.ClearState();
+                this->ae_obj.ResetTunningCount();
                 best_params.lights = ae_obj.params_next.lights;
                 best_params.exp_time = ae_obj.params_next.exp_time;
                 best_params.exp_gain = ae_obj.params_next.exp_gain;
@@ -775,6 +809,7 @@ void AT4VsImpl::UpdateNextParams()
                         std::cout << "aest fail, using last try as base param" << std::endl;
                     #endif
                 }
+                break;
             }
 
             break;
@@ -790,156 +825,95 @@ void AT4VsImpl::UpdateNextParams()
                     std::cout << "AT4VsImpl::UpdateNextParams() refine phase" << std::endl;
             #endif
             // refine 阶段不会再调整灯光，只会调整曝光
-            if(ae_obj.end_qt)
+            if(!this->refine_ae_finish)
             {
-                #ifdef BUILD_WITH_LOG
-                    std::cout << "refine phase: ae finish, run decode()" << std::endl;
-                #endif
-                this->ae_obj.end_qt = false;
-                auto tmp_code_regions = this->barcode_wrapper_->Decode(this->cached_image, this->ar_info, this->at_roi);
-                #ifdef BUILD_WITH_LOG
-                    std::cout << "refine ae target brt " << this->refine_code_brt[this->refine_code_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
-                #endif
-                if(!tmp_code_regions.empty())
+                if(ae_obj.end_qt)
                 {
-                    this->code_regions = tmp_code_regions;
-                }
-// #ifdef BUILD_NOVAIC
-                #ifdef BUILD_WITH_LOG
-                    std::cout << "check all brt" << std::endl;
-                #endif
-
-                if(this->refine_statistics_cur < this->refine_statistics_num)
-                {
-                    if(!this->ar_info.successful_code_type.empty())
-                    {   
-                        #ifdef BUILD_WITH_LOG
-                            std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode success" << std::endl;
-                        #endif
-                        this->refine_decode_success_count += 1;
-                    }
-                    else
-                    {
-                        #ifdef BUILD_WITH_LOG
-                            std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode fail" << std::endl;
-                        #endif
-                    }
-                    this->refine_statistics_cur += 1;
                     #ifdef BUILD_WITH_LOG
-                        std::cout << "refine_statistics_cur " << this->refine_statistics_cur << std::endl;
-                        std::cout << "refine_decode_success_count " << this->refine_decode_success_count << std::endl;
+                        std::cout << "refine phase: ae finish, run decode()" << std::endl;
                     #endif
-                }
-                else
-                {
-                    float decode_rate = this->refine_decode_success_count / this->refine_statistics_num;
+                    this->ae_obj.end_qt = false;
+                    auto tmp_code_regions = this->barcode_wrapper_->Decode(this->cached_image, this->ar_info, this->at_roi);
                     #ifdef BUILD_WITH_LOG
-                        std::cout << "finish one loop, decode_rate " << decode_rate << std::endl;
+                        std::cout << "refine ae target brt " << this->refine_code_brt[this->refine_code_brt_idx] << ", code regions size " << tmp_code_regions.size() << std::endl;
                     #endif
-                    if (decode_rate > this->refine_max_decode_rate)
+                    if(!tmp_code_regions.empty())
                     {
-                        this->refine_max_decode_rate = decode_rate;
-                        best_params.lights = ae_obj.params_best.lights;
-                        best_params.exp_time = ae_obj.params_best.exp_time;
-                        best_params.exp_gain = ae_obj.params_best.exp_gain;
-                        #ifdef BUILD_WITH_LOG
-                            std::cout << "decode rate update, max is " << decode_rate << std::endl;
-                            std::cout << "    exp_time=" << best_params.exp_time << ", exp_gain=" << best_params.exp_gain << std::endl;
-                        #endif
-                    } 
-                    this->refine_statistics_cur = 0;
-                    this->refine_decode_success_count = 0;
-                    this->refine_code_brt_idx += 1;
+                        this->code_regions = tmp_code_regions;
+                    }
                     #ifdef BUILD_WITH_LOG
-                        std::cout << "update loop data, next brt is " << this->refine_code_brt[this->refine_code_brt_idx] << std::endl;
+                        std::cout << "check all brt" << std::endl;
                     #endif
 
-                    // 当解码率足够高的时候，就不跑后面的亮度了
-                    if(this->refine_max_decode_rate > 0.95)
+                    if(this->refine_statistics_cur < this->refine_statistics_num)
                     {
-                        this->refine_code_brt_idx = this->refine_code_brt.size();
-                    }
-                }
-                if(this->refine_code_brt_idx >= this->refine_code_brt.size())
-                {
-                    #ifdef BUILD_WITH_LOG
-                        std::cout << "refine loop all brt step, refine_ae_finish=true" << std::endl;
-                    #endif
-                    this->refine_ae_finish = true;
-                    if (this->enable_af)           // 要打开了af才能进入 refine af
-                    {
-                        this->af_obj.ResetSamples();
-                    }
-                    else 
-                    {
-                        *phase++;    // 如果没有打开af，如vs600，那么refine ae后直接就到下一阶段，跳过refine af
-                    }
-                    next_params.exp_time = best_params.exp_time;
-                    next_params.exp_gain = best_params.exp_gain;
-                    next_params.focus_pos = af_obj.next_pos;
-                }
-/*
-#else
-
-                if(!this->ar_info.successful_code_type.empty())   // 在调整亮度后，如果能解到码，则直接进入对焦refine
-                {
-                    #ifdef BUILD_WITH_LOG
-                        std::cout << "[AT4VS] REFINE AE Done: exp-time=" << ae_obj.params_next.exp_time << ", "
-                                  << "exp-gain=" << ae_obj.params_next.exp_gain << ", "
-                                  << "lights=[";
-                        for(auto ele : ae_obj.params_next.lights)
-                        {
-                            std::cout << ele << ", ";
+                        if(!this->ar_info.successful_code_type.empty())
+                        {   
+                            #ifdef BUILD_WITH_LOG
+                                std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode success" << std::endl;
+                            #endif
+                            this->refine_decode_success_count += 1;
                         }
-                        std::cout << "]" << std::endl;
-                    #endif
-                    best_params.lights = ae_obj.params_best.lights;
-                    best_params.exp_time = ae_obj.params_best.exp_time;
-                    best_params.exp_gain = ae_obj.params_best.exp_gain;
-
-                    this->refine_ae_finish = true;
-
-                    if (this->enable_af)
-                    {
+                        else
+                        {
+                            #ifdef BUILD_WITH_LOG
+                                std::cout << "brt " << this->refine_code_brt[this->refine_code_brt_idx] << " decode fail" << std::endl;
+                            #endif
+                        }
+                        this->refine_statistics_cur += 1;
                         #ifdef BUILD_WITH_LOG
-                            std::cout << "refine ae decode success and enable_af=True, run refine af" << std::endl;
+                            std::cout << "refine_statistics_cur " << this->refine_statistics_cur << std::endl;
+                            std::cout << "refine_decode_success_count " << this->refine_decode_success_count << std::endl;
                         #endif
-                        this->af_obj.ResetSamples();   // 调用ResetSamples()才会使af_obj.end_iter=false
-                        next_params.focus_pos = af_obj.next_pos;
                     }
                     else
                     {
+                        float decode_rate = this->refine_decode_success_count / this->refine_statistics_num;
                         #ifdef BUILD_WITH_LOG
-                            std::cout << "refind ae decode success and enable_af=False, go to next phase" << std::endl;
+                            std::cout << "finish one loop, decode_rate " << decode_rate << std::endl;
                         #endif
-                        *phase++;    // 如果没有打开af，如vs600，那么refine ae后直接就到下一阶段，跳过refine af
-                    }
+                        if (decode_rate > this->refine_max_decode_rate)
+                        {
+                            this->refine_max_decode_rate = decode_rate;
+                            best_params.lights = ae_obj.params_best.lights;
+                            best_params.exp_time = ae_obj.params_best.exp_time;
+                            best_params.exp_gain = ae_obj.params_best.exp_gain;
+                            #ifdef BUILD_WITH_LOG
+                                std::cout << "decode rate update, max is " << decode_rate << std::endl;
+                                std::cout << "    exp_time=" << best_params.exp_time << ", exp_gain=" << best_params.exp_gain << std::endl;
+                            #endif
+                        } 
+                        this->refine_statistics_cur = 0;
+                        this->refine_decode_success_count = 0;
+                        this->refine_code_brt_idx += 1;
+                        #ifdef BUILD_WITH_LOG
+                            if (this->refine_code_brt_idx < this->refine_code_brt.size())
+                            {
+                                std::cout << "update loop data, next brt is " << this->refine_code_brt[this->refine_code_brt_idx] << std::endl;
+                            }
+                        #endif
 
-                }
-                else   // 调整亮度后如果解不了码，就用下一个亮度，如果设定的所有亮度都解不了码，就用回AEST成功时的曝光增益，只refine焦距
-                {
-                    #ifdef BUILD_WITH_LOG
-                        std::cout << "refine decode empty" << std::endl;
-                    #endif
-                    this->refine_code_brt_idx += 1;
+                        // 当解码率足够高的时候，就不跑后面的亮度了
+                        if(this->refine_max_decode_rate > 0.95)
+                        {
+                            this->refine_code_brt_idx = this->refine_code_brt.size();
+                            #ifdef BUILD_WITH_LOG
+                                std::cout << "refine decode rate high enough, stop loop brt" << std::endl;
+                            #endif
+                        }
+                    }
                     if(this->refine_code_brt_idx >= this->refine_code_brt.size())
                     {
                         #ifdef BUILD_WITH_LOG
-                            std::cout << "refine ae decode fail ";
+                            std::cout << "refine loop all brt step, refine_ae_finish=true" << std::endl;
                         #endif
                         this->refine_ae_finish = true;
                         if (this->enable_af)           // 要打开了af才能进入 refine af
                         {
-                            #ifdef BUILD_WITH_LOG
-                                std::cout << "enable_af=True, run refine af" << std::endl;
-                            #endif
                             this->af_obj.ResetSamples();
                         }
                         else 
                         {
-                            #ifdef BUILD_WITH_LOG
-                                std::cout << "enable_af=False, go to next phase" << std::endl;
-                            #endif
                             *phase++;    // 如果没有打开af，如vs600，那么refine ae后直接就到下一阶段，跳过refine af
                         }
                         next_params.exp_time = best_params.exp_time;
@@ -947,21 +921,55 @@ void AT4VsImpl::UpdateNextParams()
                         next_params.focus_pos = af_obj.next_pos;
                     }
                 }
-#endif
-*/
+                else
+                {
+                    if(!this->ae_obj.exceed_tunning_count)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        this->refine_code_brt_idx += 1;
+                        #ifdef BUILD_WITH_LOG
+                            if (this->refine_code_brt_idx < this->refine_code_brt.size())
+                            {
+                                std::cout << "refine exceed tunning count, next brt is " << this->refine_code_brt[this->refine_code_brt_idx] << std::endl;
+                            }
+                        #endif
+                    }
+
+                    if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                    {
+                        #ifdef BUILD_WITH_LOG
+                            std::cout << "refine ae can not reach given brightness and refine_code_brt_idx exceed size, refine_ae_finish=true" << std::endl;
+                        #endif
+                        this->refine_ae_finish = true;
+                        if (this->enable_af)           // 要打开了af才能进入 refine af
+                        {
+                            this->af_obj.ResetSamples();
+                        }
+                        else 
+                        {
+                            *phase++;    // 如果没有打开af，如vs600，那么refine ae后直接就到下一阶段，跳过refine af
+                        }
+                        next_params.exp_time = best_params.exp_time;
+                        next_params.exp_gain = best_params.exp_gain;
+                        next_params.focus_pos = af_obj.next_pos;
+                        ae_obj.ae_fail = true;
+                    }
+                }
             }
-            if (ae_obj.ae_fail)
-            {
-                #ifdef BUILD_WITH_LOG
-                    std::cout << "refine ae fail, can not reach given brightness, set current to best" << std::endl;
-                #endif
-                // ae_obj.ae_fail = false;
-                best_params.lights = ae_obj.params_next.lights;
-                best_params.exp_time = ae_obj.params_next.exp_time;
-                best_params.exp_gain = ae_obj.params_next.exp_gain;
-                *phase++; // 对于 refine phase来说，如果ae失败之后就会跳转到下一个phase，af refine都不走了，这里可实验斟酌对耗时的需求
-                this->refine_ae_finish = true;
-            }
+            // if (ae_obj.ae_fail)
+            // {
+            //     #ifdef BUILD_WITH_LOG
+            //         std::cout << "refine ae fail, can not reach given brightness, set current to best" << std::endl;
+            //     #endif
+            //     best_params.lights = ae_obj.params_next.lights;
+            //     best_params.exp_time = ae_obj.params_next.exp_time;
+            //     best_params.exp_gain = ae_obj.params_next.exp_gain;
+            //     *phase++; // 对于 refine phase来说，如果ae失败之后就会跳转到下一个phase，af refine都不走了，这里可实验斟酌对耗时的需求
+            //     this->refine_ae_finish = true;
+            // }
 
             if(this->refine_ae_finish && this->enable_af)   // 需要加这里的判断，当不打开af的时候，上面的流程会使af_obj.end_iter=true，直接进入下面的if就会phase++
             {

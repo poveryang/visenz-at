@@ -60,8 +60,11 @@ public:
                     result.precise_locate_corner_boxes[1],
                     result.precise_locate_corner_boxes[2],
                     result.precise_locate_corner_boxes[3]};
-                
-                code_regions.emplace_back(cv::boundingRect(pts));
+                cv::Rect decode_rect = cv::boundingRect(pts);
+                if(decode_rect.width > 10 && decode_rect.height > 10)
+                {
+                    code_regions.emplace_back(decode_rect);
+                }
             }
             
             if(result.decode_succeed)
