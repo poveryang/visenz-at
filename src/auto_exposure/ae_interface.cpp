@@ -65,3 +65,22 @@ void AEInterface::ResetTunningCount()
     this->exceed_tunning_count = false;
     this->ae_impl_->exceed_tunning_count = false;
 }
+
+void AEInterface::SetParam(int exp_time, int exp_gain, std::vector<int> lights)
+{
+    this->params_best.exp_time = exp_time;
+    this->params_best.exp_gain = exp_gain;
+    this->params_best.lights = lights;
+
+    this->params_next.exp_time = exp_time;
+    this->params_next.exp_gain = exp_gain;
+    this->params_next.lights = lights;
+
+    this->ae_impl_->params_best.exp_time = exp_time;
+    this->ae_impl_->params_best.exp_gain = exp_gain;
+    this->ae_impl_->params_best.lights = lights;
+
+    this->ae_impl_->params_next.exp_time = exp_time;
+    this->ae_impl_->params_next.exp_gain = exp_gain;
+    this->ae_impl_->params_next.lights = lights;
+}

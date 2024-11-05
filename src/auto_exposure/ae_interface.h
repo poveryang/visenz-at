@@ -39,6 +39,8 @@ namespace ae {
 
         void ResetTunningCount();
 
+        void SetParam(int exp_time, int exp_gain, std::vector<int> lights);
+
         /** The default destructor. */
         ~AEInterface() = default;
 

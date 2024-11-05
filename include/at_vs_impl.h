@@ -92,12 +92,21 @@ private:
     std::vector<int> base_lights;
     int base_exp_time;
     int base_exp_gain;
+    int base_focus;
     bool set_base;
+    bool using_base;
 
-    int refine_statistics_num;
-    float refine_max_decode_rate;
-    float refine_statistics_cur;
-    float refine_decode_success_count;
+    int aest_statistics_num;        // aest时，每个亮度测试次数
+    int aest_statistics_cur;        // aest时，当前计数
+    int aest_detect_success_count;  // aest时，成功检测到码的次数，暂时没有用
+    int aest_detect_thre;           // 用于提前退出aest的阈值
+    cv::Mat aest_regions_canvas;    // 用于记录aest成功detect的位置
+    std::map<int, CamParams> aest_params_map;  // 记录每次aest的参数
+
+    int refine_statistics_num;    // refine 时，每个亮度测试次数
+    float refine_max_decode_rate; // refine 时，轮询出来的最大解码成功次数
+    float refine_statistics_cur;  // refine 时，当前测试次数
+    float refine_decode_success_count; // refine 时，统计的解码成功次数
 };
 
 #endif //AT_VS_IMPL_H

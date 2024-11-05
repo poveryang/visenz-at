@@ -54,4 +54,8 @@ void AFInterface::ResetSamples()
     this->af_impl_->ResetSamples();
     this->af_impl_->GetNextSample();
     this->next_pos = this->af_impl_->next_pos;
+
+    #ifdef BUILD_WITH_LOG
+        std::cout << "af interface reset, next pose " << this->next_pos << std::endl;
+    #endif
 }
