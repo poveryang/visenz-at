@@ -95,7 +95,7 @@ namespace ae {
 
         ~AEImpl() = default;
 
-        bool QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true);
+        bool QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true, float fraction=1.0);
 
         void CalcMetrics(const cv::Mat &image, const std::vector<cv::Rect> &rois, int brt_target);
 
@@ -103,7 +103,7 @@ namespace ae {
 
         bool UpdateLights();
 
-        void UpdateExposureAndGain(int brt_target);
+        void UpdateExposureAndGain(int brt_target, float fraction);
     };
 } // namespace ae
 

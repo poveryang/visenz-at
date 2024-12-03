@@ -14,7 +14,7 @@ project(ViSenz-AT)
 # Set AT version
 set(AT_VERSION_MAJOR 5)
 set(AT_VERSION_MINOR 1)
-set(AT_VERSION_PATCH 2)
+set(AT_VERSION_PATCH 3)
 configure_file("${PROJECT_SOURCE_DIR}/version.h.in" "${PROJECT_BINARY_DIR}/version.h")
 message(STATUS "AT version: ${AT_VERSION_MAJOR}.${AT_VERSION_MINOR}.${AT_VERSION_PATCH}")
 

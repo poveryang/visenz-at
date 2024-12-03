@@ -19,6 +19,7 @@ AT4VsImpl::AT4VsImpl(bool enable_hmap)
 {
     this->ae_target_brt = {64, 32, 96, 128};
     this->refine_code_brt = {64, 96, 32};
+    this->refine_et_fraction = {1.0, 0.5, 0.25, 0.125};
 }
 
 void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
@@ -51,12 +52,15 @@ void AT4VsImpl::Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
     this->aest_statistics_num = 10;
     this->aest_statistics_cur = 0;
     this->aest_detect_success_count = 0;
+    this->aest_decode_success_count = 0;
     this->aest_detect_thre = 8;
 
     this->refine_statistics_num = 10;
     this->refine_max_decode_rate = 0.0;
     this->refine_statistics_cur = 0.0;
     this->refine_decode_success_count = 0.0;
+
+    this->refine_et_fraction_idx = 0;
 
     #ifdef BUILD_WITH_LOG
         std::cout << "ae_target_brt ";
@@ -253,7 +257,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 #endif
             
             int target_thre = std::min(15, int(target_brt/2));
-            ae_obj.QuickTune(image, target_brt, ae_rois, target_thre, false);
+            ae_obj.QuickTune(image, target_brt, ae_rois, target_thre, false, 1.0);
             break;
         }
         case ATPhase::AF: 
@@ -400,7 +404,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
             #endif
 
             int target_thre = std::min(15, int(target_brt/2));
-            ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true);
+            ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true, 1.0);
 
             break;
         }
@@ -437,8 +441,9 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
             if(!this->refine_ae_finish)
             {
                 int target_brt = this->refine_code_brt[this->refine_code_brt_idx];
+                float fraction = this->refine_et_fraction[this->refine_et_fraction_idx];
                 #ifdef BUILD_WITH_LOG
-                    std::cout << "refine ae running, target_brt: " << target_brt << std::endl;
+                    std::cout << "refine ae running, target_brt: " << target_brt << ",  fraction: " << fraction << std::endl;
                     std::cout << "exec refine aeobj code region :" << std::endl;
                     for(const auto &roi : this->code_regions)
                     {
@@ -456,7 +461,7 @@ void AT4VsImpl::SequentialExec(const cv::Mat &image)
                 // 这里可能会导致某些问题，不同灯光组合，虽然全图亮度是一样的，但是亮的区域不一样
                 //
                 // release 5.1.1 中，修改了QuickTune()的逻辑，不会在无法达到给定亮度时调整灯光，而是会走完剩余亮度后再调整灯光
-                this->ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true);
+                this->ae_obj.QuickTune(image, target_brt, this->code_regions, target_thre, true, fraction);
             }
             else
             {
@@ -718,8 +723,14 @@ void AT4VsImpl::UpdateNextParams()
                         }
                         this->aest_regions_canvas += tmp_canvas;
                     }
+                    
+                    if(!this->ar_info.successful_code_type.empty())
+                    {
+                        this->aest_decode_success_count += 1;
+                    }
                     #ifdef BUILD_WITH_LOG
-                        std::cout << "aest_statistics_cur: " << aest_statistics_cur << ", aest_detect_success_count: " << aest_detect_success_count << std::endl;
+                        // std::cout << "aest_statistics_cur: " << aest_statistics_cur << ", aest_detect_success_count: " << aest_detect_success_count << std::endl;
+                        std::cout << "aest_statistics_cur: " << aest_statistics_cur << ", aest_decode_success_count: " << aest_decode_success_count << std::endl;
                     #endif
                     this->aest_statistics_cur += 1;
                 }
@@ -730,7 +741,8 @@ void AT4VsImpl::UpdateNextParams()
                     #ifdef BUILD_WITH_LOG
                         std::cout << "aest_statistics_cur == aest_statistics_num, max_val=" << max_val << std::endl;
                     #endif
-                    if(max_val > this->aest_detect_thre)
+                    // aest时也会记录是否能解码，以解码作为最高优先级，避免出现某些灯光是能找到码但是不能解码的情况
+                    if(this->aest_decode_success_count > 0)
                     {
                         next_params.exp_gain = ae_obj.params_best.exp_gain;
                         next_params.exp_time = ae_obj.params_best.exp_time;
@@ -740,12 +752,14 @@ void AT4VsImpl::UpdateNextParams()
                         best_params.exp_time = ae_obj.params_best.exp_time;
                         best_params.exp_gain = ae_obj.params_best.exp_gain;
                         #ifdef BUILD_WITH_LOG
-                            std::cout << "max_val > detect_thre, move to next phase" << std::endl;
+                            // std::cout << "max_val > detect_thre, move to next phase" << std::endl;
+                            std::cout << "aset decode success, move to next pahse" << std::endl;
                         #endif
                         *phase++;
                     }
                     else
                     {
+                        // 解不到码的时候，就是用找码率最高的那个
                         if(this->aest_params_map.find(int(max_val)) == this->aest_params_map.end())
                         {
                             CamParams tmp_params;
@@ -932,6 +946,7 @@ void AT4VsImpl::UpdateNextParams()
                         float decode_rate = this->refine_decode_success_count / this->refine_statistics_num;
                         #ifdef BUILD_WITH_LOG
                             std::cout << "finish one loop, decode_rate " << decode_rate << std::endl;
+                            std::cout << "refine_max_decode_rate: " << this->refine_max_decode_rate << std::endl;
                         #endif
                         if (decode_rate > this->refine_max_decode_rate)
                         {
@@ -954,17 +969,38 @@ void AT4VsImpl::UpdateNextParams()
                             }
                         #endif
 
-                        // 当解码率足够高的时候，就不跑后面的亮度了
-                        if(this->refine_max_decode_rate > 0.95)
+                        if (this->refine_code_brt_idx == this->refine_code_brt.size())
                         {
-                            this->refine_code_brt_idx = this->refine_code_brt.size();
-                            #ifdef BUILD_WITH_LOG
-                                std::cout << "refine decode rate high enough, stop loop brt" << std::endl;
-                            #endif
+                            this->refine_code_brt_idx = 0;
+                            if (this->refine_et_fraction_idx < this->refine_et_fraction.size())
+                            {
+                                this->refine_et_fraction_idx += 1;
+                            }
                         }
+
+                        // // 当解码率足够高的时候，就不跑后面的亮度了
+                        // if(this->refine_max_decode_rate > 0.95)
+                        // {
+                        //     this->refine_code_brt_idx = this->refine_code_brt.size();
+                        //     #ifdef BUILD_WITH_LOG
+                        //         std::cout << "refine decode rate high enough, stop loop brt" << std::endl;
+                        //     #endif
+                        // }
                     }
-                    if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                    // if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                    if(this->refine_et_fraction_idx==this->refine_et_fraction.size() || this->refine_max_decode_rate > 0.85)
                     {
+                        #ifdef BUILD_WITH_LOG
+                            if(this->refine_et_fraction_idx==this->refine_et_fraction.size())
+                            {
+                                std::cout << "loop all et eg combination, finish refine ae" << std::endl;
+                            }
+                            if(this->refine_max_decode_rate > 0.85)
+                            {
+                                std::cout << "refine decode rate high enough, stop loop brt, finish refine ae" << std::endl;
+                            }
+                        #endif
+
                         #ifdef BUILD_WITH_LOG
                             std::cout << "refine loop all brt step, refine_ae_finish=true" << std::endl;
                         #endif
@@ -998,6 +1034,14 @@ void AT4VsImpl::UpdateNextParams()
                     else
                     {
                         this->refine_code_brt_idx += 1;
+                        if (this->refine_code_brt_idx == this->refine_code_brt.size())
+                        {
+                            this->refine_code_brt_idx = 0;
+                            if (this->refine_et_fraction_idx < this->refine_et_fraction.size())
+                            {
+                                this->refine_et_fraction_idx += 1;
+                            }
+                        }
                         this->ae_obj.ResetTunningCount();
                         #ifdef BUILD_WITH_LOG
                             if (this->refine_code_brt_idx < this->refine_code_brt.size())
@@ -1007,7 +1051,8 @@ void AT4VsImpl::UpdateNextParams()
                         #endif
                     }
 
-                    if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                    // if(this->refine_code_brt_idx >= this->refine_code_brt.size())
+                    if(this->refine_et_fraction_idx==this->refine_et_fraction.size())
                     {
                         #ifdef BUILD_WITH_LOG
                             std::cout << "refine ae can not reach given brightness and refine_code_brt_idx exceed size, refine_ae_finish=true" << std::endl;

@@ -69,7 +69,7 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     this->exceed_tunning_count = false;   
 }
 
-bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch) 
+bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch, float fraction) 
 {
     /* Calc metrics in current frame */
     #ifdef BUILD_WITH_LOG
@@ -138,7 +138,7 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
             */
         }
 
-        this->UpdateExposureAndGain(brt_target);
+        this->UpdateExposureAndGain(brt_target, fraction);
 
         return false;
     }
@@ -292,7 +292,7 @@ double AEImpl::CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &ro
     return mean_brt;
 }
 
-void AEImpl::UpdateExposureAndGain(int brt_target)
+void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
 {
     #ifdef BUILD_WITH_LOG
         std::cout << "UpdateExposureAndGain()" << std::endl;
@@ -335,9 +335,9 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
             std::cout << "increase brt" << std::endl;
         #endif
         et_scale = total_scale;
-        if(cur_exposure * total_scale > this->max_et)
+        if(cur_exposure * total_scale > (this->max_et*fraction))
         {
-            et_scale = this->max_et * 1.0f / cur_exposure;
+            et_scale = (this->max_et*fraction) * 1.0f / cur_exposure;
             eg_scale = std::min(2.0f, total_scale / et_scale);
         }
         if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
@@ -354,7 +354,7 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
         std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl; 
     #endif
 
-    int next_et = std::min(int(cur_exposure*et_scale), this->max_et);
+    int next_et = std::min(int(cur_exposure*et_scale), int(this->max_et*fraction));
     next_et = std::max(next_et, this->min_et);
     int next_eg = std::min(int(cur_eg*eg_scale), this->max_eg);
     next_eg = std::max(next_eg, this->min_eg);
