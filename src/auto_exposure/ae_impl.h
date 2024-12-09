@@ -15,6 +15,7 @@ namespace ae {
     struct AEConf {
         /** Exposure control*/
         int ae_mode;                        // 0:auto, 1: shutter priority, 2: gain priority
+        int min_et_step;                    // minimum exposure time step
         int min_et;                         // minimum exposure time
         int max_et;                         // maximum exposure time
         int min_eg;                         // minimum exposure gain
@@ -72,6 +73,7 @@ namespace ae {
     public:
         /* Camera config related to AE */
         int mode;
+        int min_et_step;
         int min_et, max_et;
         int min_eg, max_eg;
         int min_intensity, max_intensity;

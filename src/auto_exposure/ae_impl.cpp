@@ -10,19 +10,21 @@ int ae_save_count = 0;
 AEImpl::AEImpl(const AEConf &ae_conf, bool en_al) 
 {
     /* Camera config related to AE */
-    this->mode = ae_conf.ae_mode;
-    this->min_et = ae_conf.min_et;
-    this->max_et = std::min(ae_conf.max_et, this->MAX_ET_LIMIT);
-    this->min_eg = ae_conf.min_eg;
-    this->max_eg = ae_conf.max_eg;
-    this->min_intensity = ae_conf.min_intensity;
-    this->max_intensity = ae_conf.max_intensity;
+    mode = ae_conf.ae_mode;
+    min_et_step = ae_conf.min_et_step;
+    min_et = ae_conf.min_et;
+    max_et = std::min(ae_conf.max_et, MAX_ET_LIMIT);
+    min_eg = ae_conf.min_eg;
+    max_eg = ae_conf.max_eg;
+    min_intensity = ae_conf.min_intensity;
+    max_intensity = ae_conf.max_intensity;
 
-    this->init_eg = ae_conf.init_eg;
+    init_et = ae_conf.init_et;
+    init_eg = ae_conf.init_eg;
 
     /* Basic variables */
-    params_next.exp_time = ae_conf.init_et;
-    params_next.exp_gain = this->init_eg;
+    params_next.exp_time = (min_et_step != 1) ? std::max(min_et, min_et_step) : init_et;
+    params_next.exp_gain = init_eg;
     if (en_al) 
     {
         std::vector<int> all;
@@ -320,7 +322,7 @@ void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
         }
         et_scale = std::min(total_scale/eg_scale, 1.0f);
 
-        if (et_scale < 1 && cur_exposure < this->min_et+1)
+        if (et_scale < 1 && cur_et <= std::max(min_et, min_et_step))
         {
             #ifdef BUILD_WITH_LOG
                 std::cout << "exposure time down to limit, scale eg at this situation" << std::endl;
@@ -354,10 +356,21 @@ void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
         std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl; 
     #endif
 
-    int next_et = std::min(int(cur_exposure*et_scale), int(this->max_et*fraction));
-    next_et = std::max(next_et, this->min_et);
-    int next_eg = std::min(int(cur_eg*eg_scale), this->max_eg);
-    next_eg = std::max(next_eg, this->min_eg);
+    int next_et;
+    if (min_et_step == 1) {
+        next_et = static_cast<int>(cur_exposure * et_scale);
+    } else {
+        next_et = static_cast<int>(cur_exposure * et_scale / min_et_step) * min_et_step;
+        if (et_scale < 1 && next_et == cur_exposure) {
+            next_et -= min_et_step;  // 确保减少一个 min_et_step
+        } else if (et_scale >= 1 && next_et == cur_exposure) {
+            next_et += min_et_step;  // 确保增加一个 min_et_step
+        }
+    }
+    next_et = std::clamp(next_et, min_et, static_cast<int>(max_et * fraction));
+
+    int next_eg = static_cast<int>(cur_eg * eg_scale);
+    next_eg = std::clamp(next_eg, min_eg, max_eg);
     if(next_eg - cur_eg > 30)   // 限制增益的增长，以免超调
     {
         #ifdef BUILD_WITH_LOG
