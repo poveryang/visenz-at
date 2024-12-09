@@ -18,6 +18,7 @@ struct CamConf {
     int max_intensity;                  // 开灯 1
 
     /** Exposure control*/
+    int min_et_step;                    // 曝光时间的最小步长
     int min_et;                         // 从相机获得的最小曝光时间
     int max_et;                         // 从相机获得的最大曝光时间
     int min_eg;                         // 从相机获得的最小增益
