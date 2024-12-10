@@ -16,15 +16,6 @@
 class AT4VsImpl : public ATImplBase 
 {
 public:
-    /* Object and conf of AF */
-    af::AFInterface af_obj;
-    af::AFConf af_conf;
-
-    /* Object and conf of AE */
-    ae::AEInterface ae_obj;
-    ae::AEConf ae_conf;
-
-public:
     /**
      * @brief AT4VsImpl constructor
      * @param enable_hmap flag to indicate whether the heatmap-generator is used
@@ -34,7 +25,7 @@ public:
     /**
     * @brief AT4VsImpl destructor
     */
-    ~AT4VsImpl() = default;
+    ~AT4VsImpl() override = default;
 
     /**
      * @brief Init the ATImplBase
@@ -63,11 +54,23 @@ public:
      * @brief Load camera configuration to submodules
      * @param cam_conf the camera configuration
      */
-    void LoadCamConf(CamConf &cam_conf);
+    void LoadCamConf(const CamConf &cam_conf);
 
+    /**
+     * @brief Set the ROI
+     * @param roi the ROI
+     */
     void SetRoi(const cv::Rect &roi) override;
 
 private:
+    /* Object and conf of AF */
+    af::AFInterface af_obj;
+    af::AFConf af_conf{};
+
+    /* Object and conf of AE */
+    ae::AEInterface ae_obj;
+    ae::AEConf ae_conf{};
+
     bool enable_hmap_;
 
     BarcodeWrapperBase *barcode_wrapper_{};

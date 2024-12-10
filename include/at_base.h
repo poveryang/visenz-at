@@ -88,10 +88,8 @@ public:
 public:
     ATImplBase() = default;
 
-    ~ATImplBase() = default;
-
-//    virtual void Init(CamConf &cam_conf, bool enable_al, bool enable_af, bool enable_ae) = 0;
-
+    virtual ~ATImplBase() = default;
+    
     virtual void Init(CamConf &cam_conf, BarcodeWrapperBase &barcode_wrapper,
               bool enable_al, bool enable_af, bool enable_ae, bool enable_ar) = 0;
 
