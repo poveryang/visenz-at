@@ -78,7 +78,7 @@ namespace ae {
         int min_eg, max_eg;
         int min_intensity, max_intensity;
 
-        int init_eg;
+        int init_et, init_eg;
         AEStatus status_cur;
         AEParams params_next, params_best;
 
@@ -92,7 +92,6 @@ namespace ae {
         /* Metrics values with corresponding exposure params */
         std::vector<std::vector<int>> lights_sets;   // sets of lights
 
-    public:
         explicit AEImpl(const AEConf &ae_cam_conf, bool en_al);
 
         ~AEImpl() = default;
@@ -105,7 +104,7 @@ namespace ae {
 
         bool UpdateLights();
 
-        void UpdateExposureAndGain(int brt_target, float fraction);
+        void UpdateExposureAndGain(int brt_target, double fraction);
     };
 } // namespace ae
 

@@ -35,40 +35,40 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
         {
             for (size_t i = 0; i < n_lights; i++) 
             {
-                all.emplace_back(this->max_intensity);
+                all.emplace_back(max_intensity);
                 if (i < n_lights / 2) 
                 {
                     polarized.emplace_back(0);
-                    unpolarized.emplace_back(this->max_intensity);
+                    unpolarized.emplace_back(max_intensity);
                 } 
                 else 
                 {
-                    polarized.emplace_back(this->max_intensity);
+                    polarized.emplace_back(max_intensity);
                     unpolarized.emplace_back(0);
                 }
             }
             // std::vector<int> close_all(n_lights, 0);
             // lights_sets = {close_all, polarized, unpolarized, all};
-            this->lights_sets = {unpolarized, polarized, all};
+            lights_sets = {unpolarized, polarized, all};
         }
         else
         {
-            all.emplace_back(this->max_intensity);
-            this->lights_sets = {all};
+            all.emplace_back(max_intensity);
+            lights_sets = {all};
         }
     } 
     else 
     {
-        this->lights_sets = {ae_conf.init_intensities};
+        lights_sets = {ae_conf.init_intensities};
     }
-    params_next.lights = this->lights_sets.back();
-    this->lights_sets.pop_back();
+    params_next.lights = lights_sets.back();
+    lights_sets.pop_back();
 
     // 每次切换灯光，都会重新计数tuning_step，当超过max_tuning_step后，就是切换到下一组灯光
-    this->tuning_count = 0;
-    this->max_tuning_count = 15;
-    this->ae_fail = false; 
-    this->exceed_tunning_count = false;   
+    tuning_count = 0;
+    max_tuning_count = 15;
+    ae_fail = false; 
+    exceed_tunning_count = false;   
 }
 
 bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch, float fraction) 
@@ -78,9 +78,9 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
         std::cout << "ae brt_target " << brt_target << ", brt_diff_thre" << brt_diff_thre << std::endl;
     #endif
     CalcMetrics(image, rois, brt_target);
-    this->tuning_count += 1;
+    tuning_count += 1;
     #ifdef BUILD_WITH_LOG
-        std::cout << "ae tuning count " << this->tuning_count << std::endl;
+        std::cout << "ae tuning count " << tuning_count << std::endl;
     #endif
 
     if (abs(status_cur.brt - brt_target) < brt_diff_thre) 
@@ -89,18 +89,18 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
         #ifdef BUILD_WITH_LOG
             std::cout << "reach giving brt, reset tuning_count = 0" << std::endl;
         #endif
-        this->tuning_count = 0;
+        tuning_count = 0;
         return true;
     } 
     else 
     {
-        if(this->tuning_count > this->max_tuning_count)
+        if(tuning_count > max_tuning_count)
         {
-            this->exceed_tunning_count = true;
-            this->tuning_count = 0;
+            exceed_tunning_count = true;
+            tuning_count = 0;
             if(!enable_switch)
             {
-                this->ae_fail = true;
+                ae_fail = true;
             }
             return false;
 
@@ -110,37 +110,37 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
                 #ifdef BUILD_WITH_LOG
                     std::cout << "ae enable_switch=true" << std::endl;
                 #endif
-                if(this->lights_sets.empty())
+                if(lights_sets.empty())
                 {
                     // 在quick tune阶段，当试完所有灯光组合，仍无法达到brt target后，宣布ae失败，等待上层处理
                     #ifdef BUILD_WITH_LOG
                         std::cout << "set ae fail" << std::endl;
                     #endif
-                    this->tuning_count = 0;
-                    this->ae_fail = true; 
+                    tuning_count = 0;
+                    ae_fail = true; 
                     return false;
                 }
                 
-                this->tuning_count = 0;
-                params_next.lights = this->lights_sets.back();
+                tuning_count = 0;
+                params_next.lights = lights_sets.back();
                 #ifdef BUILD_WITH_LOG
                     std::cout << "ae impl change lights " << params_next.lights[0] << ", " << params_next.lights[1] << ", " << params_next.lights[2] << ", " << params_next.lights[3] << std::endl;
                 #endif
-                this->lights_sets.pop_back();
+                lights_sets.pop_back();
             }
             else
             {
                 #ifdef BUILD_WITH_LOG
                     std::cout << "ae enable_switch=false, set ae fail, but not change lights" << std::endl;
                 #endif
-                this->tuning_count = 0;
-                this->ae_fail = true; 
+                tuning_count = 0;
+                ae_fail = true; 
                 return false;
             }
             */
         }
 
-        this->UpdateExposureAndGain(brt_target, fraction);
+        UpdateExposureAndGain(brt_target, fraction);
 
         return false;
     }
@@ -148,27 +148,26 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
 
 bool AEImpl::UpdateLights()
 {
-    this->tuning_count = 0;
-    this->exceed_tunning_count = false;
-    if(this->lights_sets.empty())
+    tuning_count = 0;
+    exceed_tunning_count = false;
+    if(lights_sets.empty())
     {
         #ifdef BUILD_WITH_LOG
             std::cout << "set ae fail, update lights empty" << std::endl;
         #endif
-        this->ae_fail = true; 
+        ae_fail = true; 
         return false;
     }
-    params_next.lights = this->lights_sets.back();
-    params_next.exp_gain = this->init_eg;
-    this->lights_sets.pop_back();
+    params_next.lights = lights_sets.back();
+    params_next.exp_gain = init_eg;
+    lights_sets.pop_back();
     return true;
 }
 
 void AEImpl::CalcMetrics(const cv::Mat &image, const std::vector<cv::Rect> &rois, int brt_target) 
 {
     /* Calc metrics */
-    double brt =-1;
-    brt = CalcMeanBrt(image, rois, brt_target);
+    const double brt = CalcMeanBrt(image, rois, brt_target);
 
     /* Update status */
     status_cur.params = params_next;
@@ -294,33 +293,114 @@ double AEImpl::CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &ro
     return mean_brt;
 }
 
-void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
+// void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
+// {
+//     #ifdef BUILD_WITH_LOG
+//         std::cout << "UpdateExposureAndGain()" << std::endl;
+//     #endif
+//     float brt_cur = static_cast<float>(status_cur.brt);
+//     brt_cur = std::max(brt_cur, 1.0f);  // 防止除零
+//     int cur_exposure = status_cur.params.exp_time;
+//     int cur_eg = status_cur.params.exp_gain;
+//
+//     float total_scale = brt_target * 1.0 / brt_cur;
+//
+//     float eg_scale = 1.0f;
+//     float et_scale = 1.0f;
+//     // 当需要降低亮度的时候，由于曝光为0时，是能基本保证亮度为0，因此会限定gain的下限为32，其余分量全压在曝光上
+//     if(total_scale < 1)
+//     {
+//         #ifdef BUILD_WITH_LOG
+//             std::cout << "decrease brt" << std::endl;
+//         #endif
+//         // 降亮度的时候，如果gain<init，则不调整eg了
+//         // 这个if是在只有cur_eg > init_eg 的时候，才会调整eg
+//         if(cur_eg > init_eg)
+//         {
+//             eg_scale = init_eg * 1.0f / cur_eg;
+//         }
+//         et_scale = std::min(total_scale/eg_scale, 1.0f);
+//
+//         if (et_scale < 1 && cur_exposure < min_et+1)
+//         {
+//             #ifdef BUILD_WITH_LOG
+//                 std::cout << "exposure time down to limit, scale eg at this situation" << std::endl;
+//             #endif
+//             eg_scale = total_scale;
+//             et_scale = 1.0f;
+//         }
+//     }
+//     else
+//     {
+//         #ifdef BUILD_WITH_LOG
+//             std::cout << "increase brt" << std::endl;
+//         #endif
+//         et_scale = total_scale;
+//         if(cur_exposure * total_scale > (max_et*fraction))
+//         {
+//             et_scale = (max_et*fraction) * 1.0f / cur_exposure;
+//             eg_scale = std::min(2.0f, total_scale / et_scale);
+//         }
+//         if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
+//         {
+//             eg_scale = std::min(1.1f, eg_scale);
+//         }
+//         else if(cur_eg > 120)
+//         {
+//             eg_scale = std::min(1.05f, eg_scale);
+//         }
+//     }
+//
+//     #ifdef BUILD_WITH_LOG
+//         std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl;
+//     #endif
+//
+//     int next_et = std::min(int(cur_exposure*et_scale), int(max_et*fraction));
+//     next_et = std::max(next_et, min_et);
+//     int next_eg = std::min(int(cur_eg*eg_scale), max_eg);
+//     next_eg = std::max(next_eg, min_eg);
+//     if(next_eg - cur_eg > 30)   // 限制增益的增长，以免超调
+//     {
+//         #ifdef BUILD_WITH_LOG
+//             std::cout << "limit eg increase in 30" << std::endl;
+//         #endif
+//         next_eg = cur_eg + 30;
+//     }
+//
+//     #ifdef BUILD_WITH_LOG
+//         std::cout << "next et " << next_et << ",  next eg " << next_eg << std::endl;
+//     #endif
+//
+//     params_next.exp_time = next_et;
+//     params_next.exp_gain = next_eg;
+// }
+
+void AEImpl::UpdateExposureAndGain(const int brt_target, const double fraction)
 {
     #ifdef BUILD_WITH_LOG
         std::cout << "UpdateExposureAndGain()" << std::endl;
     #endif
-    float brt_cur = static_cast<float>(this->status_cur.brt);
-    brt_cur = std::max(brt_cur, 1.0f);  // 防止除零
-    int cur_exposure = this->status_cur.params.exp_time;
-    int cur_eg = this->status_cur.params.exp_gain;
+    const double brt_cur = std::max(status_cur.brt, 1.0);  // Prevent division by zero
+    const int cur_et = status_cur.params.exp_time;
+    const int cur_eg = status_cur.params.exp_gain;
 
-    float total_scale = brt_target * 1.0 / brt_cur;
+    const double total_scale = brt_target / brt_cur;
+    double eg_scale = 1.0;
+    double et_scale = 1.0;
 
-    float eg_scale = 1.0f;
-    float et_scale = 1.0f;
     // 当需要降低亮度的时候，由于曝光为0时，是能基本保证亮度为0，因此会限定gain的下限为32，其余分量全压在曝光上
     if(total_scale < 1)
-    {   
+    {
         #ifdef BUILD_WITH_LOG
             std::cout << "decrease brt" << std::endl;
         #endif
         // 降亮度的时候，如果gain<init，则不调整eg了
         // 这个if是在只有cur_eg > init_eg 的时候，才会调整eg
-        if(cur_eg > this->init_eg)
+        if(cur_eg > init_eg)
         {
-            eg_scale = this->init_eg * 1.0f / cur_eg;
+            eg_scale = static_cast<double>(init_eg) / cur_eg;
         }
-        et_scale = std::min(total_scale/eg_scale, 1.0f);
+        et_scale = std::min(total_scale/eg_scale, 1.0);
 
         if (et_scale < 1 && cur_et <= std::max(min_et, min_et_step))
         {
@@ -337,37 +417,42 @@ void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
             std::cout << "increase brt" << std::endl;
         #endif
         et_scale = total_scale;
-        if(cur_exposure * total_scale > (this->max_et*fraction))
+        if(cur_et * total_scale > (max_et * fraction))
         {
-            et_scale = (this->max_et*fraction) * 1.0f / cur_exposure;
-            eg_scale = std::min(2.0f, total_scale / et_scale);
+            et_scale = (max_et * fraction) / cur_et;
+            eg_scale = std::min(2.0, total_scale / et_scale);
         }
         if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
         {
-            eg_scale = std::min(1.1f, eg_scale);
+            eg_scale = std::min(1.1, eg_scale);
         }
         else if(cur_eg > 120)
         {
-            eg_scale = std::min(1.05f, eg_scale);
+            eg_scale = std::min(1.05, eg_scale);
         }
     }
 
     #ifdef BUILD_WITH_LOG
-        std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl; 
+        std::cout << "et scale " << et_scale << ",  eg scale " << eg_scale << std::endl;
     #endif
 
-    int next_et;
+    int next_et = 0;
     if (min_et_step == 1) {
-        next_et = static_cast<int>(cur_exposure * et_scale);
+        next_et = static_cast<int>(cur_et * et_scale);
+        next_et = std::clamp(next_et, min_et, static_cast<int>(max_et * fraction));
     } else {
-        next_et = static_cast<int>(cur_exposure * et_scale / min_et_step) * min_et_step;
-        if (et_scale < 1 && next_et == cur_exposure) {
-            next_et -= min_et_step;  // 确保减少一个 min_et_step
-        } else if (et_scale >= 1 && next_et == cur_exposure) {
-            next_et += min_et_step;  // 确保增加一个 min_et_step
+        next_et = static_cast<int>((cur_et * et_scale) / min_et_step) * min_et_step;
+        printf("cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
+        if (next_et == cur_et) {
+            if (et_scale < 1) {
+                next_et -= min_et_step;  // 确保减少一个 min_et_step
+            } else if (et_scale > 1) {
+                next_et += min_et_step;  // 确保增加一个 min_et_step
+            }
+            printf("Adjust et, cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
         }
+        next_et = std::clamp(next_et, min_et_step, static_cast<int>(max_et * fraction));
     }
-    next_et = std::clamp(next_et, min_et, static_cast<int>(max_et * fraction));
 
     int next_eg = static_cast<int>(cur_eg * eg_scale);
     next_eg = std::clamp(next_eg, min_eg, max_eg);
@@ -383,6 +468,6 @@ void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
         std::cout << "next et " << next_et << ",  next eg " << next_eg << std::endl;
     #endif
 
-    this->params_next.exp_time = next_et;
-    this->params_next.exp_gain = next_eg;
+    params_next.exp_time = next_et;
+    params_next.exp_gain = next_eg;
 }
