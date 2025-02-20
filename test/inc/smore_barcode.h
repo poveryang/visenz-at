@@ -110,4 +110,12 @@ public:
 
 };
 
+const std::map<std::string, std::string> BARCODE_CONFIG_SIGNATURES = {
+    {"vs1000p", "nxp100w"},
+    {"vs1000p_2mp", "nxp200w"},
+    {"vs2000_5mp", "nxp500w"},
+    {"vs2000_20mp", "nxp2000w"},
+    {"vs800p", "novaic150w"}
+};
+
 #endif //SM_BARCODE_WRAPPER_H

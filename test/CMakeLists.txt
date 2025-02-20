@@ -12,7 +12,6 @@ target_link_libraries(test_at PUBLIC
     AT
     ${OpenCV_LIBS}
     ${CamCap_LIBS}
-#    ${Barcode_LIBS}
 )
 
 target_include_directories(test_at PUBLIC
@@ -22,6 +21,8 @@ target_include_directories(test_at PUBLIC
 
 # Add a general macro for DEVICE
 target_compile_definitions(test_at PUBLIC DEVICE_NAME="${DEVICE}")
-
+if (${DEVICE} MATCHES "vs1000p.*|vs800")
+    add_definitions(-DUSE_V4L2)
+endif()
 # Installation
 install(TARGETS test_at DESTINATION bin)
