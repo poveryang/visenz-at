@@ -22,7 +22,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 # Load OpenCV
-if (${DEVICE} MATCHES "vs1000p|vs2000")
+if (${DEVICE} MATCHES "vs1000p.*|vs2000")
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
 elseif (${DEVICE} MATCHES "vs600|vs800p")
     SET(OpenCV_DIR "/opt/libs_aarch32/opencv-4.5.2-contrib-linux-aarch32/lib/cmake/opencv4")
