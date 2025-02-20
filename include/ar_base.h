@@ -1,10 +1,3 @@
-/*
- * @Author: Lu ShaoAn, Smartmore Corporation
- * @Brief: 
- * @Version: 0.1
- * @Date: 2024-04-10 14:48:02
- * @Copyright: Copyright (c) 2022
- */
 #ifndef AT_BARCODE_BASE_H
 #define AT_BARCODE_BASE_H
 
