@@ -49,6 +49,3 @@ std::string ATInterface::GetVersion() {
             std::to_string(VERSION_PATCH);
     return at_version;
 }
-
-void ATInterface::Init(CamConf &cam_conf, bool en_al, bool en_af, bool en_ae) {
-}
