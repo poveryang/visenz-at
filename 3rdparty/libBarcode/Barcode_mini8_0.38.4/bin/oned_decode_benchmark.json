@@ -1,0 +1,224 @@
+{
+    "jingao/dongtai": {
+        "regex": [
+            "^2390108810[0-9]{6}$",
+            "^2390108811[0-9]{6}$",
+            "^23A0108811[0-9]{6}$"
+        ],
+        "sub_folders": [
+            "project_data/jingao/dongtai/20230904",
+            "project_data/jingao/dongtai/20230906",
+            "project_data/jingao/dongtai/20230907",
+            "project_data/jingao/dongtai/20230908",
+            "project_data/jingao/dongtai/20230911",
+            "project_data/jingao/dongtai/20230913",
+            "project_data/jingao/dongtai/20230914",
+            "project_data/jingao/dongtai/20230915",
+            "project_data/jingao/dongtai/20230918",
+            "project_data/jingao/dongtai/20231007",
+            "project_data/jingao/dongtai/20231008"
+        ]
+    },
+    "jingao/hefei": {
+        "regex": [
+            "^P404202305[0-9]{6}$",
+            "^2350108211[0-9]{6}$"
+        ],
+        "sub_folders": [
+            "project_data/jingao/hefei/20230509",
+            "project_data/jingao/hefei/20230524",
+            "project_data/jingao/hefei/20230525",
+            "project_data/jingao/hefei/20230526"
+        ]
+    },
+    "jingao/yiwu": {
+        "regex": [
+            "^2390108621[0-9]{6}$"
+        ],
+        "sub_folders": [
+            "project_data/jingao/yiwu/20230914"
+        ]
+    },
+    "kuruiqi": {
+        "regex": [
+            "^LRP9041109211001404779$"
+        ],
+        "sub_folders": [
+            "project_data/kuruiqi/0712",
+            "project_data/kuruiqi/0713",
+            "project_data/kuruiqi/0714",
+            "project_data/kuruiqi/0721",
+            "project_data/kuruiqi/0721-2"
+        ]
+    },
+    "lenovo": {
+        "regex": [
+            "^HQ116[A-Z0-9]+$",
+            "^HQ117[A-Z0-9]+$",
+            "^HQ119[A-Z0-9]+$",
+            "^15717KS211227024254$",
+            "^C99999230926NC000NA$"
+        ],
+        "sub_folders": [
+            "project_data/lenovo/20230927"
+        ]
+    },
+    "kelun": {
+        "regex": [
+            "^8404921004[0-9]{10}$"
+        ],
+        "sub_folders": [
+            "project_data/kelun/20230927"
+        ]
+    },
+    "liuyuan": {
+        "regex": [
+            "^1L1AA2WD4P0000[0-9]{3}$"
+        ],
+        "sub_folders": [
+            "project_data/liuyuan/0811",
+            "project_data/liuyuan/0811_100",
+            "project_data/liuyuan/0815"
+        ]
+    },
+    "lixiangkaide": {
+        "regex": [
+            "^HDGGT2[A-Z0-9]{6}$"
+        ],
+        "sub_folders": [
+            "project_data/lixiangkaide/20230818"
+        ]
+    },
+    "pulian": {
+        "regex": [
+            "^122C8M400[0-9]{4}$",
+            "^1232026005[0-9]{3}$"
+        ],
+        "sub_folders": [
+            "project_data/pulian/0208-capture",
+            "project_data/pulian/0209-capture",
+            "project_data/pulian/0213-capture"
+        ]
+    },
+    "rili/dongguan": {
+        "regex": [
+            "^LF266NA\\sBA0002$",
+            "^KF28bcb0022$",
+            "^KI175AY0001$"
+        ],
+        "sub_folders": [
+            "project_data/rili/dongguan/0703",
+            "project_data/rili/dongguan/0704-dark",
+            "project_data/rili/dongguan/0704-normal",
+            "project_data/rili/dongguan/0707"
+        ]
+    },
+    "ruide-medical": {
+        "regex": [
+            "^MF01000251\\*SN0000[0-9]{6}\\*EC[0-9]{4}$",
+            "^MF02000717\\*SN0000[0-9]{6}\\*EC[0-9]{4}$",
+            "^81691530017464[0-9]{6}$",
+            "^85190710000002[0-9]{6}$",
+            "^832071800911[0-9]{8}$",
+            "^837448700171[0-9]{8}$"
+        ],
+        "sub_folders": [
+            "project_data/ruide-medical/20230829",
+            "project_data/ruide-medical/20230830",
+            "project_data/ruide-medical/20230912"
+        ]
+    },
+    "tianhe/huaian": {
+        "regex": [
+            "^[A-Z]{4}[A-Z0-9]{7}[A-Z]{2}$"
+        ],
+        "sub_folders": [
+            "project_data/tianhe/project/huaian/20230708",
+            "project_data/tianhe/project/huaian/20230821",
+            "project_data/tianhe/project/huaian/20230822",
+            "project_data/tianhe/project/huaian/20230824",
+            "project_data/tianhe/project/huaian/20230825",
+            "project_data/tianhe/project/huaian/20230826",
+            "project_data/tianhe/project/huaian/20230829",
+            "project_data/tianhe/project/huaian/20230901",
+            "project_data/tianhe/project/huaian/20230906",
+            "project_data/tianhe/project/huaian/20230916"
+        ]
+    },
+    "tianhe/dafeng": {
+        "regex": [
+            "^[A-Z]FMN[0-9A-Z]{7}[A-Z]{2}$",
+            "^Y3M2390020[0-9]{5}$"
+        ],
+        "sub_folders": [
+            "project_data/tianhe/project/dafeng/20230824",
+            "project_data/tianhe/project/dafeng/20230914"
+        ]
+    },
+    "tongwei": {
+        "regex": [
+            "^Y3M23A0[0-9]{8}$",
+            "^Y3E23A80170[0-9]{4}$"
+        ],
+        "sub_folders": [
+            "project_data/tongwei/20231009",
+            "project_data/tongwei/20231010/alldata",
+            "project_data/tongwei/20231025"
+        ]
+    },
+    "tuya": {
+        "regex": [
+            "^N407[0-9]{4}$",
+            "^NF0340911$",
+            "^N4901[0-9]{3}$"
+        ],
+        "sub_folders": [
+            "project_data/tuya/100w",
+            "project_data/tuya/200w",
+            "project_data/tuya/200w_multi"
+        ]
+    },
+    "wuliu": {
+        "regex": [
+            "^SF[0-9]{13}$"
+        ],
+        "sub_folders": [
+            "project_data/wuliu/0725",
+            "project_data/wuliu/0726",
+            "project_data/wuliu/0727"
+        ]
+    },
+    "xinxi": {
+        "regex": [
+            "^1111111111155555325$",
+            "^02KCBY576300FCA[0-9A-Z]{9}$"
+        ],
+        "sub_folders": [
+            "project_data/xinxi/100w",
+            "project_data/xinxi/200w"
+        ]
+    },
+    "xinyun": {
+        "regex": [
+            "^81266080876[0-9]{9}$",
+            "^83552210006[0-9]{9}$",
+            "^813671700[1-2][0-9]{10}$"
+        ],
+        "sub_folders": [
+            "project_data/xinyun/0414",
+            "project_data/xinyun/0423",
+            "project_data/xinyun/0520_kelun"
+        ]
+    },
+    "zhongjieneng": {
+        "regex": [
+            "^862541242[0-9]MD14[0-9]{5}$"
+        ],
+        "sub_folders": [
+            "project_data/zhongjieneng/6.3",
+            "project_data/zhongjieneng/6.5RedPianZhen",
+            "project_data/zhongjieneng/6.7",
+            "project_data/zhongjieneng/6.8/used"
+        ]
+    }
+}

@@ -1,0 +1,16 @@
+set(CMAKE_SYSTEM_NAME Linux)
+# TODO: Make sure the cross-compilers are installed and added to PATH
+# set(CMAKE_C_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/gcc-arm-10.3-2021.07-x86_64-arm-none-linux-gnueabihf/)
+# set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/arm-ca9-linux-gnueabihf-8.4/bin/arm-ca9-linux-gnueabihf-g++)
+set(CMAKE_C_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc)
+set(CMAKE_CXX_COMPILER ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++)
+set(CMAKE_CXX_FLAGS -fPIC)
+set(CMAKE_FIND_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/arm-none-linux-gnueabihf/)
+# set(CMAKE_FIND_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/aarm-ca9-linux-gnueabihf-8.4/)
+set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+# Set this to empty, otherwise cmake will not expand the executable
+# path properly when invoking add_custom_command()
+set(CMAKE_CROSSCOMPILING_EMULATOR "")

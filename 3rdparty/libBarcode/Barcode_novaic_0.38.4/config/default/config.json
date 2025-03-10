@@ -1,0 +1,1021 @@
+{
+    "global": {
+        "public": {
+            "barcode_type": [],
+            "filter_ops": [],
+            "timeout_period": 0,
+            "gamma_val": 1.0,
+            "filter_string": "",
+            "gs1_enable": false,
+            "gtin_enable": false,
+            "udi_enable": false, 
+            "medicine_enable": false            
+        },
+        "private": {
+            "skew_angle": 50,
+            "enable_dl": true
+        },
+        "__description": {
+            "barcode_type": "[DM, QR, CODE_128, CODE_39, CODE_93, UPC_E, UPC_A, EAN_13, EAN_8, ITF, UPC_EAN_EXTENSION,1D,2D]",
+            "filter_ops": "[op1, op2, ...], 0: dilate, 1: erode, 2: open, 4:close, 8:mean, 16:median, 32:normalize, 64: unsharpmask"
+        }
+    },
+    "default": {
+        "one_dimensional_code": {
+            "public": {
+                "polarity": 1,
+                "nums_max_output": 100,
+                "enable_full_scan": true,
+                "min_ppm": 0.8,
+                "enable_curved_code": true,
+                "prelocate_scale": 0.8,
+                "pyramid_level": 2,
+                "code39_enable_check_digit": false,
+                "itf_enable_check_digit": false,
+                "auto_upca": false,
+                "codabar_enable_check_digit": false
+            },
+            "private": {
+                "line_detect_grad_thresh": 25,
+                "preprocess_sharp": false,
+                "preprocess_close_dotcode": 0,
+                "binarize_peak": true,
+                "binarize_subpixel": false,
+                "binarize_zxing": false,
+                "decode_extend_times": 4,
+                "peak_min_delta": 10,
+                "enable_strict_decode": false,
+                "pharma_min_decode_times": 5,
+                "pharma_line_detect_grad_thresh": 50
+            },
+            "__description": {
+                "polarity": "0: auto, 1: dark_on_light, 2: light_on_dark",
+                "prelocate_scale": "valid_range: (0.2, 1.0); if out of range, disable prelocate",
+                "pyramid_level": "0: auto, 1: larger code, 2: smaller code",
+                "preprocess_close_dotcode": "0: off, 1~7: close with different level"
+            }
+        },
+        "two_dimensional_code": {
+            "public": {
+                "polarity": 0,
+                "mirror_type": 0,
+                "rough_locate_enable": false,
+                "min_pixel_size": 0,
+                "max_pixel_size": 1280,
+                "nums_max_output": 1,
+                "min_ppm": 1.5,
+                "dm_version": [
+                    0,
+                    0
+                ],
+                "dm_pyrmid_level": 6,
+                "dm_shape_type": 0,
+                "dm_aspect_ratio": 7,
+                "dm_enable_distortion_decode": true,
+                "dm_enable_defect_decode": true,
+                "dm_ecc_type": 6,
+                "qr_running_mode": 0,
+                "qr_version": -1,
+                "qr_aspect_ratio": 7,
+                "qr_enable_distortion_decode": true,
+                "qr_enable_defect_decode": true,
+                "qr_model_type": 2
+            },
+            "private": {
+                "dm_enable_contrast_boost": true,
+                "dm_contrast_min": 3.5,
+                "dm_stop_level": 1,
+                "dm_enable_line_merge": false,
+                "dm_enable_coarse_locate_decode": false,
+                "dm_enable_dash_scan": true,
+                "enable_tradition_decode": false
+            },
+            "__description": {
+                "polarity": "0: auto, 1: dark_on_light, 2: light_on_dark",
+                "mirror_type": "0: auto, 1: no_mirror, 2: mirrored",
+                "qr_model_type": "0: auto, 1: model_1, 2: model_2",
+                "dm_edge_type": "0: auto. reserved",
+                "dm_shape_type": "0: auto, 1: square, 2: rectangle"
+            }
+        },
+        "quality_verify": {
+            "2d_quality_enable": false,
+            "1d_quality_enable": false,
+            "iso_standard": 0,
+            "__description": {
+                "iso_standard": "0: 15415/6, 1: 29158"
+            }
+        },
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "",
+            "input_img_h": 800,
+            "input_img_w": 1280,
+            "img_h": 384,
+            "img_w": 640,
+            "scale0": 0.017120,
+            "scale1": 0.017120,
+            "scale2": 0.017120,
+            "mean0": 123.675003,
+            "mean1": 123.675003,
+            "mean2": 123.675003,
+            "thread_num": 1,
+            "num_instance": 300,
+            "score_thresh": 0.1,
+            "decode_pipeline": true,
+            "decode_multi_thread": false
+        },
+        "dl_2d_fpcls_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_fpcls_model/2dfpcls_v6.17.smartmore",
+            "keep_aspect_ratio": 1,
+            "center_padding": 1,
+            "img_h": 128,
+            "img_w": 128,
+            "thread_num": 1,
+            "output_classes": 3,
+            "core_idx": 0
+        },
+        "dl_2d_precloc_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_fine_model/2dprecloc_v3.26.smartmore",
+            "center_padding": 1,
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 192,
+            "img_w": 192,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_2d_versioncls_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_versioncls_model/2dversioncls_v3.7.smartmore",
+            "img_h": 128,
+            "img_w": 128,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_dm_binary_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_binary_model/dm_binary_v2.13.smartmore",
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 224,
+            "img_w": 224,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_dm_rect_binary_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_binary_model/dm_binary_v2.11_rect.smartmore",
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 128,
+            "img_w": 320,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_qr_binary_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_binary_model/qr_binary_v2.12.smartmore",
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 320,
+            "img_w": 320,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_1d_fpcls_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_fpcls_model/1dfpcls_v6.11.smartmore",
+            "keep_aspect_ratio": 0,
+            "center_padding": 0,
+            "img_h": 64,
+            "img_w": 224,
+            "thread_num": 1,
+            "output_classes": 2,
+            "core_idx": 0
+        },
+        "dl_1d_precloc_params": {
+            "enable": true,
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_fine_model/1dprecloc_v3.21.smartmore",
+            "center_padding": 1,
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 64,
+            "img_w": 256,
+            "thread_num": 1,
+            "core_idx": 0
+        },
+        "dl_1d_decoder_params": {
+            "warning": "deprecated",
+            "enable": false,
+            "model_file_path": "./3rdparty/tengine_model/mstd_0811.smartmore",
+            "over_height": 96,
+            "target_height": 64,
+            "target_width": 512,
+            "scale0": 1.0,
+            "scale1": 1.0,
+            "scale2": 1.0,
+            "mean0": 107.1968311,
+            "mean1": 107.1968311,
+            "mean2": 107.1968311,
+            "std0": 0.013520126,
+            "std1": 0.013520126,
+            "std2": 0.013520126,
+            "thread_num": 1,
+            "bound_width": 250,
+            "crop_mid_heigh": true
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": true,
+            "model_file_path_": "./3rdparty/tengine_1d_dl_decoder_model/1d_decoder_exp051_uint8.smartmore",
+            "model_file_path": "./3rdparty/tengine_1d_dl_decoder_model/1d_decoder_all_exp123_uint8.smartmore",
+            "input_width": 512,
+            "input_height": 64,
+            "thread_num": 1,
+            "blank": 0,
+            "enable_traditional": false,
+            "decode_secure_level": "median",
+            "comment": "decode_secure_level: one of (normal, median, strict)",
+            "decode_postprocess_enable": true,
+            "enable_dl_c39": false,
+            "enable_dl_c93": false,
+            "enable_dl_ean13": true,
+            "enable_dl_codabar": false,
+            "core_idx": 0
+        },
+        "new_dl_1d_decoder_light_params": {
+            "enable": true,
+            "model_file_path_": "./3rdparty/tengine_1d_dl_decoder_model/1d_decoder_exp048_uint8.smartmore",
+            "model_file_path": "./3rdparty/tengine_1d_dl_decoder_model/1d_decoder_all_exp122_uint8.smartmore",
+            "input_width": 480,
+            "input_height": 48,
+            "thread_num": 1,
+            "blank": 0,
+            "enable_traditional": false,
+            "decode_secure_level": "normal",
+            "comment": "decode_secure_level: one of (normal, median, strict)",
+            "decode_postprocess_enable": true,
+            "enable_dl_c39": false,
+            "enable_dl_c93": false,
+            "enable_dl_ean13": true,
+            "enable_dl_codabar": false,
+            "core_idx": 0
+        }
+    },
+    "rule": {
+        "enable_dl": false,
+        "dl_detector_params": {
+            "enable": false
+        },
+        "dl_2d_fpcls_params": {
+            "enable": false
+        },
+        "dl_2d_precloc_params": {
+            "enable": false
+        },
+        "dl_2d_versioncls_params": {
+            "enable": false
+        },
+        "dl_qr_binary_params": {
+            "enable": false
+        },
+        "dl_dm_binary_params": {
+            "enable": false
+        },
+        "dl_dm_rect_binary_params": {
+            "enable": false
+        },
+        "dl_1d_fpcls_params": {
+            "enable": false
+        },
+        "dl_1d_precloc_params": {
+            "enable": false
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "nxp30w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/30w.smartmore",
+            "input_img_h": 480,
+            "input_img_w": 640,
+            "img_h": 256,
+            "img_w": 320
+        }
+    },
+    "nxp100w": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/100w.smartmore"
+        }
+    },
+    "nxp200w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/200w.smartmore",
+            "input_img_h": 1200,
+            "input_img_w": 1920,
+            "img_h": 608,
+            "img_w": 960
+        }
+    },
+    "nxp500w_lite": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/500w_lite.smartmore",
+            "input_img_h": 2048,
+            "input_img_w": 2448,
+            "img_h": 512,
+            "img_w": 640
+        }
+    },
+    "nxp500w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/500w.smartmore",
+            "input_img_h": 2048,
+            "input_img_w": 2448,
+            "img_h": 1024,
+            "img_w": 1248
+        }
+    },
+    "nxp_ar500w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/ar500w.smartmore",
+            "input_img_h": 1920,
+            "input_img_w": 2560,
+            "img_h": 960,
+            "img_w": 1280
+        }
+    },
+    "nxp_500w_teledyne": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/500w_teledyne.smartmore",
+            "input_img_h": 1936,
+            "input_img_w": 2560,
+            "img_h": 992,
+            "img_w": 1280
+        }
+    },
+    "nxp1500w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/1500w.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 4096,
+            "img_h": 1920,
+            "img_w": 2048
+        }
+    },
+    "nxp2000w": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/2000w.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 1920,
+            "img_w": 2560
+        }
+    },
+    "nxp2000w_lite": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/2000w_lite.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 960,
+            "img_w": 1280
+        }
+    },
+    "nxp2000w_sony183": {
+        "dl_detector_params": {
+            "inference_type": 0,
+            "model_file_path": "./3rdparty/tengine_model/v13_exp31_coarse_models_250115/2000w_sony183.smartmore",
+            "input_img_h": 3648,
+            "input_img_w": 5472,
+            "img_h": 1824,
+            "img_w": 2752
+        }
+    },
+    "onnxruntime": {
+        "dl_detector_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/v10_coarse_loc.smartmore",
+            "scale0": 58.395,
+            "scale1": 58.395,
+            "scale2": 58.395
+        },
+        "dl_2d_fpcls_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/cls_exp31_2d.smartmore",
+            "img_h": 224,
+            "img_w": 224
+        },
+        "dl_2d_precloc_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/2dprecloc_v1.326.smartmore",
+            "img_h": 200,
+            "img_w": 200
+        },
+        "dl_dm_binary_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/exp329_bi_pg.smartmore",
+            "img_h": 320,
+            "img_w": 320
+        },
+        "dl_1d_fpcls_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/cls_exp30_1d.smartmore",
+            "img_h": 64,
+            "img_w": 224
+        },
+        "dl_1d_precloc_params": {
+            "inference_type": 4,
+            "model_file_path": "./3rdparty/smmodel/1dprecloc_v1.12.smartmore",
+            "center_padding": 1,
+            "img_h": 64,
+            "img_w": 224
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "trt": {
+        "dl_detector_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/v10_coarse_loc.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 1920,
+            "img_w": 2560,
+            "scale0": 58.395,
+            "scale1": 58.395,
+            "scale2": 58.395
+        },
+        "dl_2d_fpcls_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/cls_exp31_2d.smartmore"
+        },
+        "dl_2d_precloc_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/2dprecloc_v1.326.smartmore"
+        },
+        "dl_dm_binary_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/binary_v1.329.smartmore"
+        },
+        "dl_1d_fpcls_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/cls_exp30_1d.smartmore"
+        },
+        "dl_1d_precloc_params": {
+            "inference_type": 3,
+            "model_file_path": "./3rdparty/smmodel/1dprecloc_v1.12.smartmore",
+            "center_padding": 1,
+            "scale0": 0.02175,
+            "scale1": 0.02175,
+            "scale2": 0.02175,
+            "mean0": 89.70142186,
+            "mean1": 89.70278978,
+            "mean2": 89.70173344,
+            "img_h": 64,
+            "img_w": 224,
+            "thread_num": 1
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "hailo100w": {
+        "dl_detector_params": {
+            "inference_type": 5,
+            "model_file_path": "./3rdparty/hailo_model/v9_100w_hailo.smartmore"
+        }
+    },
+    "hailo2000w": {
+        "dl_detector_params": {
+            "inference_type": 5,
+            "model_file_path": "./3rdparty/hailo_model/v9_2000w_hailo.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 1920,
+            "img_w": 2560
+        }
+    },
+    "hailo2000w_sony183": {
+        "dl_detector_params": {
+            "inference_type": 5,
+            "model_file_path": "./3rdparty/hailo_model/v9_2000w_hailo_sony183.smartmore",
+            "input_img_h": 3648,
+            "input_img_w": 5472,
+            "img_h": 1824,
+            "img_w": 2752
+        }
+    },
+    "hailo2000w_lite": {
+        "dl_detector_params": {
+            "inference_type": 5,
+            "model_file_path": "./3rdparty/hailo_model/v9_2000w_hailo_lite.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 960,
+            "img_w": 1280
+        }
+    },
+    "android": {
+        "dl_detector_params": {
+            "inference_type": 2,
+            "model_file_path": "./3rdparty/mnn_model/model_v5_nas_2.0.0.smartmore",
+            "mean0": 123.675,
+            "mean1": 123.675,
+            "mean2": 123.675
+        },
+        "dl_2d_fpcls_params": {
+            "enable": false
+        },
+        "dl_2d_precloc_params": {
+            "enable": false
+        },
+        "dl_dm_binary_params": {
+            "enable": false
+        },
+        "dl_1d_precloc_params": {
+            "enable": false
+        },
+        "dl_1d_binary_params": {
+            "enable": false
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "ios": {
+        "dl_detector_params": {
+            "inference_type": 1,
+            "model_file_path": "3rdparty/sm/v5_nas_app.smartmore",
+            "scale0": 58.395,
+            "scale1": 58.395,
+            "scale2": 58.395
+        },
+        "dl_2d_fpcls_params": {
+            "enable": false
+        },
+        "dl_2d_precloc_params": {
+            "enable": false
+        },
+        "dl_dm_binary_params": {
+            "enable": false
+        },
+        "dl_1d_binary_params": {
+            "enable": false
+        },
+        "dl_1d_precloc_params": {
+            "enable": false
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "novaic100w": {
+        "dl_detector_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/v13_exp17_novaic100w.smartmore",
+            "input_img_h": 800,
+            "input_img_w": 1280,
+            "img_h": 384,
+            "img_w": 640,
+            "num_instance": 10,
+            "score_thresh": 0.3,
+            "decode_pipeline": false,
+            "decode_multi_thread": false
+        },
+        "dl_2d_fpcls_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/2dfpcls_v6.11.smartmore",
+            "keep_aspect_ratio": 1,
+            "center_padding": 1,
+            "img_h": 128,
+            "img_w": 128
+        },
+        "dl_2d_precloc_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/2dprecloc_v3.10.smartmore",
+            "center_padding": 1,
+            "img_h": 192,
+            "img_w": 192
+        },
+        "dl_1d_fpcls_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/1dfpcls_v6.2.smartmore",
+            "keep_aspect_ratio": 0,
+            "center_padding": 0,
+            "img_h": 64,
+            "img_w": 224
+        },
+        "dl_1d_precloc_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/1dprecloc_v3.17.smartmore",
+            "center_padding": 1,
+            "img_h": 64,
+            "img_w": 256
+        },
+        "dl_2d_versioncls_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/2dversioncls_v3.7.smartmore",
+            "img_h": 128,
+            "img_w": 128
+        },
+        "dl_dm_binary_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/dm_binary_v2.11.smartmore",
+            "img_h": 224,
+            "img_w": 224
+        },
+        "dl_dm_rect_binary_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/dm_binary_v2.11_rect.smartmore",
+            "img_h": 128,
+            "img_w": 320
+        },
+        "dl_qr_binary_params": {
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/qr_binary_v2.12.smartmore",
+            "img_h": 320,
+            "img_w": 320
+        },
+        "new_dl_1d_decoder_params": {
+            "model_file_path_": "./3rdparty/novaic_model/vs600_56x/1d_decoder_exp051_600.smartmore",
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/1d_decoder_all_exp123_600.smartmore",
+            "__light_model_file_path": "./3rdparty/novaic_model/vs600_56x/1d_dl_decoder_v1.0.2_light3x.smartmore"
+        },
+        "new_dl_1d_decoder_light_params": {
+            "enable": true,
+            "model_file_path_": "./3rdparty/novaic_model/vs600_56x/1d_decoder_exp048_600.smartmore",
+            "model_file_path": "./3rdparty/novaic_model/vs600_56x/1d_decoder_all_exp122_600.smartmore",
+            "input_width": 480,
+            "input_height": 48,
+            "thread_num": 1,
+            "blank": 0,
+            "enable_traditional": false,
+            "decode_secure_level": "normal",
+            "comment": "decode_secure_level: one of (normal, median, strict)",
+            "decode_postprocess_enable": true,
+            "enable_dl_c39": false,
+            "enable_dl_c93": false,
+            "enable_dl_ean13": true,
+            "enable_dl_codabar": false
+        }
+    },
+    "novaic_52x": {
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "",
+            "score_thresh": 0.3,
+            "decode_pipeline": false,
+            "decode_multi_thread": false
+        },
+        "dl_2d_fpcls_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/2dfpcls_v6.11.smartmore",
+            "keep_aspect_ratio": 1,
+            "center_padding": 1,
+            "img_h": 128,
+            "img_w": 128
+        },
+        "dl_2d_precloc_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/2dprecloc_v3.10.smartmore",
+            "center_padding": 1,
+            "img_h": 192,
+            "img_w": 192
+        },
+        "dl_1d_fpcls_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/1dfpcls_v6.2.smartmore",
+            "keep_aspect_ratio": 0,
+            "center_padding": 0,
+            "img_h": 64,
+            "img_w": 224
+        },
+        "dl_1d_precloc_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/1dprecloc_v3.17.smartmore",
+            "center_padding": 1,
+            "img_h": 64,
+            "img_w": 256
+        },
+        "dl_2d_versioncls_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/2dversioncls_v3.7.smartmore",
+            "img_h": 128,
+            "img_w": 128
+        },
+        "dl_dm_binary_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11.smartmore",
+            "img_h": 224,
+            "img_w": 224
+        },
+        "dl_dm_rect_binary_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11_rect.smartmore",
+            "img_h": 128,
+            "img_w": 320
+        },
+        "dl_qr_binary_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/qr_binary_v2.12.smartmore",
+            "img_h": 320,
+            "img_w": 320
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": true,
+            "model_file_path_": "./3rdparty/novaic_model/vs800_52x/1d_decoder_exp051_800p.smartmore",
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp123_800p.smartmore",
+            "__light_model_file_path": "./3rdparty/novaic_model/vs800_52x/1d_dl_decoder_v1.0.2_light3x.smartmore"
+        },
+        "new_dl_1d_decoder_light_params": {
+            "enable": true,
+            "model_file_path_": "./3rdparty/novaic_model/vs800_52x/1d_decoder_exp048_800p.smartmore",
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp122_800p.smartmore",
+            "input_width": 480,
+            "input_height": 48,
+            "thread_num": 1,
+            "blank": 0,
+            "enable_traditional": false,
+            "decode_secure_level": "normal",
+            "comment": "decode_secure_level: one of (normal, median, strict)",
+            "decode_postprocess_enable": true,
+            "enable_dl_c39": false,
+            "enable_dl_c93": false,
+            "enable_dl_ean13": true,
+            "enable_dl_codabar": false
+        }
+    },
+    "novaic150w": {
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/v13_exp17_novaic150w.smartmore",
+            "input_img_h": 1288,
+            "input_img_w": 1088,
+            "img_h": 640,
+            "img_w": 544,
+            "num_instance": 100,
+            "score_thresh": 0.3
+        }
+    },
+    "novaic150w_vericode": {
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/v12_exp64_vericode.smartmore",
+            "input_img_h": 1288,
+            "input_img_w": 1088,
+            "img_h": 864,
+            "img_w": 736,
+            "num_instance": 100,
+            "score_thresh": 0.1
+        }
+    },
+    "novaic230w": {
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 6,
+            "model_file_path": "./3rdparty/novaic_model/vs800_52x/v13_exp17_novaic230w.smartmore",
+            "input_img_h": 1200,
+            "input_img_w": 1920,
+            "img_h": 608,
+            "img_w": 960,
+            "num_instance": 100,
+            "score_thresh": 0.3,
+            "decode_pipeline": true,
+            "decode_multi_thread": true
+        },
+        "dl_1d_fpcls_params": {
+            "core_idx": 0
+        },
+        "dl_1d_precloc_params": {
+            "core_idx": 0
+        },
+        "new_dl_1d_decoder_params": {
+            "core_idx": 0
+        },
+        "new_dl_1d_decoder_light_params": {
+            "core_idx": 0
+        },
+        "dl_2d_fpcls_params": {
+            "core_idx": 0
+        },
+        "dl_2d_precloc_params": {
+            "core_idx": 0
+        },
+        "dl_2d_versioncls_params": {
+            "core_idx": 1
+        },
+        "dl_dm_binary_params": {
+            "core_idx": 1
+        },
+        "dl_dm_rect_binary_params": {
+            "core_idx": 1
+        },
+        "dl_qr_binary_params": {
+            "core_idx": 1
+        }
+    },
+    "macos": {
+        "dl_detector_params": {
+            "inference_type": 1,
+            "model_file_path": "3rdparty/mlmodel/v3_test_384x640.mlmodel",
+            "scale0": 58.395,
+            "scale1": 58.395,
+            "scale2": 58.395
+        },
+        "dl_2d_fpcls_params": {
+            "enable": false
+        },
+        "dl_2d_precloc_params": {
+            "enable": false
+        },
+        "dl_dm_binary_params": {
+            "enable": false
+        },
+        "dl_1d_fpcls_params": {
+            "enable": false
+        },
+        "dl_1d_precloc_params": {
+            "enable": false
+        },
+        "new_dl_1d_decoder_params": {
+            "enable": false
+        }
+    },
+    "rknn_base": {
+        "dl_detector_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "",
+            "decode_pipeline": true,
+            "decode_multi_thread": false
+        },
+        "dl_2d_fpcls_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/2dfpcls_v5.18.smartmore"
+        },
+        "dl_2d_precloc_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/2dprecloc_v2.18.smartmore",
+            "img_h": 200,
+            "img_w": 200
+        },
+        "dl_1d_fpcls_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/1dfpcls_v5.7.smartmore"
+        },
+        "dl_1d_precloc_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/1dprec_v3.11.smartmore"
+        },
+        "dl_dm_binary_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/dm_binary_v2.4.smartmore"
+        },
+        "dl_dm_rect_binary_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/dm_binary_v2.4_rect.smartmore"
+        },
+        "dl_qr_binary_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/qr_binary_v2.4.smartmore"
+        },
+        "dl_2d_versioncls_params": {
+            "enable": true,
+            "inference_type": 7,
+            "model_file_path": "./3rdparty/rknn_model/2dversioncls_v3.5.smartmore"
+        },
+        "dl_1d_decoder_params": {
+            "enable": false
+        },
+        "new_dl_1d_decoder_params": {
+            "inference_type": 7,
+            "model_file_path_": "./3rdparty/rknn_model/1d_decoder_exp075.smartmore",
+            "model_file_path": "./3rdparty/rknn_model/1d_decoder_all_exp28.smartmore",
+            "enable": true
+        },
+        "new_dl_1d_decoder_light_params": {
+            "inference_type": 7,
+            "model_file_path_": "./3rdparty/rknn_model/1d_decoder_exp074.smartmore",
+            "model_file_path": "./3rdparty/rknn_model/1d_decoder_all_exp29.smartmore",
+            "enable": true,
+            "input_width": 480,
+            "input_height": 48,
+            "thread_num": 1,
+            "blank": 0,
+            "enable_traditional": false,
+            "decode_secure_level": "normal",
+            "comment": "decode_secure_level: one of (normal, median, strict)",
+            "decode_postprocess_enable": true,
+            "enable_dl_c39": false,
+            "enable_dl_c93": false,
+            "enable_dl_ean13": true,
+            "enable_dl_codabar": false
+        }
+    },
+    "rknn100w": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/100w.smartmore"
+        }
+    },
+    "rknn500w": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/500w.smartmore",
+            "input_img_h": 2048,
+            "input_img_w": 2448,
+            "img_h": 1024,
+            "img_w": 1248
+        }
+    },
+    "rknn800w": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/800w.smartmore",
+            "input_img_h": 2160,
+            "input_img_w": 3840,
+            "img_h": 1088,
+            "img_w": 1920
+        }
+    },
+    "rknn2000w": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/2000w.smartmore",
+            "input_img_h": 3840,
+            "input_img_w": 5120,
+            "img_h": 1920,
+            "img_w": 2560
+        }
+    },
+    "rknn2000w_sony183": {
+        "dl_detector_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/2000w_sony183.smartmore",
+            "input_img_h": 3648,
+            "input_img_w": 5472,
+            "img_h": 1824,
+            "img_w": 2752
+        },
+        "dl_detector_light_params": {
+            "model_file_path": "./3rdparty/rknn_model/v13_exp6_coarse_models/500w.smartmore",
+            "input_img_h": 3648,
+            "input_img_w": 5472,
+            "img_h": 1024,
+            "img_w": 1248
+        }
+    }
+}

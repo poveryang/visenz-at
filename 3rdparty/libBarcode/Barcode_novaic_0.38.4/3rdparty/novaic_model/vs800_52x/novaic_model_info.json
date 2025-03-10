@@ -1,0 +1,230 @@
+{
+    "novaic150w": {
+        "0": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/v13_exp17_novaic150w.smartmore",
+            "size": 623936,
+            "use_flag": true
+        },
+        "1": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dprecloc_v3.10.smartmore",
+            "size": 1731456,
+            "use_flag": true
+        },
+        "10": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp122_800p.smartmore",
+            "size": 3033644,
+            "use_flag": true
+        },
+        "2": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dfpcls_v6.11.smartmore",
+            "size": 213816,
+            "use_flag": true
+        },
+        "3": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dversioncls_v3.7.smartmore",
+            "size": 1415984,
+            "use_flag": true
+        },
+        "4": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/qr_binary_v2.12.smartmore",
+            "size": 1442284,
+            "use_flag": true
+        },
+        "5": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11.smartmore",
+            "size": 1423772,
+            "use_flag": true
+        },
+        "6": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11_rect.smartmore",
+            "size": 1421212,
+            "use_flag": true
+        },
+        "7": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dfpcls_v6.2.smartmore",
+            "size": 703432,
+            "use_flag": true
+        },
+        "8": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dprecloc_v3.17.smartmore",
+            "size": 3102200,
+            "use_flag": true
+        },
+        "9": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp123_800p.smartmore",
+            "size": 3058908,
+            "use_flag": true
+        }
+    },
+    "novaic150w_vericode": {
+        "0": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/v12_exp64_vericode.smartmore",
+            "size": 4319464,
+            "use_flag": true
+        },
+        "1": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dprecloc_v3.10.smartmore",
+            "size": 1731456,
+            "use_flag": true
+        },
+        "10": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp122_800p.smartmore",
+            "size": 3033644,
+            "use_flag": true
+        },
+        "2": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dfpcls_v6.11.smartmore",
+            "size": 213816,
+            "use_flag": true
+        },
+        "3": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dversioncls_v3.7.smartmore",
+            "size": 1415984,
+            "use_flag": true
+        },
+        "4": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/qr_binary_v2.12.smartmore",
+            "size": 1442284,
+            "use_flag": true
+        },
+        "5": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11.smartmore",
+            "size": 1423772,
+            "use_flag": true
+        },
+        "6": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11_rect.smartmore",
+            "size": 1421212,
+            "use_flag": true
+        },
+        "7": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dfpcls_v6.2.smartmore",
+            "size": 703432,
+            "use_flag": true
+        },
+        "8": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dprecloc_v3.17.smartmore",
+            "size": 3102200,
+            "use_flag": true
+        },
+        "9": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp123_800p.smartmore",
+            "size": 3058908,
+            "use_flag": true
+        }
+    },
+    "novaic230w": {
+        "0": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/v13_exp17_novaic230w.smartmore",
+            "size": 652880,
+            "use_flag": true
+        },
+        "1": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dprecloc_v3.10.smartmore",
+            "size": 1731456,
+            "use_flag": true
+        },
+        "10": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dprecloc_v3.17.smartmore",
+            "size": 3102200,
+            "use_flag": true
+        },
+        "11": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp123_800p.smartmore",
+            "size": 3058908,
+            "use_flag": true
+        },
+        "12": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp122_800p.smartmore",
+            "size": 3033644,
+            "use_flag": true
+        },
+        "13": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp123_800p.smartmore",
+            "size": 3058908,
+            "use_flag": true
+        },
+        "14": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1d_decoder_all_exp122_800p.smartmore",
+            "size": 3033644,
+            "use_flag": true
+        },
+        "2": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dfpcls_v6.11.smartmore",
+            "size": 213816,
+            "use_flag": true
+        },
+        "3": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/2dversioncls_v3.7.smartmore",
+            "size": 1415984,
+            "use_flag": true
+        },
+        "4": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/qr_binary_v2.12.smartmore",
+            "size": 1442284,
+            "use_flag": true
+        },
+        "5": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11.smartmore",
+            "size": 1423772,
+            "use_flag": true
+        },
+        "6": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/dm_binary_v2.11_rect.smartmore",
+            "size": 1421212,
+            "use_flag": true
+        },
+        "7": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dfpcls_v6.2.smartmore",
+            "size": 703432,
+            "use_flag": true
+        },
+        "8": {
+            "ddr_id": 1,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dfpcls_v6.2.smartmore",
+            "size": 703432,
+            "use_flag": true
+        },
+        "9": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs800_52x/1dprecloc_v3.17.smartmore",
+            "size": 3102200,
+            "use_flag": true
+        }
+    }
+}

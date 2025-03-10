@@ -1,0 +1,27 @@
+var structsmartmore_1_1barcode_1_1BarcodeParams2DQuota =
+[
+    [ "an_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#af3c612725c0ea1426c30ce8f4ecbf76e", null ],
+    [ "an_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a7d4c01cbedd1db7217c49420e75055ae", null ],
+    [ "cc_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a856f5f92403b9ae2c25bbf8cdd942efa", null ],
+    [ "cc_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#af0734d0f48bba5f53dbb25c5282fe195", null ],
+    [ "cm_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a2b7aa6dfdccad172767a9adef0e6fa93", null ],
+    [ "cm_mod_uec", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a7812cb4322f5e6eaf9dee039ff8d0135", null ],
+    [ "ddg_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#ae5c6c017e9e0adabe1ed2ed6bbee9876", null ],
+    [ "decode_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a7a52bc59c9063eb71107319ccf09a2ab", null ],
+    [ "decode_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a4d57530bfa0ff9a0c92d0dd25c85c91f", null ],
+    [ "fpd_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#abe18a088bbe781c1a7728b193caf0b80", null ],
+    [ "fpd_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a25000761c9ac62c20cab885b7e4f9444", null ],
+    [ "gn_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a665751608e675c577bb029e195ca8995", null ],
+    [ "gn_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a5a129a6f544d8152e0841c25617955c6", null ],
+    [ "include_print_growth_in_final_grade", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a350672d720b8aeed0226d0823a683ca9", null ],
+    [ "mod_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a867405b614799ce2a65d2effd5a1ed11", null ],
+    [ "mod_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#aae7ad3848a51c1535f51c0e4b4252b89", null ],
+    [ "print_growth_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a286efe055862b3b15b6c7b862d783ac0", null ],
+    [ "print_growth_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#acf4ba4f5a4f7b498b8ffaca2397b376f", null ],
+    [ "rcal_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a9edf29be0fecaad7f4af8bee246bf887", null ],
+    [ "rcal_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a7653791aabe78773c44bcc6bf54e6117", null ],
+    [ "sc_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a4aa6c9b21ec5d637d542aca0e805dd6f", null ],
+    [ "sc_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a10cc03fd22e94bf2e1ee5e0e8846a9ee", null ],
+    [ "uec_enable", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a9448ebadeb048ba7f7357b8060d4f913", null ],
+    [ "uec_thres", "structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a2cc80dcd7d4d3279e1673b4a86f372f4", null ]
+];

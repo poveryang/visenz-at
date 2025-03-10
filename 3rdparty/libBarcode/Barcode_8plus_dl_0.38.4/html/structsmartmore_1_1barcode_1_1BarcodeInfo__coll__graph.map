@@ -1,0 +1,6 @@
+<map id="smartmore::barcode::BarcodeInfo" name="smartmore::barcode::BarcodeInfo">
+<area shape="rect" id="node1" title="struct BarcodeInfo" alt="" coords="324,71,479,112"/>
+<area shape="rect" id="node2" href="$structsmartmore_1_1barcode_1_1ISO15416Quality.html" title="struct ISO15416Quality" alt="" coords="5,5,160,47"/>
+<area shape="rect" id="node3" href="$structsmartmore_1_1barcode_1_1ISO15415Quality.html" title="struct ISO15415Quality" alt="" coords="5,71,160,112"/>
+<area shape="rect" id="node4" href="$structsmartmore_1_1barcode_1_1ISO29158Quality.html" title="struct ISO29158Quality" alt="" coords="5,136,160,177"/>
+</map>

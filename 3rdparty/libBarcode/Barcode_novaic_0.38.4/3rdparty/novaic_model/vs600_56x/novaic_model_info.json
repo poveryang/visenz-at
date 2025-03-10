@@ -1,0 +1,70 @@
+{
+    "novaic100w": {
+        "0": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/v13_exp17_novaic100w.smartmore",
+            "size": 640000,
+            "use_flag": true
+        },
+        "1": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/2dprecloc_v3.10.smartmore",
+            "size": 1740368,
+            "use_flag": true
+        },
+        "10": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/1d_decoder_all_exp122_600.smartmore",
+            "size": 3043052,
+            "use_flag": true
+        },
+        "2": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/2dfpcls_v6.11.smartmore",
+            "size": 213816,
+            "use_flag": true
+        },
+        "3": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/2dversioncls_v3.7.smartmore",
+            "size": 1415984,
+            "use_flag": true
+        },
+        "4": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/qr_binary_v2.12.smartmore",
+            "size": 1475772,
+            "use_flag": true
+        },
+        "5": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/dm_binary_v2.11.smartmore",
+            "size": 1439548,
+            "use_flag": true
+        },
+        "6": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/dm_binary_v2.11_rect.smartmore",
+            "size": 1434140,
+            "use_flag": true
+        },
+        "7": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/1dfpcls_v6.2.smartmore",
+            "size": 704424,
+            "use_flag": true
+        },
+        "8": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/1dprecloc_v3.17.smartmore",
+            "size": 3102200,
+            "use_flag": true
+        },
+        "9": {
+            "ddr_id": 0,
+            "model_name": "./3rdparty/novaic_model/vs600_56x/1d_decoder_all_exp123_600.smartmore",
+            "size": 3068396,
+            "use_flag": true
+        }
+    }
+}

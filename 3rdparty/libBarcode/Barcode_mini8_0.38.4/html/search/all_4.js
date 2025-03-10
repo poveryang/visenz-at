@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['dataset_0',['Dataset',['../dataset.html',1,'']]],
+  ['dataset_2emd_1',['dataset.md',['../dataset_8md.html',1,'']]],
+  ['ddg_2',['ddg',['../structsmartmore_1_1barcode_1_1ISO29158Quality.html#a9840fee0bc41053a0ecc23711b27229d',1,'smartmore::barcode::ISO29158Quality']]],
+  ['ddg_5fenable_3',['ddg_enable',['../structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#ae5c6c017e9e0adabe1ed2ed6bbee9876',1,'smartmore::barcode::BarcodeParams2DQuota']]],
+  ['ddg_5fvalue_4',['ddg_value',['../structsmartmore_1_1barcode_1_1ISO29158Quality.html#ad34403246a107e0e771065e35554f413',1,'smartmore::barcode::ISO29158Quality']]],
+  ['decodability_5',['decodability',['../structsmartmore_1_1barcode_1_1ISO15416Quality.html#ab9c57f953d55a54242564eb6510b0a02',1,'smartmore::barcode::ISO15416Quality']]],
+  ['decodability_5fenable_6',['decodability_enable',['../structsmartmore_1_1barcode_1_1BarcodeParams1DQuota.html#aeceb04636ebd1b34041c83c33cefd5bb',1,'smartmore::barcode::BarcodeParams1DQuota']]],
+  ['decodability_5fraw_7',['decodability_raw',['../structsmartmore_1_1barcode_1_1ISO15416Quality.html#a6c172ef678e455ca6e59a49b64f22e15',1,'smartmore::barcode::ISO15416Quality']]],
+  ['decodability_5fthres_8',['decodability_thres',['../structsmartmore_1_1barcode_1_1BarcodeParams1DQuota.html#a8147f0bf777c75d6441a92ce38516fc1',1,'smartmore::barcode::BarcodeParams1DQuota']]],
+  ['decode_9',['decode',['../structsmartmore_1_1barcode_1_1ISO29158Quality.html#ab5cc711d67e0cc4dddf8d6b8febd109f',1,'smartmore::barcode::ISO29158Quality::decode()'],['../structsmartmore_1_1barcode_1_1ISO15415Quality.html#a021f71818a184b776f0aad32b5da2829',1,'smartmore::barcode::ISO15415Quality::decode()']]],
+  ['decode_5f1d_10',['decode_1d',['../structsmartmore_1_1barcode_1_1BarcodeResponse.html#ac64cc90dd0b76a861db366e70630d4f8',1,'smartmore::barcode::BarcodeResponse']]],
+  ['decode_5f2d_11',['decode_2d',['../structsmartmore_1_1barcode_1_1BarcodeResponse.html#a88ee3dcd85537edf907789c6126a9013',1,'smartmore::barcode::BarcodeResponse']]],
+  ['decode_5fenable_12',['decode_enable',['../structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a7a52bc59c9063eb71107319ccf09a2ab',1,'smartmore::barcode::BarcodeParams2DQuota']]],
+  ['decode_5fsucceed_13',['decode_succeed',['../structsmartmore_1_1barcode_1_1BarcodeInfo.html#a28ca56dba340ca2fe808d76918ac4f76',1,'smartmore::barcode::BarcodeInfo']]],
+  ['decode_5fthres_14',['decode_thres',['../structsmartmore_1_1barcode_1_1BarcodeParams2DQuota.html#a4d57530bfa0ff9a0c92d0dd25c85c91f',1,'smartmore::barcode::BarcodeParams2DQuota']]],
+  ['decode_5ftime_15',['decode_time',['../structsmartmore_1_1barcode_1_1BarcodeInfo.html#a78eedbedfcfdd967dc9bb15cd1253e8b',1,'smartmore::barcode::BarcodeInfo']]],
+  ['defect_5fstatus_16',['defect_status',['../structsmartmore_1_1barcode_1_1BarcodeInfo.html#a44bb3c560968f4ba223eab1bd33fb183',1,'smartmore::barcode::BarcodeInfo']]],
+  ['defects_17',['defects',['../structsmartmore_1_1barcode_1_1ISO15416Quality.html#afa9c20ed1b2b9714c40e2baab428be8a',1,'smartmore::barcode::ISO15416Quality']]],
+  ['defects_5fenable_18',['defects_enable',['../structsmartmore_1_1barcode_1_1BarcodeParams1DQuota.html#aaf2fd75a16360e2d3f2e62d4867ac0d8',1,'smartmore::barcode::BarcodeParams1DQuota']]],
+  ['defects_5fraw_19',['defects_raw',['../structsmartmore_1_1barcode_1_1ISO15416Quality.html#ad9c6cd8064767902d05f5440bc5c6b2f',1,'smartmore::barcode::ISO15416Quality']]],
+  ['defects_5fthres_20',['defects_thres',['../structsmartmore_1_1barcode_1_1BarcodeParams1DQuota.html#a4d019174f7210122479bcca11511046b',1,'smartmore::barcode::BarcodeParams1DQuota']]],
+  ['detect_5fsucceed_21',['detect_succeed',['../structsmartmore_1_1barcode_1_1BarcodeInfo.html#a050976bdd27ec57e56861483078b42f6',1,'smartmore::barcode::BarcodeInfo']]],
+  ['dmecctype_22',['DMECCType',['../namespacesmartmore_1_1barcode.html#ab13bd254bc7b1a0eb7b2d3111e878d65',1,'smartmore::barcode']]],
+  ['dmedgetype_23',['DMEdgeType',['../namespacesmartmore_1_1barcode.html#a44bda2f720246d8097a1e6336f65792e',1,'smartmore::barcode']]],
+  ['dmshapetype_24',['DMShapeType',['../namespacesmartmore_1_1barcode.html#a646b1b3e7eb1530038a42834af8e52ad',1,'smartmore::barcode']]]
+];
