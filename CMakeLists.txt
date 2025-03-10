@@ -45,7 +45,7 @@ endif ()
 
 # Set install path
 message(STATUS "Platform: ${PLATFORM}")
-set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/release/${PLATFORM}")
+set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/release/AT4VS_v${PROJECT_VERSION}/${PLATFORM}")
 
 # Set OpenCV and Barcode library path according to platform
 if (${PLATFORM} STREQUAL "imx8plus")  # NXP i.MX8M Plus
