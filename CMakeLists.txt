@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(ViSenz-AT VERSION 5.1.4)
+project(AT4VS VERSION 5.1.4)
 add_definitions(
         -DVERSION_MAJOR=${PROJECT_VERSION_MAJOR}
         -DVERSION_MINOR=${PROJECT_VERSION_MINOR}
