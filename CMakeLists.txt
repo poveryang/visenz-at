@@ -26,9 +26,13 @@ endif ()
 
 # Set platform according to device(if not defined platform)
 if (NOT DEFINED PLATFORM)
-    # Exit if device is not defined
+    # Set default device for Mac environment
     if (NOT DEFINED DEVICE)
-        message(FATAL_ERROR "Please specify the device name by -DDEVICE=xxx")
+        if (APPLE)
+            set(DEVICE "vs1000p")
+        else()
+            message(FATAL_ERROR "Please specify the device name by -DDEVICE=xxx")
+        endif()
     endif ()
 
     # Set platform according to device
@@ -48,7 +52,11 @@ message(STATUS "Platform: ${PLATFORM}")
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/release/AT4VS_v${PROJECT_VERSION}/${PLATFORM}")
 
 # Set OpenCV and Barcode library path according to platform
-if (${PLATFORM} STREQUAL "imx8plus")  # NXP i.MX8M Plus
+if (APPLE)
+    # Use system OpenCV on Mac
+    set(OpenCV_DIR "/opt/homebrew/Cellar/opencv/4.11.0_1/lib/cmake/opencv4")
+    set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_8plus_dl_0.38.4")
+elseif (${PLATFORM} STREQUAL "imx8plus")  # NXP i.MX8M Plus
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
     set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_8plus_dl_0.38.4")
 elseif (${PLATFORM} STREQUAL "imx8mini") # NXP i.MX8M Mini
