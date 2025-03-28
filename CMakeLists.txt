@@ -18,7 +18,7 @@ option(BUILD_WITH_LOG "Build With Log" ON)
 # Build setting
 set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -Wno-psabi")
 
 if (BUILD_WITH_LOG)
     add_definitions(-DBUILD_WITH_LOG)
