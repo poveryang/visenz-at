@@ -71,7 +71,7 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     exceed_tunning_count = false;   
 }
 
-bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch, float fraction) 
+bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch)
 {
     /* Calc metrics in current frame */
     #ifdef BUILD_WITH_LOG
@@ -140,7 +140,7 @@ bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<c
             */
         }
 
-        UpdateExposureAndGain(brt_target, fraction);
+        this->UpdateExposureAndGain(brt_target);
 
         return false;
     }
@@ -293,89 +293,7 @@ double AEImpl::CalcMeanBrt(const cv::Mat &image, const std::vector<cv::Rect> &ro
     return mean_brt;
 }
 
-// void AEImpl::UpdateExposureAndGain(int brt_target, float fraction)
-// {
-//     #ifdef BUILD_WITH_LOG
-//         std::cout << "UpdateExposureAndGain()" << std::endl;
-//     #endif
-//     float brt_cur = static_cast<float>(status_cur.brt);
-//     brt_cur = std::max(brt_cur, 1.0f);  // 防止除零
-//     int cur_exposure = status_cur.params.exp_time;
-//     int cur_eg = status_cur.params.exp_gain;
-//
-//     float total_scale = brt_target * 1.0 / brt_cur;
-//
-//     float eg_scale = 1.0f;
-//     float et_scale = 1.0f;
-//     // 当需要降低亮度的时候，由于曝光为0时，是能基本保证亮度为0，因此会限定gain的下限为32，其余分量全压在曝光上
-//     if(total_scale < 1)
-//     {
-//         #ifdef BUILD_WITH_LOG
-//             std::cout << "decrease brt" << std::endl;
-//         #endif
-//         // 降亮度的时候，如果gain<init，则不调整eg了
-//         // 这个if是在只有cur_eg > init_eg 的时候，才会调整eg
-//         if(cur_eg > init_eg)
-//         {
-//             eg_scale = init_eg * 1.0f / cur_eg;
-//         }
-//         et_scale = std::min(total_scale/eg_scale, 1.0f);
-//
-//         if (et_scale < 1 && cur_exposure < min_et+1)
-//         {
-//             #ifdef BUILD_WITH_LOG
-//                 std::cout << "exposure time down to limit, scale eg at this situation" << std::endl;
-//             #endif
-//             eg_scale = total_scale;
-//             et_scale = 1.0f;
-//         }
-//     }
-//     else
-//     {
-//         #ifdef BUILD_WITH_LOG
-//             std::cout << "increase brt" << std::endl;
-//         #endif
-//         et_scale = total_scale;
-//         if(cur_exposure * total_scale > (max_et*fraction))
-//         {
-//             et_scale = (max_et*fraction) * 1.0f / cur_exposure;
-//             eg_scale = std::min(2.0f, total_scale / et_scale);
-//         }
-//         if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
-//         {
-//             eg_scale = std::min(1.1f, eg_scale);
-//         }
-//         else if(cur_eg > 120)
-//         {
-//             eg_scale = std::min(1.05f, eg_scale);
-//         }
-//     }
-//
-//     #ifdef BUILD_WITH_LOG
-//         std::cout << "et scale " << et_scale << ",  eg scale" << eg_scale << std::endl;
-//     #endif
-//
-//     int next_et = std::min(int(cur_exposure*et_scale), int(max_et*fraction));
-//     next_et = std::max(next_et, min_et);
-//     int next_eg = std::min(int(cur_eg*eg_scale), max_eg);
-//     next_eg = std::max(next_eg, min_eg);
-//     if(next_eg - cur_eg > 30)   // 限制增益的增长，以免超调
-//     {
-//         #ifdef BUILD_WITH_LOG
-//             std::cout << "limit eg increase in 30" << std::endl;
-//         #endif
-//         next_eg = cur_eg + 30;
-//     }
-//
-//     #ifdef BUILD_WITH_LOG
-//         std::cout << "next et " << next_et << ",  next eg " << next_eg << std::endl;
-//     #endif
-//
-//     params_next.exp_time = next_et;
-//     params_next.exp_gain = next_eg;
-// }
-
-void AEImpl::UpdateExposureAndGain(const int brt_target, const double fraction)
+void AEImpl::UpdateExposureAndGain(int brt_target)
 {
     #ifdef BUILD_WITH_LOG
         std::cout << "UpdateExposureAndGain()" << std::endl;
@@ -417,9 +335,9 @@ void AEImpl::UpdateExposureAndGain(const int brt_target, const double fraction)
             std::cout << "increase brt" << std::endl;
         #endif
         et_scale = total_scale;
-        if(cur_et * total_scale > (max_et * fraction))
+        if(cur_et * total_scale > (max_et))
         {
-            et_scale = (max_et * fraction) / cur_et;
+            et_scale = (max_et * 1.0f) / cur_et;
             eg_scale = std::min(2.0, total_scale / et_scale);
         }
         if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
@@ -439,7 +357,7 @@ void AEImpl::UpdateExposureAndGain(const int brt_target, const double fraction)
     int next_et = 0;
     if (min_et_step == 1) {
         next_et = static_cast<int>(cur_et * et_scale);
-        next_et = std::clamp(next_et, min_et, static_cast<int>(max_et * fraction));
+        next_et = std::clamp(next_et, min_et, static_cast<int>(max_et));
     } else {
         next_et = static_cast<int>((cur_et * et_scale) / min_et_step) * min_et_step;
         printf("cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
@@ -451,7 +369,7 @@ void AEImpl::UpdateExposureAndGain(const int brt_target, const double fraction)
             }
             printf("Adjust et, cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
         }
-        next_et = std::clamp(next_et, min_et_step, static_cast<int>(max_et * fraction));
+        next_et = std::clamp(next_et, min_et_step, static_cast<int>(max_et));
     }
 
     int next_eg = static_cast<int>(cur_eg * eg_scale);

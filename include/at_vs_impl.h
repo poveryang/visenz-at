@@ -16,6 +16,15 @@
 class AT4VsImpl : public ATImplBase 
 {
 public:
+    /* Object and conf of AF */
+    af::AFInterface af_obj;
+    af::AFConf af_conf;
+
+    /* Object and conf of AE */
+    ae::AEInterface ae_obj;
+    ae::AEConf ae_conf;
+
+public:
     /**
      * @brief AT4VsImpl constructor
      * @param enable_hmap flag to indicate whether the heatmap-generator is used
@@ -25,7 +34,7 @@ public:
     /**
     * @brief AT4VsImpl destructor
     */
-    ~AT4VsImpl() override = default;
+    ~AT4VsImpl() = default;
 
     /**
      * @brief Init the ATImplBase
@@ -54,23 +63,11 @@ public:
      * @brief Load camera configuration to submodules
      * @param cam_conf the camera configuration
      */
-    void LoadCamConf(const CamConf &cam_conf);
+    void LoadCamConf(CamConf &cam_conf);
 
-    /**
-     * @brief Set the ROI
-     * @param roi the ROI
-     */
     void SetRoi(const cv::Rect &roi) override;
 
 private:
-    /* Object and conf of AF */
-    af::AFInterface af_obj;
-    af::AFConf af_conf{};
-
-    /* Object and conf of AE */
-    ae::AEInterface ae_obj;
-    ae::AEConf ae_conf{};
-
     bool enable_hmap_;
 
     BarcodeWrapperBase *barcode_wrapper_{};
@@ -102,7 +99,6 @@ private:
     int aest_statistics_num;        // aest时，每个亮度测试次数
     int aest_statistics_cur;        // aest时，当前计数
     int aest_detect_success_count;  // aest时，成功检测到码的次数，暂时没有用
-    int aest_decode_success_count;
     int aest_detect_thre;           // 用于提前退出aest的阈值
     cv::Mat aest_regions_canvas;    // 用于记录aest成功detect的位置
     std::map<int, CamParams> aest_params_map;  // 记录每次aest的参数
@@ -111,9 +107,6 @@ private:
     float refine_max_decode_rate; // refine 时，轮询出来的最大解码成功次数
     float refine_statistics_cur;  // refine 时，当前测试次数
     float refine_decode_success_count; // refine 时，统计的解码成功次数
-
-    std::vector<float> refine_et_fraction;
-    int refine_et_fraction_idx;
 };
 
 #endif //AT_VS_IMPL_H

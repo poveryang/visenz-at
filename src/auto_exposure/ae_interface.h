@@ -31,7 +31,7 @@ namespace ae {
          * @param image input image
          * @param brt_target target brightness
          */
-        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true, float fraction=1.0);
+        void QuickTune(const cv::Mat &image, int brt_target=128, const std::vector<cv::Rect> &rois={}, int brt_diff_thre=15, bool enable_switch=true);
 
         bool UpdateLights();
 

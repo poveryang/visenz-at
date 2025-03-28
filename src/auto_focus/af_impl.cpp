@@ -567,7 +567,6 @@ int AFImpl::SlidingWinSearch(std::vector<double> &val_vec, int win_size, bool mo
 void AFImpl::ApplyMaxFv(std::vector<int> &pos_vec, int &peak_idx) 
 {
     // get pos and fv vectors
-    pos_vec;
     std::vector<double> fv_vec;
     GetPosFv(pos_vec, fv_vec);
 

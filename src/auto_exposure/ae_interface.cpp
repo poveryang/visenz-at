@@ -24,10 +24,10 @@ void AEInterface::Init(AEConf &ae_cam_conf, bool en_al)
     params_next = ae_impl_->params_next;
 }
 
-void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch, float fraction) 
+void AEInterface::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch)
 {
     /* Quick tuning */
-    this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre, enable_switch, fraction);
+    this->end_qt = ae_impl_->QuickTune(image, brt_target, rois, brt_diff_thre, enable_switch);
     params_next = ae_impl_->params_next;
     this->ae_fail = ae_impl_->ae_fail;
     this->exceed_tunning_count = ae_impl_->exceed_tunning_count;
