@@ -1,5 +1,7 @@
 /release/
 /build/
+/test/3rdparty/
+
+.cache/
 .idea/
 .vscode/
-/test/3rdparty/

@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 
+# compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 project(AT4VS VERSION 5.1.4)
 add_definitions(
         -DVERSION_MAJOR=${PROJECT_VERSION_MAJOR}
