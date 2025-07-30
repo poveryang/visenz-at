@@ -70,7 +70,8 @@ elseif (${PLATFORM} STREQUAL "nova")  # Novatek NT985xx
     set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_novaic_0.38.4")
 elseif (${PLATFORM} STREQUAL "rknn") # NXP i.MX8M Plus with RKNN
     set(OpenCV_DIR "/opt/libs_aarch64/opencv_aarch64/lib/cmake/opencv4")
-    set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_rknn_0.34.5_rknn")
+    # set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_rknn_0.34.5_rknn")
+    set(Barcode_DIR "${CMAKE_SOURCE_DIR}/3rdparty/libBarcode/Barcode_rknn_0.39.15")
 endif ()
 
 # Load OpenCV
