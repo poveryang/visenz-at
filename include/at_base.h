@@ -18,7 +18,7 @@ struct CamConf {
     int max_intensity;                  // 开灯 1
 
     /** Exposure control*/
-    int min_et_step;                    // 曝光时间的最小步长
+    // int min_et_step;                    // 曝光时间的最小步长
     int min_et;                         // 从相机获得的最小曝光时间
     int max_et;                         // 从相机获得的最大曝光时间
     int min_eg;                         // 从相机获得的最小增益
@@ -34,6 +34,7 @@ struct CamConf {
     int init_pos;                       // AT 初始化的焦距，不同相机不同，可设置
     int coarse_af_step;                 // 粗对焦时的焦距步长，不同相机不同，可设置 
     int refine_af_step;                 // 精对焦是的焦距步长，不同相机不同，可设置
+    int min_et_step=1;                  // 曝光时间的最小步长
 };
 
 /** @brief Camera parameters.*/
