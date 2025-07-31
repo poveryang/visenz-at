@@ -167,7 +167,7 @@ void AT4VsImpl::LoadCamConf(CamConf &cam_conf)
 
     /* Load AE configuration */
     ae_conf.ae_mode = cam_conf.ae_mode;
-    ae_conf.min_et_step = cam_conf.min_et_step;
+    ae_conf.min_et_step = (cam_conf.min_et == 1250) ? 1250 : 1;
     ae_conf.min_et = cam_conf.min_et;
     ae_conf.max_et = cam_conf.max_et;
     ae_conf.min_eg = cam_conf.min_eg;
