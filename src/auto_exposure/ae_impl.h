@@ -92,6 +92,16 @@ namespace ae {
         /* Metrics values with corresponding exposure params */
         std::vector<std::vector<int>> lights_sets;   // sets of lights
 
+        /* Adaptive weight strategy for exposure vs gain */
+        double et_weight;                    // weight for exposure time adjustment
+        double eg_weight;                    // weight for exposure gain adjustment
+        double marginal_et_efficiency;       // marginal efficiency of exposure time
+        double marginal_eg_efficiency;       // marginal efficiency of exposure gain
+        std::vector<double> et_history;      // history of exposure time changes
+        std::vector<double> eg_history;      // history of exposure gain changes
+        std::vector<double> brt_history;     // history of brightness changes
+        int history_window_size;             // size of history window for efficiency calculation
+
         explicit AEImpl(const AEConf &ae_cam_conf, bool en_al);
 
         ~AEImpl() = default;
@@ -105,6 +115,32 @@ namespace ae {
         bool UpdateLights();
 
         void UpdateExposureAndGain(int brt_target);
+
+        /**
+         * Reset history for adaptive weight calculation
+         * Call this when switching lights or resetting AE state
+         */
+        void ResetHistory();
+
+    private:
+        /**
+         * Calculate marginal efficiency of exposure time and gain
+         * @param brt_target target brightness
+         */
+        void CalculateMarginalEfficiency(int brt_target);
+
+        /**
+         * Update adaptive weights based on marginal efficiency
+         */
+        void UpdateAdaptiveWeights();
+
+        /**
+         * Calculate weighted scale factors for exposure time and gain
+         * @param total_scale total brightness scale needed
+         * @param brt_target target brightness
+         * @return pair of {et_scale, eg_scale}
+         */
+        std::pair<double, double> CalculateWeightedScales(double total_scale, int brt_target);
     };
 } // namespace ae
 

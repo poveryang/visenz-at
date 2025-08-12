@@ -69,6 +69,16 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     max_tuning_count = 15;
     ae_fail = false; 
     exceed_tunning_count = false;   
+
+    /* Initialize adaptive weight strategy */
+    et_weight = 0.7;                    // initial weight for exposure time
+    eg_weight = 0.3;                    // initial weight for exposure gain
+    marginal_et_efficiency = 1.0;       // initial marginal efficiency
+    marginal_eg_efficiency = 1.0;       // initial marginal efficiency
+    history_window_size = 5;        // window size for efficiency calculation
+    et_history.clear();
+    eg_history.clear();
+    brt_history.clear();
 }
 
 bool AEImpl::QuickTune(const cv::Mat &image, int brt_target, const std::vector<cv::Rect> &rois, int brt_diff_thre, bool enable_switch)
@@ -161,6 +171,10 @@ bool AEImpl::UpdateLights()
     params_next.lights = lights_sets.back();
     params_next.exp_gain = init_eg;
     lights_sets.pop_back();
+    
+    // Reset history when switching lights
+    ResetHistory();
+    
     return true;
 }
 
@@ -298,78 +312,41 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
     #ifdef BUILD_WITH_LOG
         std::cout << "UpdateExposureAndGain()" << std::endl;
     #endif
+    
+    // Calculate marginal efficiency and update weights
+    CalculateMarginalEfficiency(brt_target);
+    UpdateAdaptiveWeights();
+    
     const double brt_cur = std::max(status_cur.brt, 1.0);  // Prevent division by zero
     const int cur_et = status_cur.params.exp_time;
     const int cur_eg = status_cur.params.exp_gain;
 
     const double total_scale = brt_target / brt_cur;
-    double eg_scale = 1.0;
-    double et_scale = 1.0;
-
-    // 当需要降低亮度的时候，由于曝光为0时，是能基本保证亮度为0，因此会限定gain的下限为32，其余分量全压在曝光上
-    if(total_scale < 1)
-    {
-        #ifdef BUILD_WITH_LOG
-            std::cout << "decrease brt" << std::endl;
-        #endif
-        // 降亮度的时候，如果gain<init，则不调整eg了
-        // 这个if是在只有cur_eg > init_eg 的时候，才会调整eg
-        if(cur_eg > init_eg)
-        {
-            eg_scale = static_cast<double>(init_eg) / cur_eg;
-        }
-        et_scale = std::min(total_scale/eg_scale, 1.0);
-
-        if (et_scale < 1 && cur_et <= std::max(min_et, min_et_step))
-        {
-            #ifdef BUILD_WITH_LOG
-                std::cout << "exposure time down to limit, scale eg at this situation" << std::endl;
-            #endif
-            eg_scale = total_scale;
-            et_scale = 1.0f;
-        }
-    }
-    else
-    {
-        #ifdef BUILD_WITH_LOG
-            std::cout << "increase brt" << std::endl;
-        #endif
-        et_scale = total_scale;
-        if(cur_et * total_scale > (max_et))
-        {
-            et_scale = (max_et * 1.0f) / cur_et;
-            eg_scale = std::min(2.0, total_scale / et_scale);
-        }
-        if(cur_eg > 80 && cur_eg <=120)   // 实验表明，亮度曲线是分段的，统一设置当超过80后，限制放大系数，以免超调
-        {
-            eg_scale = std::min(1.1, eg_scale);
-        }
-        else if(cur_eg > 120)
-        {
-            eg_scale = std::min(1.05, eg_scale);
-        }
-    }
+    
+    // Use adaptive weighted strategy to calculate scales
+    auto [et_scale, eg_scale] = CalculateWeightedScales(total_scale, brt_target);
 
     #ifdef BUILD_WITH_LOG
+        std::cout << "Adaptive weights - ET: " << et_weight << ", EG: " << eg_weight << std::endl;
         std::cout << "et scale " << et_scale << ",  eg scale " << eg_scale << std::endl;
     #endif
 
     int next_et = 0;
     if (min_et_step == 1) {
         next_et = static_cast<int>(cur_et * et_scale);
-        next_et = std::clamp(next_et, min_et, static_cast<int>(max_et));
+        next_et = std::clamp(next_et, min_et, max_et);
     } else {
         next_et = static_cast<int>((cur_et * et_scale) / min_et_step) * min_et_step;
         printf("cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
         if (next_et == cur_et) {
             if (et_scale < 1) {
-                next_et -= min_et_step;  // 确保减少一个 min_et_step
+                next_et -= min_et_step;  // ensure decrease one min_et_step
             } else if (et_scale > 1) {
-                next_et += min_et_step;  // 确保增加一个 min_et_step
+                next_et += min_et_step;  // ensure increase one min_et_step
             }
             printf("Adjust et, cur_et %d, et_scale %f, next_et %d\n", cur_et, et_scale, next_et);
         }
-        next_et = std::clamp(next_et, min_et_step, static_cast<int>(max_et));
+        next_et = std::clamp(next_et, min_et_step, max_et);
     }
 
     int next_eg = static_cast<int>(cur_eg * eg_scale);
@@ -388,4 +365,140 @@ void AEImpl::UpdateExposureAndGain(int brt_target)
 
     params_next.exp_time = next_et;
     params_next.exp_gain = next_eg;
+}
+
+void AEImpl::CalculateMarginalEfficiency(int brt_target)
+{
+    // Add current values to history
+    et_history.push_back(status_cur.params.exp_time);
+    eg_history.push_back(status_cur.params.exp_gain);
+    brt_history.push_back(status_cur.brt);
+    
+    // Keep history window size
+    if (et_history.size() > history_window_size) {
+        et_history.erase(et_history.begin());
+        eg_history.erase(eg_history.begin());
+        brt_history.erase(brt_history.begin());
+    }
+    
+    // Calculate marginal efficiency only if we have enough history
+    if (et_history.size() >= 2) {
+        // Calculate changes
+        double et_change = et_history.back() - et_history[et_history.size() - 2];
+        double eg_change = eg_history.back() - eg_history[et_history.size() - 2];
+        double brt_change = brt_history.back() - brt_history[brt_history.size() - 2];
+        
+        // Check if only one parameter changed significantly (for cleaner efficiency calculation)
+        double et_change_pct = std::abs(et_change) / std::max(et_history[et_history.size() - 2], 1.0);
+        double eg_change_pct = std::abs(eg_change) / std::max(eg_history[eg_history.size() - 2], 1.0);
+        double brt_change_pct = std::abs(brt_change) / std::max(brt_history[brt_history.size() - 2], 1.0);
+        
+        // Calculate marginal efficiency based on dominant parameter change
+        if (et_change_pct > eg_change_pct * 2.0 && et_change_pct > 1e-6) {
+            // Exposure time was the dominant change
+            marginal_et_efficiency = brt_change_pct / et_change_pct;
+        } else if (eg_change_pct > et_change_pct * 2.0 && eg_change_pct > 1e-6) {
+            // Gain was the dominant change
+            marginal_eg_efficiency = brt_change_pct / eg_change_pct;
+        } else {
+            // Both parameters changed significantly, use theoretical models
+            // For exposure time: assume linear relationship with diminishing returns
+            double current_et = status_cur.params.exp_time;
+            double normalized_et = (current_et - min_et) / (max_et - min_et);
+            marginal_et_efficiency = std::exp(-normalized_et * 1.5); // Diminishing returns model
+            marginal_et_efficiency = std::clamp(marginal_et_efficiency, 0.2, 1.0);
+            
+            // For gain: exponential decay due to noise amplification
+            double current_gain = status_cur.params.exp_gain;
+            double normalized_gain = (current_gain - min_eg) / (max_eg - min_eg);
+            marginal_eg_efficiency = std::exp(-normalized_gain * 2.0);
+            marginal_eg_efficiency = std::clamp(marginal_eg_efficiency, 0.1, 1.0);
+        }
+        
+        #ifdef BUILD_WITH_LOG
+            std::cout << "Marginal efficiency - ET: " << marginal_et_efficiency 
+                      << ", EG: " << marginal_eg_efficiency 
+                      << " (ET change: " << et_change_pct << "%, EG change: " << eg_change_pct << "%)" << std::endl;
+        #endif
+    }
+}
+
+void AEImpl::UpdateAdaptiveWeights()
+{
+    // Calculate efficiency ratio
+    double efficiency_ratio = marginal_et_efficiency / (marginal_et_efficiency + marginal_eg_efficiency + 1e-6);
+    
+    // Update weights with smoothing factor
+    double smoothing_factor = 0.3; // Default smoothing factor
+    double new_et_weight = smoothing_factor * efficiency_ratio + (1 - smoothing_factor) * et_weight;
+    double new_eg_weight = 1.0 - new_et_weight;
+    
+    // Apply constraints to prevent extreme values
+    new_et_weight = std::clamp(new_et_weight, 0.2, 0.8); // Min/Max weight constraints
+    new_eg_weight = std::clamp(new_eg_weight, 0.2, 0.8); // Min/Max weight constraints
+    
+    et_weight = new_et_weight;
+    eg_weight = new_eg_weight;
+    
+    #ifdef BUILD_WITH_LOG
+        std::cout << "Updated weights - ET: " << et_weight << ", EG: " << eg_weight 
+                  << " (ET efficiency: " << marginal_et_efficiency 
+                  << ", EG efficiency: " << marginal_eg_efficiency << ")" << std::endl;
+    #endif
+}
+
+std::pair<double, double> AEImpl::CalculateWeightedScales(double total_scale, int brt_target)
+{
+    double et_scale = 1.0;
+    double eg_scale = 1.0;
+    
+    if (total_scale < 1.0) {
+        // Decreasing brightness - prioritize reducing gain first
+        if (status_cur.params.exp_gain > init_eg) {
+            eg_scale = static_cast<double>(init_eg) / status_cur.params.exp_gain;
+        }
+        et_scale = std::min(total_scale / eg_scale, 1.0);
+        
+        if (et_scale < 1 && status_cur.params.exp_time <= std::max(min_et, min_et_step)) {
+            eg_scale = total_scale;
+            et_scale = 1.0;
+        }
+    } else {
+        // Increasing brightness - use adaptive weights
+        double remaining_scale = total_scale;
+        
+        // First, try to use exposure time with its weight
+        double et_scale_max = std::min(total_scale, static_cast<double>(max_et) / status_cur.params.exp_time);
+        et_scale = 1.0 + (et_scale_max - 1.0) * et_weight;
+        remaining_scale = total_scale / et_scale;
+        
+        // Then use gain for the remaining scale
+        if (remaining_scale > 1.0) {
+            eg_scale = remaining_scale;
+            
+            // Apply gain-specific constraints
+            if (status_cur.params.exp_gain > 80 && status_cur.params.exp_gain <= 120) {
+                eg_scale = std::min(1.3, eg_scale);
+            } else if (status_cur.params.exp_gain > 120) {
+                eg_scale = std::min(1.1, eg_scale);
+            }
+        }
+    }
+    
+    return {et_scale, eg_scale};
+}
+
+void AEImpl::ResetHistory()
+{
+    et_history.clear();
+    eg_history.clear();
+    brt_history.clear();
+    marginal_et_efficiency = 1.0;
+    marginal_eg_efficiency = 1.0;
+    et_weight = 0.7;
+    eg_weight = 0.3;
+    
+    #ifdef BUILD_WITH_LOG
+        std::cout << "Reset AE history and weights" << std::endl;
+    #endif
 }
