@@ -102,6 +102,14 @@ namespace ae {
         std::vector<double> brt_history;     // history of brightness changes
         int history_window_size;             // size of history window for efficiency calculation
 
+        static constexpr double DEFAULT_ET_WEIGHT = 0.65;           // default weight for exposure time
+        static constexpr double DEFAULT_EG_WEIGHT = 0.35;           // default weight for exposure gain
+        static constexpr double DEFAULT_MARGINAL_EFFICIENCY = 1.0; // default marginal efficiency
+        static constexpr double MIN_MARGINAL_EFFICIENCY = 0.1;     // minimum marginal efficiency
+        static constexpr double SMOOTHING_FACTOR = 0.3;            // smoothing factor for weight updates
+        static constexpr double MIN_WEIGHT = 0.2;                  // minimum weight constraint
+        static constexpr double MAX_WEIGHT = 0.8;                  // maximum weight constraint
+
         explicit AEImpl(const AEConf &ae_cam_conf, bool en_al);
 
         ~AEImpl() = default;

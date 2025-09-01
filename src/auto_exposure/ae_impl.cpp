@@ -71,10 +71,10 @@ AEImpl::AEImpl(const AEConf &ae_conf, bool en_al)
     exceed_tunning_count = false;   
 
     /* Initialize adaptive weight strategy */
-    et_weight = 0.7;                    // initial weight for exposure time
-    eg_weight = 0.3;                    // initial weight for exposure gain
-    marginal_et_efficiency = 1.0;       // initial marginal efficiency
-    marginal_eg_efficiency = 1.0;       // initial marginal efficiency
+    et_weight = DEFAULT_ET_WEIGHT;                    // initial weight for exposure time
+    eg_weight = DEFAULT_EG_WEIGHT;                    // initial weight for exposure gain
+    marginal_et_efficiency = DEFAULT_MARGINAL_EFFICIENCY;       // initial marginal efficiency
+    marginal_eg_efficiency = DEFAULT_MARGINAL_EFFICIENCY;       // initial marginal efficiency
     history_window_size = 5;        // window size for efficiency calculation
     et_history.clear();
     eg_history.clear();
@@ -405,14 +405,14 @@ void AEImpl::CalculateMarginalEfficiency(int brt_target)
             // For exposure time: assume linear relationship with diminishing returns
             double current_et = status_cur.params.exp_time;
             double normalized_et = (current_et - min_et) / (max_et - min_et);
-            marginal_et_efficiency = std::exp(-normalized_et * 1.5); // Diminishing returns model
-            marginal_et_efficiency = std::clamp(marginal_et_efficiency, 0.2, 1.0);
+            marginal_et_efficiency = std::exp(-normalized_et * 2.5); // Stronger diminishing returns model
+            marginal_et_efficiency = std::clamp(marginal_et_efficiency, MIN_MARGINAL_EFFICIENCY, 1.0);
             
             // For gain: exponential decay due to noise amplification
             double current_gain = status_cur.params.exp_gain;
             double normalized_gain = (current_gain - min_eg) / (max_eg - min_eg);
             marginal_eg_efficiency = std::exp(-normalized_gain * 2.0);
-            marginal_eg_efficiency = std::clamp(marginal_eg_efficiency, 0.1, 1.0);
+            marginal_eg_efficiency = std::clamp(marginal_eg_efficiency, MIN_MARGINAL_EFFICIENCY, 1.0);
         }
         
         #ifdef BUILD_WITH_LOG
@@ -429,13 +429,12 @@ void AEImpl::UpdateAdaptiveWeights()
     double efficiency_ratio = marginal_et_efficiency / (marginal_et_efficiency + marginal_eg_efficiency + 1e-6);
     
     // Update weights with smoothing factor
-    double smoothing_factor = 0.3; // Default smoothing factor
-    double new_et_weight = smoothing_factor * efficiency_ratio + (1 - smoothing_factor) * et_weight;
+    double new_et_weight = SMOOTHING_FACTOR * efficiency_ratio + (1 - SMOOTHING_FACTOR) * et_weight;
     double new_eg_weight = 1.0 - new_et_weight;
     
     // Apply constraints to prevent extreme values
-    new_et_weight = std::clamp(new_et_weight, 0.2, 0.8); // Min/Max weight constraints
-    new_eg_weight = std::clamp(new_eg_weight, 0.2, 0.8); // Min/Max weight constraints
+    new_et_weight = std::clamp(new_et_weight, MIN_WEIGHT, MAX_WEIGHT); // Min/Max weight constraints
+    new_eg_weight = std::clamp(new_eg_weight, MIN_WEIGHT, MAX_WEIGHT); // Min/Max weight constraints
     
     et_weight = new_et_weight;
     eg_weight = new_eg_weight;
@@ -470,6 +469,11 @@ std::pair<double, double> AEImpl::CalculateWeightedScales(double total_scale, in
         // First, try to use exposure time with its weight
         double et_scale_max = std::min(total_scale, static_cast<double>(max_et) / status_cur.params.exp_time);
         et_scale = 1.0 + (et_scale_max - 1.0) * et_weight;
+        
+        // Simple efficiency-based limitation
+        if (marginal_et_efficiency < 0.3) {
+            et_scale = std::min(et_scale, 1.2); // Limit ET increase when efficiency is low
+        }
         remaining_scale = total_scale / et_scale;
         
         // Then use gain for the remaining scale
@@ -493,10 +497,10 @@ void AEImpl::ResetHistory()
     et_history.clear();
     eg_history.clear();
     brt_history.clear();
-    marginal_et_efficiency = 1.0;
-    marginal_eg_efficiency = 1.0;
-    et_weight = 0.7;
-    eg_weight = 0.3;
+    marginal_et_efficiency = DEFAULT_MARGINAL_EFFICIENCY;
+    marginal_eg_efficiency = DEFAULT_MARGINAL_EFFICIENCY;
+    et_weight = DEFAULT_ET_WEIGHT;
+    eg_weight = DEFAULT_EG_WEIGHT;
     
     #ifdef BUILD_WITH_LOG
         std::cout << "Reset AE history and weights" << std::endl;
