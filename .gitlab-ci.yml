@@ -1,0 +1,96 @@
+stages:
+  - build
+
+# 全局变量（可选）
+variables:
+  # CMake 并行度，可以按需要调整
+  CMAKE_JOBS: "16"
+
+# 默认使用的 Runner 标签，根据你的 Runner 实际 tag 修改
+default:
+  tags:
+    - wsl-linux    # 比如你之前那个 yjunj_smore_wsl Runner
+
+# 1) imx8mini 平台构建，对应你原来的脚本 1
+build_imx8mini:
+  stage: build
+  image: compiler:imx8mini
+  script:
+    - echo "Building for imx8mini..."
+    # 清理 build 目录
+    - rm -rf "$CI_PROJECT_DIR/build/imx8mini"
+    # 加载 Yocto 环境
+    - source /opt/myir-imx-xwayland/4.14-sumo/environment-setup-aarch64-poky-linux
+    # CMake 配置
+    - |
+      /usr/bin/cmake \
+        -DPLATFORM='imx8mini' \
+        -S "$CI_PROJECT_DIR" \
+        -B "$CI_PROJECT_DIR/build/imx8mini"
+    # CMake 构建 + 安装
+    - |
+      /usr/bin/cmake \
+        --build "$CI_PROJECT_DIR/build/imx8mini" \
+        --target install \
+        -- -j "${CMAKE_JOBS}"
+  artifacts:
+    paths:
+      - build/imx8mini/
+      - release/
+    expire_in: 7 days
+
+# 2) imx8plus 平台构建，对应你原来的脚本 2
+build_imx8plus:
+  stage: build
+  image: compiler:imx8plus
+  script:
+    - echo "Building for imx8plus..."
+    # 清理 build 目录
+    - rm -rf "$CI_PROJECT_DIR/build/imx8plus"
+    # CMake 配置
+    - |
+      /usr/bin/cmake \
+        -DPLATFORM='imx8plus' \
+        -DCMAKE_C_COMPILER='/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc' \
+        -DCMAKE_CXX_COMPILER='/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++' \
+        -S "$CI_PROJECT_DIR" \
+        -B "$CI_PROJECT_DIR/build/imx8plus"
+    # CMake 构建 + 安装
+    - |
+      /usr/bin/cmake \
+        --build "$CI_PROJECT_DIR/build/imx8plus" \
+        --target install \
+        -- -j "${CMAKE_JOBS}"
+  artifacts:
+    paths:
+      - build/imx8plus/
+      - release/
+    expire_in: 7 days
+
+# 3) nova 平台构建，对应你原来的脚本 3
+build_nova:
+  stage: build
+  image: compiler:nova
+  script:
+    - echo "Building for nova..."
+    # 清理 build 目录
+    - rm -rf "$CI_PROJECT_DIR/build/nova"
+    # CMake 配置
+    - |
+      /usr/bin/cmake \
+        -DPLATFORM='nova' \
+        -DCMAKE_C_COMPILER='/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc' \
+        -DCMAKE_CXX_COMPILER='/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++' \
+        -S "$CI_PROJECT_DIR" \
+        -B "$CI_PROJECT_DIR/build/nova"
+    # CMake 构建 + 安装
+    - |
+      /usr/bin/cmake \
+        --build "$CI_PROJECT_DIR/build/nova" \
+        --target install \
+        -- -j "${CMAKE_JOBS}"
+  artifacts:
+    paths:
+      - build/nova/
+      - release/
+    expire_in: 7 days
