@@ -9,6 +9,7 @@ variables:
   CMAKE_JOBS: "16"
   # 在 Package Registry 里显示的包名
   PACKAGE_NAME: "at4vs"
+  GIT_STRATEGY: clone
 
 default:
   tags:
