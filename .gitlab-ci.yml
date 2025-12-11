@@ -1,17 +1,20 @@
 stages:
   - build
+  - package
+  - publish
 
-# 全局变量（可选）
+# 全局变量
 variables:
-  # CMake 并行度，可以按需要调整
+  # CMake 并行度
   CMAKE_JOBS: "16"
+  # 在 Package Registry 里显示的包名
+  PACKAGE_NAME: "at4vs"
 
-# 默认使用的 Runner 标签，根据你的 Runner 实际 tag 修改
 default:
   tags:
-    - wsl-linux    # 比如你之前那个 yjunj_smore_wsl Runner
+    - wsl-linux    # Runner tag
 
-# 1) imx8mini 平台构建，对应你原来的脚本 1
+# 1) imx8mini 平台构建
 build_imx8mini:
   stage: build
   image: compiler:imx8mini
@@ -39,7 +42,7 @@ build_imx8mini:
       - release/
     expire_in: 7 days
 
-# 2) imx8plus 平台构建，对应你原来的脚本 2
+# 2) imx8plus 平台构建
 build_imx8plus:
   stage: build
   image: compiler:imx8plus
@@ -67,7 +70,7 @@ build_imx8plus:
       - release/
     expire_in: 7 days
 
-# 3) nova 平台构建，对应你原来的脚本 3
+# 3) nova 平台构建
 build_nova:
   stage: build
   image: compiler:nova
@@ -94,3 +97,78 @@ build_nova:
       - build/nova/
       - release/
     expire_in: 7 days
+
+# 4) package：把三个平台一起打包
+package_release:
+  stage: package
+  # 用哪个 compiler 镜像都行，只要有 tar 即可
+  image: compiler:imx8mini
+  needs:
+    - job: build_imx8mini
+      artifacts: true
+    - job: build_imx8plus
+      artifacts: true
+    - job: build_nova
+      artifacts: true
+
+  script:
+    - |
+      set -e
+
+      echo ">>>> Detecting version from release/AT4VS_v*"
+      ls -d release/AT4VS_v* || { echo "No release/AT4VS_v* directory found"; exit 1; }
+
+      VERSION_DIR=$(ls -d release/AT4VS_v* | head -n 1)
+      BASENAME=$(basename "$VERSION_DIR")      # 例如 AT4VS_v5.1.4
+      AT_VERSION=${BASENAME#AT4VS_v}           # 得到 5.1.4
+
+      echo "Detected AT_VERSION=${AT_VERSION}"
+
+      # 写入 dotenv 文件，供后续 publish 阶段使用
+      echo "AT_VERSION=${AT_VERSION}" >> version.env
+
+      # 生成归档名，例如: AT4VS_v5.1.4_096da52f.tar.gz
+      ARCHIVE_NAME="AT4VS_v${AT_VERSION}_${CI_COMMIT_SHORT_SHA}.tar.gz"
+      echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> version.env
+
+      echo "Creating archive ${ARCHIVE_NAME} ..."
+      # -C 切换到 release 目录，只把 AT4VS_vX.Y.Z 打进包（里面已经包含 imx8mini/imx8plus/nova 三个子目录）
+      tar -czvf "${ARCHIVE_NAME}" -C release "${BASENAME}"
+
+  artifacts:
+    paths:
+      - AT4VS_v*.tar.gz
+      - version.env
+    expire_in: 7 days
+    reports:
+      dotenv: version.env   # 把 AT_VERSION / ARCHIVE_NAME 传给下一 job
+
+# 5) publish：上传到 Generic Package Registry
+publish_generic_package:
+  stage: publish
+  # 直接用 curl 官方镜像，里面已经有 curl，不用再 apt-get
+  image: curlimages/curl:8.10.1
+  needs:
+    - job: package_release
+      artifacts: true
+
+  script:
+    - |
+      set -e
+
+      test -n "$AT_VERSION"   || { echo "AT_VERSION is empty"; exit 1; }
+      test -n "$ARCHIVE_NAME" || { echo "ARCHIVE_NAME is empty"; exit 1; }
+      test -f "$ARCHIVE_NAME" || { echo "File $ARCHIVE_NAME not found"; ls -R; exit 1; }
+
+      echo "Uploading ${ARCHIVE_NAME} to Generic Package Registry ..."
+
+      # POST /projects/:id/packages/generic/:package_name/:package_version/:file_name
+      curl --fail-with-body \
+           --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+           --upload-file "$ARCHIVE_NAME" \
+           "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/${PACKAGE_NAME}/${AT_VERSION}/${ARCHIVE_NAME}"
+
+  rules:
+    # 你这个仓库是 master 分支为主，所以这里用 master
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
