@@ -16,6 +16,7 @@ set(CMAKE_CXX_STANDARD 17)
 # Build options(enable at test by default)
 option(ENABLE_AT_TEST "Build AT UnitTest" OFF)
 option(ENABLE_SUB_TEST "Build Submodule UnitTest" OFF)
+option(ENABLE_CORE_TEST "Build AT core unit tests" OFF)
 option(BUILD_WITH_LOG "Build With Log" ON)
 
 # Build setting
@@ -52,6 +53,9 @@ endif ()
 
 # Set install path
 message(STATUS "Platform: ${PLATFORM}")
+if (NOT "${PLATFORM}" STREQUAL "imx8plus")
+    message(FATAL_ERROR "This refactor branch currently supports only imx8plus. Other platforms will be added later.")
+endif ()
 set(CMAKE_INSTALL_PREFIX "${CMAKE_SOURCE_DIR}/release/AT4VS_v${PROJECT_VERSION}/${PLATFORM}")
 
 # Set OpenCV and Barcode library path according to platform
@@ -79,7 +83,28 @@ find_package(OpenCV REQUIRED PATHS ${OpenCV_DIR})
 
 # Load Barcode
 set(Barcode_INC "${Barcode_DIR}/include")
-file(GLOB Barcode_LIBS "${Barcode_ROOT}/${DEVICE}/lib/*.so")
+if (APPLE)
+    file(GLOB Barcode_LIBS "${Barcode_DIR}/lib/*.dylib" "${Barcode_DIR}/lib/*.a")
+else()
+    file(GLOB Barcode_LIBS "${Barcode_DIR}/lib/*.so")
+endif()
+
+# Build new AT core. This target intentionally avoids Barcode linkage so unit
+# tests can run on the host machine before device integration.
+set(AT_CORE_SRC
+        "src/core/session_controller.cpp"
+        "src/core/candidate_pool.cpp"
+        "src/vision/image_quality.cpp"
+        "src/vision/roi_tracker.cpp")
+
+add_library(AT_CORE STATIC ${AT_CORE_SRC})
+set_target_properties(AT_CORE PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(AT_CORE PUBLIC
+        "./include"
+        ${PROJECT_BINARY_DIR}
+        PRIVATE
+        "./src")
+target_link_libraries(AT_CORE PUBLIC ${OpenCV_LIBS})
 
 # Build AT submodules
 add_subdirectory("./src/auto_exposure/")
@@ -97,6 +122,7 @@ target_include_directories(AT PUBLIC
         ${PROJECT_BINARY_DIR})
 
 target_link_libraries(AT PUBLIC
+        AT_CORE
         AE
         AF
         ${OpenCV_LIBS}
@@ -104,7 +130,7 @@ target_link_libraries(AT PUBLIC
 )
 
 # Build AT test(optional)
-if (${ENABLE_AT_TEST})
+if (ENABLE_AT_TEST OR ENABLE_SUB_TEST OR ENABLE_CORE_TEST)
     add_subdirectory("./test/")
 endif ()
 
@@ -117,6 +143,9 @@ set(AT_PUBLIC_HEADER
 
 install(FILES ${AT_PUBLIC_HEADER}
         DESTINATION include)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/include/at"
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h")
 
 install(TARGETS AT
         LIBRARY DESTINATION lib)
