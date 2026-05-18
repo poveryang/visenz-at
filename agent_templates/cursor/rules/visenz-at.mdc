@@ -1,0 +1,93 @@
+---
+description: visenz-at AT refactor project rules
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+# visenz-at Agent Rules
+
+## Project Context
+
+This repository is the `visenz-at` AT refactor branch. The current goal is to build a testable, traceable, effect-first AT framework before completing all algorithm modules.
+
+Use Chinese for project explanations, plans, review notes, and generated docs unless the user asks otherwise.
+
+Current target platform:
+
+- First supported platform: `imx8plus`
+- Target device OS: ARM Linux
+- Host development: Mac / WSL / Windows host tools
+
+Important boundaries:
+
+- `AT_CORE` must not depend on camera SDK, socket protocol, GUI, or device service.
+- `smore-cam-cap` is only linked at the runner/adapter boundary.
+- Old `ATInterface` is compatibility only; new online tests should use `ATSession`/step-based flow.
+
+## Key Files
+
+- `include/at/at_session.h`
+- `include/at/at_types.h`
+- `include/at/at_trace.h`
+- `src/core/session_controller.cpp`
+- `src/core/candidate_pool.cpp`
+- `src/vision/image_quality.cpp`
+- `src/vision/roi_tracker.cpp`
+- `apps/at_device_runner/main.cpp`
+- `tools/at_capture/capture_client.py`
+- `tools/at_capture/at_mvp_gui.py`
+
+## Current AT Flow
+
+The default early-stage flow is intentionally simple and configurable:
+
+```text
+BrightnessPrecondition -> FocusExplore -> LocalRefine -> Done
+```
+
+Do not reintroduce long-running fixed loops before the framework is stable. If a step produces `next_params == current_params`, treat it as a bug or an explicit hold/finish condition.
+
+`RoiObserve`, periodic `DecodeVerify`, `PostDecodeRefine`, and `FallbackSearch` are future stages to enable gradually through `FlowConfig`.
+
+## Algorithm Rules
+
+- Start from the main AT control flow before proposing module boundaries.
+- Brightness preconditioning must happen before focus.
+- Heatmap is an observation source, not a direct tuning controller.
+- Decode is a checkpoint/feedback signal, not the main decision layer.
+- Focus should eventually support multi-peak handling, top-K candidates, peak width, and neighborhood stability.
+- CandidatePool records and explains candidates; it should not directly tune parameters.
+- Trace is a first-class output and must remain stable for GUI, runner, and offline analysis.
+
+## Engineering Rules
+
+- Read the actual code before editing. Use `rg` for search.
+- Keep edits scoped.
+- Do not revert user changes.
+- Avoid adding abstractions unless they clarify current flow or reduce real duplication.
+- Do not commit generated logs, samples, build output, or capture images.
+
+## Required Tests
+
+After C++ core changes:
+
+```bash
+cmake --build build/at_core_baseline --target at_core_unit_test
+./build/at_core_baseline/test/at_core_unit_test
+git diff --check
+```
+
+After Python GUI/client changes:
+
+```bash
+python3 -m py_compile tools/at_capture/capture_client.py tools/at_capture/at_mvp_gui.py
+```
+
+After runner or SDK-boundary changes:
+
+```bash
+./scripts/build_imx8plus_in_docker.sh
+```
+
+If Docker or device validation is unavailable, state that explicitly.

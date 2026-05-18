@@ -24,13 +24,17 @@ struct CandidateRecord {
 
 struct StepTrace {
     int step_index = 0;
+    int stage_step_count = 0;
     StepPhase phase = StepPhase::Observe;
     SceneDifficulty difficulty = SceneDifficulty::Normal;
+    SceneDifficulty historical_max_difficulty = SceneDifficulty::Simple;
     TuneAction action = TuneAction::Hold;
+    FinishReason finish_reason = FinishReason::None;
     ImageQuality quality{};
     HeatmapObservation heatmap{};
     int decode_used = 0;
     int decode_budget = 0;
+    int active_max_steps = 0;
     std::string reason;
 };
 

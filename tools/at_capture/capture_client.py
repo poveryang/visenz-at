@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Capture-service client used by the AT engineering test loop.
+"""Client adapter for the device-side AT runner service.
 
-The default protocol is intentionally small: a 4-byte network-order command
-length followed by a UTF-8 command string. Image responses are a 4-byte length
-followed by encoded image bytes. This matches the existing local prototype and
-keeps the adapter replaceable when the real service path is provided.
+Protocol summary:
+- request: uint32 network-order JSON length + UTF-8 JSON command
+- response: uint32 network-order JSON header length + UTF-8 JSON header + optional image bytes
+
+The Windows AT MVP talks to the device-side at_device_runner service through this file.
+AT core should not depend on the camera SDK or protocol details directly.
 """
 
 from __future__ import annotations
@@ -13,37 +15,51 @@ import json
 import socket
 import struct
 from dataclasses import asdict, dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Any, Iterable, Optional
 
 import cv2
 import numpy as np
 
 
-@dataclass
+@dataclass(frozen=True)
 class CameraParams:
-    exp_time: int = 1000
-    exp_gain: int = 32
-    focus_pos: int = 1
-    lights: tuple[int, ...] = (1, 1, 1, 1)
+    exposure_us: int = 1000
+    gain: int = 50
+    focus: int = 30
+    lights: tuple[int, int, int, int] = (1, 1, 1, 1)
+
+    def to_request(self) -> dict[str, Any]:
+        return {
+            "exposure_us": self.exposure_us,
+            "gain": self.gain,
+            "focus": self.focus,
+            "lights": list(self.lights),
+        }
 
 
 @dataclass
 class CaptureFrame:
     image: np.ndarray
+    image_bytes: bytes
+    encoding: str
     params: CameraParams
     captured_at: str
-    metadata: dict
+    status: dict[str, Any]
+    metadata: dict[str, Any]
+    trace: dict[str, Any] | None = None
+    at: dict[str, Any] | None = None
 
 
 class CaptureServiceClient:
-    def __init__(self, host: str = "127.0.0.1", port: int = 8080, timeout: float = 5.0) -> None:
+    def __init__(self, host: str = "127.0.0.1", port: int = 8080, timeout: float = 10.0) -> None:
         self.host = host
         self.port = port
         self.timeout = timeout
         self.sock: Optional[socket.socket] = None
         self.current_params = CameraParams()
+        self.last_status: dict[str, Any] = {}
 
     @property
     def connected(self) -> bool:
@@ -52,86 +68,130 @@ class CaptureServiceClient:
     def connect(self) -> None:
         if self.sock is not None:
             return
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(self.timeout)
-        sock.connect((self.host, self.port))
-        self.sock = sock
+        self.sock = socket.create_connection((self.host, self.port), timeout=self.timeout)
+        self.get_status()
 
     def close(self) -> None:
         if self.sock is not None:
             self.sock.close()
             self.sock = None
 
-    def send_command(self, command: str) -> None:
+    def get_status(self) -> dict[str, Any]:
+        header, _ = self.request({"command": "get_status"})
+        self._ensure_ok(header, "get_status")
+        self.last_status = dict(header.get("status", {}))
+        self.current_params = _params_from_status(self.last_status, self.current_params)
+        return self.last_status
+
+    def set_params(self, params: CameraParams) -> dict[str, Any]:
+        command = {"command": "set_params", "params": params.to_request(), **params.to_request()}
+        header, _ = self.request(command)
+        self._ensure_ok(header, "set_params")
+        self.current_params = params
+        self.last_status = dict(header.get("status", {}))
+        return self.last_status
+
+    def close_lights(self) -> dict[str, Any]:
+        header, _ = self.request({"command": "close_lights"})
+        self._ensure_ok(header, "close_lights")
+        self.last_status = dict(header.get("status", {}))
+        self.current_params = _params_from_status(self.last_status, self.current_params)
+        return self.last_status
+
+    def capture(self, encoding: str = "png") -> CaptureFrame:
+        header, image_bytes = self.request({"command": "capture", "encoding": encoding})
+        self._ensure_ok(header, "capture")
+        return self._frame_from_response(header, image_bytes, encoding, "capture")
+
+    def reset_at(self, params: CameraParams | None = None) -> dict[str, Any]:
+        command: dict[str, Any] = {"command": "reset_at"}
+        if params is not None:
+            command.update({"params": params.to_request(), **params.to_request()})
+        header, _ = self.request(command)
+        self._ensure_ok(header, "reset_at")
+        self.last_status = dict(header.get("status", {}))
+        self.current_params = _params_from_status(self.last_status, params or self.current_params)
+        return dict(header.get("at", {}))
+
+    def at_step(self, encoding: str = "png") -> CaptureFrame:
+        header, image_bytes = self.request({"command": "at_step", "encoding": encoding})
+        self._ensure_ok(header, "at_step")
+        return self._frame_from_response(header, image_bytes, encoding, "at_step")
+
+    def save_frame(self, frame: CaptureFrame, output_dir: Path, note: str = "") -> Path:
+        image_dir = output_dir / "images"
+        image_dir.mkdir(parents=True, exist_ok=True)
+
+        stamp = _filename_stamp(frame.captured_at)
+        extension = frame.encoding if frame.encoding else "png"
+        image_path = image_dir / f"capture_{stamp}.{extension}"
+        image_path.write_bytes(frame.image_bytes)
+
+        record = {
+            "timestamp": frame.captured_at,
+            "image_path": str(image_path.relative_to(output_dir)),
+            "params": asdict(frame.params),
+            "status": frame.status,
+            "encoding": frame.encoding,
+            "metadata": frame.metadata,
+            "note": note,
+        }
+        if frame.trace is not None:
+            record["trace"] = frame.trace
+        if frame.at is not None:
+            record["at"] = frame.at
+        manifest = output_dir / "manifest.jsonl"
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        with manifest.open("a", encoding="utf-8") as fp:
+            fp.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+        return image_path
+
+    def request(self, command: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
         if self.sock is None:
             raise RuntimeError("capture service is not connected")
-        data = command.encode("utf-8")
-        self.sock.sendall(struct.pack("!I", len(data)))
-        self.sock.sendall(data)
 
-    def set_params(self, params: CameraParams) -> None:
-        """Set camera params using conservative, service-agnostic commands.
+        payload = json.dumps(command, separators=(",", ":")).encode("utf-8")
+        self.sock.sendall(struct.pack("!I", len(payload)))
+        self.sock.sendall(payload)
 
-        The current known prototype supports SET_EXP_PARAMS and GET_FRAME.
-        Focus/lights commands are emitted separately so the real service can
-        support them without changing this client.
-        """
-        self.send_command(f"SET_EXP_PARAMS {params.exp_time} {params.exp_gain}")
-        self._send_optional(f"SET_FOCUS_POS {params.focus_pos}")
-        self._send_optional("SET_LIGHTS " + " ".join(str(x) for x in params.lights))
-        self.current_params = params
+        header_size = struct.unpack("!I", self._recv_exact(4))[0]
+        header = json.loads(self._recv_exact(header_size).decode("utf-8"))
+        image_size = int(header.get("image", {}).get("size", 0))
+        image = self._recv_exact(image_size) if image_size else b""
+        return header, image
 
-    def capture(self) -> CaptureFrame:
-        self.send_command("GET_FRAME")
-        image_bytes = self._recv_blob()
+    def _frame_from_response(
+        self, header: dict[str, Any], image_bytes: bytes, fallback_encoding: str, event: str
+    ) -> CaptureFrame:
+        if not image_bytes:
+            raise RuntimeError(f"{event} response did not include image data")
+
         buffer = np.frombuffer(image_bytes, dtype=np.uint8)
         image = cv2.imdecode(buffer, cv2.IMREAD_UNCHANGED)
         if image is None:
-            raise RuntimeError("capture service returned invalid image bytes")
+            raise RuntimeError(f"{event} returned invalid image bytes")
+
+        self.last_status = dict(header.get("status", {}))
+        self.current_params = _params_from_status(self.last_status, self.current_params)
+        response_image = header.get("image", {})
         return CaptureFrame(
             image=image,
+            image_bytes=image_bytes,
+            encoding=str(response_image.get("encoding", fallback_encoding)),
             params=self.current_params,
-            captured_at=datetime.now().isoformat(timespec="seconds"),
-            metadata={"host": self.host, "port": self.port},
+            captured_at=datetime.now(timezone.utc).isoformat(),
+            status=self.last_status,
+            metadata={"host": self.host, "port": self.port, "protocol": "at-runner", "event": event},
+            trace=header.get("trace") if isinstance(header.get("trace"), dict) else None,
+            at=header.get("at") if isinstance(header.get("at"), dict) else None,
         )
-
-    def save_frame(self, frame: CaptureFrame, output_dir: Path) -> Path:
-        output_dir.mkdir(parents=True, exist_ok=True)
-        stamp = frame.captured_at.replace(":", "").replace("-", "")
-        image_path = output_dir / f"capture_{stamp}.png"
-        meta_path = output_dir / f"capture_{stamp}.json"
-        cv2.imwrite(str(image_path), frame.image)
-        meta = {
-            "captured_at": frame.captured_at,
-            "params": asdict(frame.params),
-            "metadata": frame.metadata,
-            "image": image_path.name,
-        }
-        meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-        return image_path
-
-    def _send_optional(self, command: str) -> None:
-        try:
-            self.send_command(command)
-        except OSError:
-            raise
-        except Exception:
-            # Optional commands are allowed to be unsupported by early services.
-            pass
-
-    def _recv_blob(self) -> bytes:
-        header = self._recv_exact(4)
-        size = struct.unpack("!I", header)[0]
-        if size <= 0:
-            raise RuntimeError("capture service returned empty image")
-        return self._recv_exact(size)
 
     def _recv_exact(self, size: int) -> bytes:
         if self.sock is None:
             raise RuntimeError("capture service is not connected")
         chunks: list[bytes] = []
         remaining = size
-        while remaining > 0:
+        while remaining:
             chunk = self.sock.recv(remaining)
             if not chunk:
                 raise RuntimeError("capture service disconnected")
@@ -139,8 +199,41 @@ class CaptureServiceClient:
             remaining -= len(chunk)
         return b"".join(chunks)
 
+    @staticmethod
+    def _ensure_ok(header: dict[str, Any], command: str) -> None:
+        if header.get("ok"):
+            return
+        error = header.get("error", {})
+        code = error.get("code", "unknown")
+        message = error.get("message", "")
+        raise RuntimeError(f"{command} failed: {code}: {message}")
 
-def parse_lights(value: str) -> tuple[int, ...]:
+
+def parse_lights(value: str) -> tuple[int, int, int, int]:
     items: Iterable[str] = value.replace(",", " ").split()
-    return tuple(int(x) for x in items)
+    values = tuple(int(x) for x in items)
+    if len(values) != 4:
+        raise ValueError("lights expects exactly four values")
+    return values  # type: ignore[return-value]
 
+
+def _params_from_status(status: dict[str, Any], fallback: CameraParams) -> CameraParams:
+    params = status.get("params")
+    if not isinstance(params, dict):
+        return fallback
+    try:
+        return CameraParams(
+            exposure_us=int(params.get("exposure_us", fallback.exposure_us)),
+            gain=int(params.get("gain", fallback.gain)),
+            focus=int(params.get("focus", fallback.focus)),
+            lights=parse_lights(" ".join(str(v) for v in params.get("lights", fallback.lights))),
+        )
+    except Exception:
+        return fallback
+
+
+def _filename_stamp(timestamp: str) -> str:
+    safe = timestamp.replace("+00:00", "Z")
+    for old, new in ((":", ""), ("-", ""), (".", "")):
+        safe = safe.replace(old, new)
+    return safe
