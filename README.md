@@ -1,44 +1,67 @@
 <!--
  * @Author: Lu ShaoAn, Smartmore Corporation
- * @Brief: 
+ * @Brief:
  * @Version: 0.1
  * @Date: 2024-04-10 14:46:32
  * @Copyright: Copyright (c) 2022
 -->
+
 # ViSenz_AT4VS
 
+## AT 重构分支（`at-refactor`）
+
+新主线采用 effect-first 框架：`AtOrchestrator` / `AtSession`、扁平化 `include/at_*.h` 与 `src/`。
+
+| 用途 | 入口 |
+|------|------|
+| 架构与目录 | `docs/architecture/` |
+| 旧实现（只读） | `legacy/` |
+| 设备 runner + GUI 联调 | `tools/at_capture/README.md` |
+| imx8plus 交叉编译 | `./scripts/build_imx8plus_in_docker.sh` |
+| 库版本号 | 根目录 `CMakeLists.txt` 中 `project(AT VERSION ...)` |
+
+---
+
+以下为 **legacy 产品** 编译说明（完整旧工程见 `legacy/`）。
+
 编译及运行步骤
-1. copy想要运行的机型的barcode sdk文件夹到 3rdparty/libBarcode中，文件夹名与CMakeLists.txt对应，如： 
-   ./3rdparty/libBarcode/vs800p/ 
-   ./3rdparty/libBarcode/vs1000p/  
-2. 配置CMakeLists.txt中，根据机型选择正确的编译器路径（CMAKE_C_COMPILER， CMAKE_CXX_COMPILER）和opencv路径  
-3. 正常使用cmake生成可执行文件和库文件  
+
+1. copy想要运行的机型的barcode sdk文件夹到 3rdparty/libBarcode中，文件夹名与CMakeLists.txt对应，如：
+   ./3rdparty/libBarcode/vs800p/
+   ./3rdparty/libBarcode/vs1000p/
+2. 配置CMakeLists.txt中，根据机型选择正确的编译器路径（CMAKE_C_COMPILER， CMAKE_CXX_COMPILER）和opencv路径
+3. 正常使用cmake生成可执行文件和库文件
+
    ```
-   mkdir build 
-   cd build  
+   mkdir build
+   cd build
    cmake .. -DDEVICE=vs1000p  # DEVICE必填，要根据机型选择对应的编译器和opencv路径和libbarcode文件，其他option看情况选择
    make
    ```
-4. 把libBarcode中的模型文件、lib文件、config文件，和libAT.so、TEST_AT 拷入扫码器中，并设置好相应路径  
-5. 设置好扫码器的库搜索路径  
+
+4. 把libBarcode中的模型文件、lib文件、config文件，和libAT.so、TEST_AT 拷入扫码器中，并设置好相应路径
+5. 设置好扫码器的库搜索路径
+
    `
    export LD_LIBRATY_PATH = /usr/scanner/debug/at/full_at/libs/
    `
+
 6. 运行TEST_AT，给好相应的命令行参数
    ./TEST_AT vs1000p 2d
-
 
 发布及更新
 **记得在cmake中更新版本**
 
-## Release Notes  
+## Release Notes
 
 ### 5.1.3
+
 1. refine调节亮度时增加fraction，用于产生更多曝光增益组合，目前的逻辑是先用给定的最大曝光跑完搜索亮度，如果全部搜索亮度都跑完也没达到给定解码率，就会去到下一个fraction，改变最大曝光值
 2. aest时也会记录是否能解码，若能解码则使用当前灯光，以解码作为最高优先级，避免出现某些灯光能找到码但最终无法解码的情况  
    当所有灯光轮询完都没有一个能解码的时候，才使用找码率最高的那个
 
 ### 5.1.2
+
 1. 修改aest时灯光查询逻辑，轮询多灯光多亮度，取detect成功率最高的那一组，或者有哪一组的成功率超过设定阈值
 2. ae_interface增加设置参数的接口
 3. 新增记录base focus，这个值只会在AF Done时被赋值
@@ -46,6 +69,7 @@
 5. 增加using_base标志位，不能简单通过使用ar_info的内容判断是否使用base params，因为有可能会被最后一次拍照影响
 
 ### 5.1.1
+
 1. 修改计算清晰度的算法，当没有roi时（没找到码或上位机没给roi）使用中值滤波和腐蚀，以减小噪声背景点对sharpness计算的影响
 2. 修改了计算亮度的算法，以解决黑背景下有高反光物体的场景（主要是锂电）
 3. refine_code_brt = {96, 64, 32} -> {64, 96, 32};
@@ -55,6 +79,7 @@
 7. 修改亮灯顺序 lights_sets = {polarized, unpolarized, all} -> {unpolarized, polarized, all} 先开偏振
 
 ### 5.1.0
+
 1. 遍历所有灯光仍无法定位到码区时，使用全开灯及AEQT时的曝光作为最终返回值
 2. 修改逻辑，当关闭af只打开ae时，也会走refine流程
 3. 增加target_brt=16、8，以应对极端场景，为了不明显增加整体耗时，删除关灯的轮询，完全覆盖note 1中的修改

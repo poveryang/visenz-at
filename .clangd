@@ -1,5 +1,8 @@
 CompileFlags:
-  Add: [-std=c++17]
+  Add: [-std=c++17, -Iinclude]
 Diagnostics:
   ClangTidy:
     Add: [performance-*, modernize-*, readability-*]
+    Remove:
+      - modernize-use-trailing-return-type
+      - performance-enum-size

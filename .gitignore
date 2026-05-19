@@ -2,6 +2,7 @@
 /build/
 /test/3rdparty/
 
+.DS_Store
 .cache/
 .idea/
 .vscode/

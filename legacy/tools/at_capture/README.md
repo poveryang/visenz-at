@@ -15,7 +15,7 @@
 
 短期按一条在线闭环推进：
 
-- 设备端：部署 `at_device_runner --server`，它链接 `AT` 核心库和 `smore-cam-cap` SDK，
+- 设备端：部署 `at_device_runner --server`，它链接 `AT_CORE` 和 `smore-cam-cap` SDK，
   负责打开相机、手动控参、预览采图和执行 AT step。
 - 上位机：Python 工具连接 `at_device_runner`，显示预览图像，触发 AT 执行，
   并记录每一步返回的图像、状态和 trace。
@@ -28,7 +28,7 @@
 - `capture_client.py`：面向 `at_device_runner --server` 的 adapter。
 - `at_mvp_gui.py`：Python 桌面工具，支持手动设置相机参数、图像预览、
   图像保存、AT step 执行和 trace 记录。
-- `apps/at_runner/main.cpp`：设备端 AT runner 源码（安装名为 `at_device_runner`）。
+- `apps/at_device_runner`：设备端 AT runner，可一次性执行，也可作为服务运行。
 
 ## AT Runner 协议
 
@@ -82,11 +82,7 @@ at_device_runner --server --device vs1000p_2mp --port 8080
 ## 上位机工具运行方式
 
 ```bash
-# 连接下位机时指定设备 IP
-python3 tools/at_capture/at_mvp_gui.py --host 10.80.184.167 --port 8080 --output-dir captures
-
-# 无 GUI 冒烟测试
-python3 tools/at_capture/run_at_smoke_test.py --host 10.80.184.167 --port 8080
+python3 tools/at_capture/at_mvp_gui.py --host 127.0.0.1 --port 8080 --output-dir captures
 ```
 
 Windows host 环境需要安装依赖：
@@ -120,22 +116,14 @@ cmake -S /Users/yjunj/Projects/smore-cam-cap \
 cmake --build /Users/yjunj/Projects/smore-cam-cap/build/imx8plus --target install
 ```
 
-然后在当前 AT 仓库中交叉编译设备端 runner（imx8plus）：
+然后在当前 AT 仓库中启用设备端 runner：
 
 ```bash
-# 默认 ENABLE_AT_RUNNER=ON，需本机存在 vs1000p_2mp SDK
-./scripts/build_imx8plus_in_docker.sh
-
-# 产物: release/AT_v<version>/imx8plus/bin/at_device_runner
-DEVICE_PASSWORD=*** ./scripts/deploy_imx8plus_runner.sh
-```
-
-本地 core 单测：
-
-```bash
-cmake -S . -B build/at_core_baseline -DENABLE_CORE_TEST=ON
-cmake --build build/at_core_baseline --target at_core_unit_test
-./build/at_core_baseline/at_core_unit_test
+cmake -S . -B build/at_device \
+  -DDEVICE=vs1000p \
+  -DENABLE_AT_DEVICE_RUNNER=ON \
+  -DSMORE_CAM_CAP_SDK_ROOT=/Users/yjunj/Projects/smore-cam-cap/release/vs1000p_2mp
+cmake --build build/at_device --target at_device_runner
 ```
 
 设备端运行示例：

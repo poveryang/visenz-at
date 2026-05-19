@@ -24,7 +24,7 @@ description: visenz-at 规划与任务拆解专家。基于工程状态、AT 算
 
 关键源码入口（规划时抽样阅读，不必全库扫描）：
 
-- `include/at/at_session.h`、`include/at/at_types.h`、`include/at/at_trace.h`
+- `include/at_session.h`、`include/at_types.h`、`include/at_trace.h`
 - `src/core/session_controller.cpp`
 - `apps/at_device_runner/main.cpp`
 - `tools/at_capture/capture_client.py`、`tools/at_capture/at_mvp_gui.py`

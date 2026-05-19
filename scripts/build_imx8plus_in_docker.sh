@@ -1,67 +1,36 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# imx8plus 交叉编译 → release/AT_v<VERSION>/imx8plus/（版本见 CMakeLists project VERSION）
+#
+# 环境变量:
+#   ENABLE_AT_RUNNER   默认 ON（设备 runner）
+#   SMORE_CAM_CAP_SDK_HOST  默认 ~/Projects/smore-cam-cap/release/vs1000p_2mp
+#   BUILD_JOBS(16)  CLEAN_BUILD(1)
 set -euo pipefail
 
-# Get the directory of target project
-script_dir=$(cd "$(dirname "$0")" && pwd)
-project_dir=$(realpath "$script_dir/..")
-sdk_host_root=${SMORE_CAM_CAP_SDK_HOST_ROOT:-/Users/yjunj/Projects/smore-cam-cap/release/vs1000p_2mp}
-sdk_container_root=${SMORE_CAM_CAP_SDK_CONTAINER_ROOT:-/opt/smore-cam-cap-sdk}
-enable_at_device_runner=${ENABLE_AT_DEVICE_RUNNER:-ON}
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=docker_common.sh
+source "${SCRIPT_DIR}/docker_common.sh"
 
-echo "Project directory: $project_dir"
-echo "Enable AT device runner: $enable_at_device_runner"
+GCC=/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin
+ENABLE_AT_RUNNER="${ENABLE_AT_RUNNER:-ON}"
+CAMCAP_HOST="${SMORE_CAM_CAP_SDK_HOST:-${HOME}/Projects/smore-cam-cap/release/vs1000p_2mp}"
 
-docker_mounts=(-v "$project_dir":/workspace)
-cmake_runner_args=(-DENABLE_AT_DEVICE_RUNNER="$enable_at_device_runner")
+extra_cmake=(
+  -DCMAKE_C_COMPILER="${GCC}/aarch64-none-linux-gnu-gcc"
+  -DCMAKE_CXX_COMPILER="${GCC}/aarch64-none-linux-gnu-g++"
+  -DENABLE_AT_RUNNER="${ENABLE_AT_RUNNER}"
+  -DENABLE_CORE_TEST=OFF
+)
 
-if [[ "$enable_at_device_runner" == "ON" ]]; then
-    echo "smore-cam-cap SDK: $sdk_host_root"
-    if [[ ! -f "$sdk_host_root/include/camcap/camcap.h" ]]; then
-        echo "Missing SDK header: $sdk_host_root/include/camcap/camcap.h" >&2
-        exit 1
-    fi
-    if [[ ! -f "$sdk_host_root/lib/libcamcap.a" ]]; then
-        echo "Missing SDK library: $sdk_host_root/lib/libcamcap.a" >&2
-        exit 1
-    fi
-    if [[ ! -f "$sdk_host_root/lib/libcamcap_opencv_adapter.a" ]]; then
-        echo "Missing SDK library: $sdk_host_root/lib/libcamcap_opencv_adapter.a" >&2
-        exit 1
-    fi
-
-    docker_mounts+=(-v "$sdk_host_root:$sdk_container_root:ro")
-    cmake_runner_args+=(-DSMORE_CAM_CAP_SDK_ROOT="$sdk_container_root")
+if [[ "${ENABLE_AT_RUNNER}" == "ON" ]]; then
+  if [[ ! -f "${CAMCAP_HOST}/include/camcap/camcap.h" ]]; then
+    echo "camcap SDK not found: ${CAMCAP_HOST}" >&2
+    echo "set SMORE_CAM_CAP_SDK_HOST to the vs1000p_2mp release directory" >&2
+    exit 1
+  fi
+  export SMORE_CAM_CAP_SDK_HOST="${CAMCAP_HOST}"
+  extra_cmake+=(-DSMORE_CAM_CAP_SDK_ROOT=/smore_cam_cap)
 fi
 
-# Clear the build directory
-rm -rf "$project_dir/build/imx8plus"
-
-# Start the docker container
-container_id=$(docker run -it \
-    --platform linux/amd64 \
-    -d \
-    "${docker_mounts[@]}" \
-    compiler:imx8plus \
-    sleep infinity)
-
-cleanup() {
-    docker stop "$container_id" >/dev/null || true
-    docker rm "$container_id" >/dev/null || true
-}
-trap cleanup EXIT
-
-# Build the project in the docker container
-docker exec "$container_id" \
-    /usr/bin/cmake \
-        -DPLATFORM=imx8plus \
-        -DCMAKE_C_COMPILER=/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-gcc \
-        -DCMAKE_CXX_COMPILER=/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin/aarch64-none-linux-gnu-g++ \
-        "${cmake_runner_args[@]}" \
-        -S /workspace \
-        -B /workspace/build/imx8plus
-
-docker exec "$container_id" \
-    /usr/bin/cmake \
-        --build /workspace/build/imx8plus \
-        --target install \
-        -- -j 16
+at_docker_build "$(at_repo_root)" imx8plus compiler:imx8plus build/imx8plus -- \
+  "${extra_cmake[@]}"

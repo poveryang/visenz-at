@@ -1,33 +1,17 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# nova (aarch32) 交叉编译 → release/AT_v<VERSION>/nova/
+#
+# 环境变量: ENABLE_AT_RUNNER(默认OFF)  BUILD_JOBS(16)  CLEAN_BUILD(1)
+set -euo pipefail
 
-# Get the directory of target project
-script_dir=$(dirname "$0")
-project_dir=$(realpath "$script_dir/..")
-echo "Project directory: $project_dir"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=docker_common.sh
+source "${SCRIPT_DIR}/docker_common.sh"
 
-# Clear the build directory
-rm -rf "$project_dir/build/nova"
+GCC=/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin
 
-# Build the docker image
-container_id=$(docker run -it \
-    --platform linux/amd64 \
-    -d \
-    -v "$project_dir":/workspace \
-    compiler:nova)
-
-# Build the project in the docker container
-docker exec "$container_id" bash -c "
-    /usr/bin/cmake \
-        -DPLATFORM='nova' \
-        -DCMAKE_C_COMPILER='/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-gcc' \
-        -DCMAKE_CXX_COMPILER='/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin/arm-none-linux-gnueabihf-g++' \
-        -S /workspace \
-        -B /workspace/build/nova &&
-    /usr/bin/cmake \
-        --build /workspace/build/nova \
-        --target install \
-        -- -j 16
-"
-# Stop and remove the docker container
-docker stop "$container_id"
-docker rm "$container_id"
+at_docker_build "$(at_repo_root)" nova compiler:nova build/nova -- \
+  -DCMAKE_C_COMPILER="${GCC}/arm-none-linux-gnueabihf-gcc" \
+  -DCMAKE_CXX_COMPILER="${GCC}/arm-none-linux-gnueabihf-g++" \
+  -DENABLE_AT_RUNNER="${ENABLE_AT_RUNNER:-OFF}" \
+  -DENABLE_CORE_TEST=OFF

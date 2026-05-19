@@ -21,29 +21,29 @@ Current target platform:
 
 Important boundaries:
 
-- `AT_CORE` must not depend on camera SDK, socket protocol, GUI, or device service.
+- `AT` (core) must not depend on camera SDK, socket protocol, GUI, or device service.
 - `smore-cam-cap` is only linked at the runner/adapter boundary.
-- Old `ATInterface` is compatibility only; new online tests should use `ATSession`/step-based flow.
+- `legacy/` is read-only reference; new code uses `AtOrchestrator` / `AtSession`.
 
 ## Key Files
 
-- `include/at/at_session.h`
-- `include/at/at_types.h`
-- `include/at/at_trace.h`
-- `src/core/session_controller.cpp`
-- `src/core/candidate_pool.cpp`
-- `src/vision/image_quality.cpp`
-- `src/vision/roi_tracker.cpp`
-- `apps/at_device_runner/main.cpp`
+- `include/at_types.h`
+- `include/at_trace.h`
+- `include/at_session.h` + `src/core/at_session.cpp` (`AtSession`)
+- `include/at_orchestrator.h` + `src/orchestrator/at_orchestrator.cpp`
+- `docs/architecture/SOURCE_LAYOUT.md`
+- `apps/at_runner/main.cpp`（安装为 `bin/at_device_runner`）
+- `scripts/build_imx8plus_in_docker.sh`、`scripts/deploy_imx8plus_runner.sh`
 - `tools/at_capture/capture_client.py`
 - `tools/at_capture/at_mvp_gui.py`
+- `docs/architecture/AT_TOP_LEVEL_DESIGN.md`
 
 ## Current AT Flow
 
-The default early-stage flow is intentionally simple and configurable:
+v0 main path:
 
 ```text
-BrightnessPrecondition -> FocusExplore -> LocalRefine -> Done
+FocusTuneWithCoarseExposure -> ExposurePerLightProfile -> CandidateDecodeRanking (optional) -> Done
 ```
 
 Do not reintroduce long-running fixed loops before the framework is stable. If a step produces `next_params == current_params`, treat it as a bug or an explicit hold/finish condition.
@@ -73,8 +73,9 @@ Do not reintroduce long-running fixed loops before the framework is stable. If a
 After C++ core changes:
 
 ```bash
+cmake -S . -B build/at_core_baseline -DENABLE_CORE_TEST=ON
 cmake --build build/at_core_baseline --target at_core_unit_test
-./build/at_core_baseline/test/at_core_unit_test
+./build/at_core_baseline/at_core_unit_test
 git diff --check
 ```
 
@@ -88,6 +89,7 @@ After runner or SDK-boundary changes:
 
 ```bash
 ./scripts/build_imx8plus_in_docker.sh
+./scripts/build_all_in_docker.sh
 ```
 
 If Docker or device validation is unavailable, state that explicitly.
