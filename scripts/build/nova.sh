@@ -5,8 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=docker_common.sh
-source "${SCRIPT_DIR}/docker_common.sh"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
 
 GCC=/opt/gcc-arm-9.2-2019.12-x86_64-arm-none-linux-gnueabihf/bin
 

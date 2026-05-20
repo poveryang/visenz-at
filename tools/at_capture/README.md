@@ -85,8 +85,8 @@ at_device_runner --server --device vs1000p_2mp --port 8080
 # 连接下位机时指定设备 IP
 python3 tools/at_capture/at_mvp_gui.py --host 10.80.184.167 --port 8080 --output-dir captures
 
-# 无 GUI 冒烟测试
-python3 tools/at_capture/run_at_smoke_test.py --host 10.80.184.167 --port 8080
+# 无 GUI 冒烟测试（见 scripts/device/README.md）
+./scripts/device/runner.sh test
 ```
 
 Windows host 环境需要安装依赖：
@@ -124,10 +124,10 @@ cmake --build /Users/yjunj/Projects/smore-cam-cap/build/imx8plus --target instal
 
 ```bash
 # 默认 ENABLE_AT_RUNNER=ON，需本机存在 vs1000p_2mp SDK
-./scripts/build_imx8plus_in_docker.sh
+./scripts/build/imx8plus.sh
 
 # 产物: release/AT_v<version>/imx8plus/bin/at_device_runner
-DEVICE_PASSWORD=*** ./scripts/deploy_imx8plus_runner.sh
+# 部署(上传+启动) / 测试: cp scripts/device/device.env.example device.env 后 ./scripts/device/runner.sh all
 ```
 
 本地 core 单测：

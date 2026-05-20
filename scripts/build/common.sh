@@ -1,14 +1,32 @@
 #!/usr/bin/env bash
-# 供 build_*_in_docker.sh source，不要直接执行。
+# scripts/build 与 scripts/device 共用：版本解析、仓库路径、Docker 交叉编译。
+# 用法: source "$(dirname "$0")/common.sh"  或  source "${SCRIPT_DIR}/common.sh"
 set -euo pipefail
 
-# shellcheck source=at_version.sh
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/at_version.sh"
+at_read_version() {
+  local root="${1:-}"
+  if [[ -z "${root}" ]]; then
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
+    root="$(cd "${script_dir}/../.." && pwd)"
+  fi
+  sed -n 's/^project(AT VERSION //p' "${root}/CMakeLists.txt" | tr -d ' )'
+}
+
+at_release_root() {
+  local repo_root="$1"
+  echo "${repo_root}/release/AT_v$(at_read_version "${repo_root}")"
+}
+
+at_release_dir() {
+  local repo_root="$1" platform="$2"
+  echo "$(at_release_root "${repo_root}")/${platform}"
+}
 
 at_repo_root() {
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
-  realpath "${script_dir}/.."
+  realpath "${script_dir}/../.."
 }
 
 at_container_cleanup() {

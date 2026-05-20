@@ -33,7 +33,7 @@ Important boundaries:
 - `include/at_orchestrator.h` + `src/orchestrator/at_orchestrator.cpp`
 - `docs/architecture/SOURCE_LAYOUT.md`
 - `apps/at_runner/main.cpp`（安装为 `bin/at_device_runner`）
-- `scripts/build_imx8plus_in_docker.sh`、`scripts/deploy_imx8plus_runner.sh`
+- `scripts/build/imx8plus.sh`、`scripts/device/runner.sh` + `device.env`（编译 / 部署联调）
 - `tools/at_capture/capture_client.py`
 - `tools/at_capture/at_mvp_gui.py`
 - `docs/architecture/AT_TOP_LEVEL_DESIGN.md`
@@ -88,8 +88,8 @@ python3 -m py_compile tools/at_capture/capture_client.py tools/at_capture/at_mvp
 After runner or SDK-boundary changes:
 
 ```bash
-./scripts/build_imx8plus_in_docker.sh
-./scripts/build_all_in_docker.sh
+./scripts/build/imx8plus.sh
+./scripts/build/all.sh
 ```
 
 If Docker or device validation is unavailable, state that explicitly.

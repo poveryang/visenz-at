@@ -5,8 +5,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=docker_common.sh
-source "${SCRIPT_DIR}/docker_common.sh"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
 
 SETUP='source /opt/myir-imx-xwayland/4.14-sumo/environment-setup-aarch64-poky-linux'
 

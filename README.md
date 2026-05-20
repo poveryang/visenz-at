@@ -1,11 +1,3 @@
-<!--
- * @Author: Lu ShaoAn, Smartmore Corporation
- * @Brief:
- * @Version: 0.1
- * @Date: 2024-04-10 14:46:32
- * @Copyright: Copyright (c) 2022
--->
-
 # ViSenz_AT4VS
 
 ## AT 重构分支（`at-refactor`）
@@ -17,7 +9,8 @@
 | 架构与目录 | `docs/architecture/` |
 | 旧实现（只读） | `legacy/` |
 | 设备 runner + GUI 联调 | `tools/at_capture/README.md` |
-| imx8plus 交叉编译 | `./scripts/build_imx8plus_in_docker.sh` |
+| imx8plus 交叉编译 | `./scripts/build/imx8plus.sh` |
+| 设备部署与联调 | `./scripts/device/runner.sh`（配置 `scripts/device/device.env`） |
 | 库版本号 | 根目录 `CMakeLists.txt` 中 `project(AT VERSION ...)` |
 
 ---

@@ -7,7 +7,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=common.sh
+source "${SCRIPT_DIR}/common.sh"
+REPO_ROOT="$(at_repo_root)"
 REPORT_DIR="${REPO_ROOT}/captures/build_all"
 mkdir -p "${REPORT_DIR}"
 
@@ -34,10 +36,10 @@ run_build() {
 }
 
 BUILDS=(
-  "imx8plus:${SCRIPT_DIR}/build_imx8plus_in_docker.sh"
-  "imx8mini:${SCRIPT_DIR}/build_imx8mini_in_docker.sh"
-  "nova:${SCRIPT_DIR}/build_nova_in_docker.sh"
-  "rknn:${SCRIPT_DIR}/build_rknn_in_docker.sh"
+  "imx8plus:${SCRIPT_DIR}/imx8plus.sh"
+  "imx8mini:${SCRIPT_DIR}/imx8mini.sh"
+  "nova:${SCRIPT_DIR}/nova.sh"
+  "rknn:${SCRIPT_DIR}/rknn.sh"
 )
 
 for entry in "${BUILDS[@]}"; do

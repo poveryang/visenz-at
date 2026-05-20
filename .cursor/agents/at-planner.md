@@ -91,7 +91,7 @@ BrightnessPrecondition -> FocusExplore -> LocalRefine -> Done
 | ----------------- | --------------------------------------------------------------------------------------------- |
 | C++ core          | `cmake --build build/at_core_baseline --target at_core_unit_test` + 运行单测 + `git diff --check` |
 | Python GUI/client | `python3 -m py_compile tools/at_capture/*.py`                                                 |
-| runner / SDK 边界   | `./scripts/build_imx8plus_in_docker.sh`（不可用则标明未验边界）                                           |
+| runner / SDK 边界   | `./scripts/build/imx8plus.sh`（不可用则标明未验边界）                                                     |
 | 在线 AT             | `at_device_runner` + GUI trace/`at_runner_trace.jsonl` 检查                                     |
 
 
