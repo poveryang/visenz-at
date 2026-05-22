@@ -10,6 +10,16 @@ HeatmapObservation NullHeatmapProvider::Infer(const FrameContext &)
     return observation;
 }
 
+cv::Mat HeatmapProvider::BlendForDisplay(const cv::Mat &image) const
+{
+    return image;
+}
+
+std::string HeatmapProvider::PerfJson() const
+{
+    return "null";
+}
+
 DecodeFeedback NullDecodeProvider::Decode(const FrameContext &)
 {
     DecodeFeedback feedback;

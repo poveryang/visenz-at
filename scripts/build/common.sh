@@ -70,6 +70,10 @@ at_docker_build() {
     docker_volumes+=(-v "${SMORE_CAM_CAP_SDK_HOST}:/smore_cam_cap:ro")
     echo "camcap sdk: ${SMORE_CAM_CAP_SDK_HOST} -> /smore_cam_cap"
   fi
+  if [[ -n "${HMAP_SDK_HOST:-}" ]]; then
+    docker_volumes+=(-v "${HMAP_SDK_HOST}:/hmap_sdk:ro")
+    echo "hmap sdk:   ${HMAP_SDK_HOST} -> /hmap_sdk"
+  fi
 
   AT_CONTAINER_ID="$(
     docker run -d --platform linux/amd64 \

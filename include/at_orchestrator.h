@@ -10,14 +10,16 @@ namespace at {
 
 class AtOrchestrator {
 public:
-    AtOrchestrator(SessionConfig config,
-                   std::unique_ptr<HeatmapProvider> heatmap = nullptr,
-                   std::unique_ptr<DecodeProvider> decode = nullptr,
-                   std::unique_ptr<PreprocessPlugin> preprocess = nullptr);
+    explicit AtOrchestrator(SessionConfig config,
+                            std::unique_ptr<DecodeProvider> decode = nullptr,
+                            std::unique_ptr<PreprocessPlugin> preprocess = nullptr);
 
     void Reset();
 
     StepResult ProcessStep(FrameContext context);
+
+    cv::Mat BlendForDisplay(const cv::Mat &image) const;
+    std::string HeatmapPerfJson() const;
 
 private:
     AtSession session_;

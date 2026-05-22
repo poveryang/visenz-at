@@ -9,6 +9,8 @@ class HeatmapProvider {
 public:
     virtual ~HeatmapProvider() = default;
     virtual HeatmapObservation Infer(const FrameContext &context) = 0;
+    virtual cv::Mat BlendForDisplay(const cv::Mat &image) const;
+    virtual std::string PerfJson() const;
 };
 
 class DecodeProvider {

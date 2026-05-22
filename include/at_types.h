@@ -137,10 +137,19 @@ struct FlowConfig {
     };
 };
 
+struct HeatmapConfig {
+    std::string model_path;
+    std::string context = "timvx";
+    std::string precision = "uint8";
+    double threshold = 40.0;
+    bool overlay = true;
+};
+
 struct SessionConfig {
     CameraRange camera{};
     StrategyBudget budget{};
     FlowConfig flow{};
+    HeatmapConfig heatmap{};
 };
 
 struct SessionState {

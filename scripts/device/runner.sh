@@ -16,12 +16,18 @@ DEVICE_USER="${DEVICE_USER:-root}"
 DEVICE_PASSWORD="${DEVICE_PASSWORD:-}"
 REMOTE_BIN_DIR="${REMOTE_BIN_DIR:-/tmp/at_runner}"
 REMOTE_LIB_DIR="${REMOTE_LIB_DIR:-/tmp/at_runner/lib}"
+REMOTE_MODEL_DIR="${REMOTE_MODEL_DIR:-/tmp/at_runner/model}"
 RUNNER_BIN_NAME="${RUNNER_BIN_NAME:-at_device_runner}"
 REMOTE_LD_LIBRARY_PATH="${REMOTE_LD_LIBRARY_PATH:-}"
 RUNNER_DEVICE="${RUNNER_DEVICE:-}"
 RUNNER_PORT="${RUNNER_PORT:-8080}"
+RUNNER_HEATMAP_MODEL="${RUNNER_HEATMAP_MODEL:-auto}"
+RUNNER_HEATMAP_CONTEXT="${RUNNER_HEATMAP_CONTEXT:-timvx}"
+RUNNER_HEATMAP_PRECISION="${RUNNER_HEATMAP_PRECISION:-uint8}"
+RUNNER_HEATMAP_THRESHOLD="${RUNNER_HEATMAP_THRESHOLD:-40}"
 RUNNER_LOG="${RUNNER_LOG:-/tmp/at_runner.log}"
 DEPLOY_SHARED_LIBS="${DEPLOY_SHARED_LIBS:-auto}"
+DEPLOY_HMAP_RUNTIME_LIBS="${DEPLOY_HMAP_RUNTIME_LIBS:-0}"
 DEPLOY_EXTRA="${DEPLOY_EXTRA:-}"
 SMOKE_STEPS="${SMOKE_STEPS:-10}"
 SMOKE_HOST="${SMOKE_HOST:-}"
@@ -53,14 +59,15 @@ release_dir() {
 
 usage() {
   cat <<EOF
-用法: $(basename "$0") <deploy|start|stop|test|all|show>
+用法: $(basename "$0") <deploy|start|stop|test|all|show|log>
 
   deploy  上传 runner（及可选 .so）并在设备上启动 --server
   start   仅启动 runner（不上传，用于重启）
   stop    SSH 到设备结束 runner 进程
   test    在上位机用 TCP 访问 DEVICE_HOST:RUNNER_PORT 做协议冒烟（不走 SSH）
-  all     deploy → test
+  all     deploy → test → stop
   show    打印当前配置与待上传文件列表
+  log     打印设备端 runner 进程、端口和日志尾部
 
 配置: \${AT_DEVICE_CONFIG}（默认 scripts/device/device.env）
 示例: cp scripts/device/device.env.example scripts/device/device.env
@@ -114,8 +121,9 @@ runner_remote_path() {
 remote_kill_runner_shell() {
   local runner="$1"
   local verify_port="${2:-1}"
-  cat <<EOF
+cat <<EOF
 pkill -f '${runner}' 2>/dev/null || true
+ps 2>/dev/null | grep '${runner}' | grep -v grep | awk '{print \$1}' | xargs -r kill -9 2>/dev/null || true
 sleep 1
 EOF
   if [[ "${verify_port}" == "1" ]]; then
@@ -130,6 +138,45 @@ fi
 echo "runner stopped, port ${RUNNER_PORT} free"
 EOF
   fi
+}
+
+remote_prepare_runtime_libs_shell() {
+  cat <<EOF
+if [ -d '${REMOTE_LIB_DIR}' ]; then
+  for f in '${REMOTE_LIB_DIR}'/*.so; do
+    [ -e "\$f" ] || continue
+    ln -sf "\$(basename "\$f")" "\$f.1" 2>/dev/null || true
+  done
+fi
+EOF
+}
+
+is_hmap_runtime_lib() {
+  case "$(basename "$1")" in
+    libtengine-lite.so|libOpenVX.so|libOpenVXU.so|libGAL.so|libVSC.so|\
+libArchModelSw.so|libCLC.so|libNNArchPerf.so)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+remote_cleanup_hmap_runtime_libs_shell() {
+  [[ "${DEPLOY_HMAP_RUNTIME_LIBS}" != "1" ]] || return 0
+  cat <<EOF
+if [ -d '${REMOTE_LIB_DIR}' ]; then
+  rm -f '${REMOTE_LIB_DIR}'/libtengine-lite.so '${REMOTE_LIB_DIR}'/libtengine-lite.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libOpenVX.so '${REMOTE_LIB_DIR}'/libOpenVX.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libOpenVXU.so '${REMOTE_LIB_DIR}'/libOpenVXU.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libGAL.so '${REMOTE_LIB_DIR}'/libGAL.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libVSC.so '${REMOTE_LIB_DIR}'/libVSC.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libArchModelSw.so '${REMOTE_LIB_DIR}'/libArchModelSw.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libCLC.so '${REMOTE_LIB_DIR}'/libCLC.so.1
+  rm -f '${REMOTE_LIB_DIR}'/libNNArchPerf.so '${REMOTE_LIB_DIR}'/libNNArchPerf.so.1
+fi
+EOF
 }
 
 try_graceful_shutdown() {
@@ -159,10 +206,17 @@ plan_deploy_pairs() {
 
   case "${rel}" in
     bin/*)
-      remote_path="$(runner_remote_path)"
+      if [[ "$(basename "${rel}")" == "${RUNNER_BIN_NAME}" ]]; then
+        remote_path="$(runner_remote_path)"
+      else
+        remote_path="${REMOTE_BIN_DIR%/}/$(basename "${rel}")"
+      fi
       ;;
     lib/*)
       remote_path="${REMOTE_LIB_DIR%/}/$(basename "${rel}")"
+      ;;
+    model/*)
+      remote_path="${REMOTE_MODEL_DIR%/}/$(basename "${rel}")"
       ;;
     *)
       if [[ "${rel}" == *:* ]]; then
@@ -193,10 +247,20 @@ collect_deploy_pairs() {
     shopt -s nullglob
     local so
     for so in "${root}"/lib/*.so; do
+      if [[ "${DEPLOY_HMAP_RUNTIME_LIBS}" != "1" ]] && is_hmap_runtime_lib "${so}"; then
+        continue
+      fi
       pairs+=("lib/$(basename "${so}")")
     done
     shopt -u nullglob
   fi
+
+  shopt -s nullglob
+  local model
+  for model in "${root}"/model/*.tmfile; do
+    pairs+=("model/$(basename "${model}")")
+  done
+  shopt -u nullglob
 
   if [[ -f "${DEPLOY_MANIFEST}" ]]; then
     while IFS= read -r line || [[ -n "${line}" ]]; do
@@ -231,9 +295,27 @@ cmd_show() {
   echo "release:    ${root}"
   echo "ssh:        ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_SSH_PORT}"
   echo "runner:     $(runner_remote_path)  device=${RUNNER_DEVICE}  port=${RUNNER_PORT}"
+  echo "heatmap:    model=${RUNNER_HEATMAP_MODEL}  context=${RUNNER_HEATMAP_CONTEXT}  precision=${RUNNER_HEATMAP_PRECISION}  threshold=${RUNNER_HEATMAP_THRESHOLD}"
+  echo "runtime:    deploy_hmap_runtime_libs=${DEPLOY_HMAP_RUNTIME_LIBS}"
   echo "smoke:      host=${SMOKE_HOST:-${DEVICE_HOST}}  port=${SMOKE_PORT:-${RUNNER_PORT}}"
   echo "deploy list:"
   collect_deploy_pairs | sed 's/^/  /'
+}
+
+cmd_log() {
+  load_config
+  local runner
+  runner="$(runner_remote_path)"
+  remote_ssh "echo '--- runner process ---'; \
+ps 2>/dev/null | grep '${runner}' | grep -v grep || true; \
+echo '--- listening port ---'; \
+if command -v ss >/dev/null 2>&1; then ss -tlnp 2>/dev/null | grep ':${RUNNER_PORT} ' || true; else netstat -tlnp 2>/dev/null | grep ':${RUNNER_PORT} ' || true; fi; \
+echo '--- runtime libs ---'; \
+ls -l '${REMOTE_LIB_DIR}' 2>/dev/null | grep -E 'OpenVX|tengine|GAL|VSC' || true; \
+echo '--- ldd runner ---'; \
+LD_LIBRARY_PATH='${REMOTE_LIB_DIR}' ldd '${runner}' 2>/dev/null | grep -E 'tengine|OpenVX|GAL|VSC|CLC|ArchModel|NNArch|opencv|stdc' || true; \
+echo '--- runner log ---'; \
+tail -120 '${RUNNER_LOG}' 2>/dev/null || true"
 }
 
 cmd_upload() {
@@ -245,8 +327,9 @@ cmd_upload() {
     exit 1
   fi
 
-  echo "mkdir on device: ${REMOTE_BIN_DIR} ${REMOTE_LIB_DIR}"
-  remote_ssh "mkdir -p '${REMOTE_BIN_DIR}' '${REMOTE_LIB_DIR}'"
+  echo "mkdir on device: ${REMOTE_BIN_DIR} ${REMOTE_LIB_DIR} ${REMOTE_MODEL_DIR}"
+  remote_ssh "mkdir -p '${REMOTE_BIN_DIR}' '${REMOTE_LIB_DIR}' '${REMOTE_MODEL_DIR}'"
+  remote_ssh "$(remote_cleanup_hmap_runtime_libs_shell)"
 
   local pair local_path remote_path
   while IFS= read -r pair; do
@@ -258,6 +341,7 @@ cmd_upload() {
   done < <(collect_deploy_pairs)
 
   echo "upload done ($(collect_deploy_pairs | wc -l | tr -d ' ') file(s))"
+  remote_ssh "$(remote_prepare_runtime_libs_shell)"
 }
 
 cmd_deploy() {
@@ -270,6 +354,21 @@ cmd_start() {
   load_config
   local runner
   runner="$(runner_remote_path)"
+  local root heatmap_arg=""
+  root="$(release_dir)"
+  if [[ "${RUNNER_HEATMAP_MODEL}" != "0" && "${RUNNER_HEATMAP_MODEL}" != "OFF" && "${RUNNER_HEATMAP_MODEL}" != "off" ]]; then
+    local remote_model=""
+    if [[ "${RUNNER_HEATMAP_MODEL}" == "auto" ]]; then
+      if [[ -f "${root}/model/model-uint8.tmfile" ]]; then
+        remote_model="${REMOTE_MODEL_DIR%/}/model-uint8.tmfile"
+      fi
+    elif [[ -n "${RUNNER_HEATMAP_MODEL}" ]]; then
+      remote_model="${RUNNER_HEATMAP_MODEL}"
+    fi
+    if [[ -n "${remote_model}" ]]; then
+      heatmap_arg=" --heatmap-model '${remote_model}' --heatmap-context '${RUNNER_HEATMAP_CONTEXT}' --heatmap-precision '${RUNNER_HEATMAP_PRECISION}' --heatmap-threshold '${RUNNER_HEATMAP_THRESHOLD}'"
+    fi
+  fi
   local ld=""
   if [[ -n "${REMOTE_LD_LIBRARY_PATH}" ]]; then
     ld="export LD_LIBRARY_PATH='${REMOTE_LD_LIBRARY_PATH}'; "
@@ -277,8 +376,11 @@ cmd_start() {
 
   echo "start ${runner} on ${DEVICE_HOST}:${RUNNER_PORT} (device background, survives SSH exit)"
   remote_ssh "${ld}$(remote_kill_runner_shell "${runner}" 0); \
+$(remote_cleanup_hmap_runtime_libs_shell); \
+$(remote_prepare_runtime_libs_shell); \
 chmod +x '${runner}' 2>/dev/null || true; \
 nohup '${runner}' --server --device '${RUNNER_DEVICE}' --port '${RUNNER_PORT}' \
+  ${heatmap_arg} \
   >'${RUNNER_LOG}' 2>&1 </dev/null & sleep 2; tail -5 '${RUNNER_LOG}'"
 }
 
@@ -328,9 +430,17 @@ try:
         frame = client.at_step()
         trace = frame.trace or {}
         at_info = frame.at or {}
+        heatmap = trace.get("heatmap") or {}
+        heatmap_perf = trace.get("heatmap_perf") or {}
         print(
             f"OK at_step[{i}] step={trace.get('step')} "
-            f"action={trace.get('action')} finished={at_info.get('finished')}"
+            f"action={trace.get('action')} finished={at_info.get('finished')} "
+            f"heatmap={heatmap.get('available')} "
+            f"conf={heatmap.get('confidence')} source={heatmap.get('source')} "
+            f"infer_ms={heatmap_perf.get('last_model_ms')} "
+            f"avg_ms={heatmap_perf.get('avg_model_ms')} "
+            f"avg_total_ms={heatmap_perf.get('avg_total_ms')} "
+            f"init_ms={heatmap_perf.get('init_ms')}"
         )
         if at_info.get("finished"):
             break
@@ -358,8 +468,10 @@ main() {
     all)
       cmd_deploy
       cmd_test
+      cmd_stop
       ;;
     show) cmd_show ;;
+    log) cmd_log ;;
     -h|--help|help|"")
       usage
       [[ -z "${action}" ]] && exit 0

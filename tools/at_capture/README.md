@@ -29,6 +29,8 @@
 - `at_mvp_gui.py`：Python 桌面工具，支持手动设置相机参数、图像预览、
   图像保存、AT step 执行和 trace 记录。
 - `apps/at_runner/main.cpp`：设备端 AT runner 源码（安装名为 `at_device_runner`）。
+- `src/providers/tengine_heatmap_provider.cpp`：AT 的可选 heatmap provider，
+  负责加载 `heatmap-model/cpp` 导出的 Tengine/TIM-VX 模型。
 
 ## AT Runner 协议
 
@@ -56,10 +58,12 @@ MVP 当前使用的命令：
 - `focus`
 - `lights`: 4 个整数
 
-采图和 AT step 当前使用 `png` 编码。`at_step` 的响应会包含：
+采图和 AT step 当前使用 `png` 编码。启用 heatmap 后，`at_step` 返回的图像会融合
+heatmap 伪彩色并绘制 ROI，便于观察 AT 过程；`capture` 仍返回当前相机图像。
+`at_step` 的响应会包含：
 
 - `image`：本 step 采到的 PNG 图像。
-- `trace`：本 step 的 AT trace。
+- `trace`：本 step 的 AT trace，包含 `heatmap` 字段。
 - `at`：`finished`、`need_decode`、`step` 等执行状态。
 
 ## 设备端启动参考
@@ -75,9 +79,16 @@ port: 8080
 
 ```bash
 at_device_runner --server --device vs1000p_2mp --port 8080
+
+# 启用 heatmap 推理与融合显示
+at_device_runner --server --device vs1000p_2mp --port 8080 \
+  --heatmap-model /tmp/at_runner/model/model-uint8.tmfile \
+  --heatmap-context timvx
 ```
 
 注意：`at_device_runner --server` 会直接打开相机，不需要再启动 `capture_server`。
+设备端 heatmap 在 AT provider 内同进程加载，`capture` 只采图不推理，`at_step` 才会推理。
+部署脚本默认不上传 `heatmap-model` 工程自带的 Tengine/Vivante `.so`，运行时使用板端 `/usr/lib`。
 
 ## 上位机工具运行方式
 
@@ -127,7 +138,8 @@ cmake --build /Users/yjunj/Projects/smore-cam-cap/build/imx8plus --target instal
 ./scripts/build/imx8plus.sh
 
 # 产物: release/AT_v<version>/imx8plus/bin/at_device_runner
-# 部署(上传+启动) / 测试: cp scripts/device/device.env.example device.env 后 ./scripts/device/runner.sh all
+# 若 ~/Projects/heatmap-model/cpp 下存在 libHMAP.a 和 model-uint8.tmfile，会自动构建 AT_HMAP_TENGINE 并安装模型
+# 部署(上传+启动) / 测试: cp scripts/device/device.env.example scripts/device/device.env 后 ./scripts/device/runner.sh all
 ```
 
 本地 core 单测：
@@ -148,7 +160,8 @@ at_device_runner --device vs1000p_2mp --steps 8 --out-dir /tmp/at_run --save-ima
 
 - 标准输出：每个 step 一行 JSON trace。
 - `/tmp/at_run/step_*.png`：每一步采到的图像。
-- `/tmp/at_run/trace.jsonl`：完整 AT 过程 trace。
+- `/tmp/at_run/trace.jsonl`：完整 AT 过程 trace；启用 heatmap 时包含 `heatmap_perf`，
+  记录模型初始化耗时、最近一帧推理耗时和平均推理耗时。
 
 服务模式运行示例：
 

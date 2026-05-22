@@ -10,20 +10,25 @@
 #include <unistd.h>
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cctype>
+#include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -39,6 +44,11 @@ struct Options {
     std::filesystem::path output_dir{};
     bool save_images{false};
     bool server{false};
+    std::string heatmap_model;
+    std::string heatmap_context{"timvx"};
+    std::string heatmap_precision{"uint8"};
+    bool heatmap_overlay{true};
+    double heatmap_threshold{40.0};
 };
 
 struct Response {
@@ -214,10 +224,14 @@ void PrintUsage(const char *program)
     std::cerr << "Usage: " << program
               << " [--device vs1000p_2mp] [--steps 8] [--exposure-us 1000]"
               << " [--gain 50] [--focus 30] [--lights 1,1,1,1]"
-              << " [--out-dir /tmp/at_run] [--save-images]\n"
+              << " [--out-dir /tmp/at_run] [--save-images]"
+              << " [--heatmap-model /path/model-uint8.tmfile]\n"
               << "       " << program
               << " --server [--device vs1000p_2mp] [--port 8080]"
-              << " [--exposure-us 1000] [--gain 50] [--focus 30] [--lights 1,1,1,1]\n";
+              << " [--exposure-us 1000] [--gain 50] [--focus 30] [--lights 1,1,1,1]"
+              << " [--heatmap-model /path/model-uint8.tmfile]\n"
+              << "Heatmap options: [--heatmap-context timvx|cpu] [--heatmap-precision uint8|fp32]"
+              << " [--heatmap-threshold 40] [--no-heatmap-overlay]\n";
 }
 
 Options ParseArgs(int argc, char **argv)
@@ -257,6 +271,16 @@ Options ParseArgs(int argc, char **argv)
             options.save_images = true;
         } else if (arg == "--server") {
             options.server = true;
+        } else if (arg == "--heatmap-model") {
+            options.heatmap_model = require_value("--heatmap-model");
+        } else if (arg == "--heatmap-context") {
+            options.heatmap_context = require_value("--heatmap-context");
+        } else if (arg == "--heatmap-precision") {
+            options.heatmap_precision = require_value("--heatmap-precision");
+        } else if (arg == "--heatmap-threshold") {
+            options.heatmap_threshold = std::stod(require_value("--heatmap-threshold"));
+        } else if (arg == "--no-heatmap-overlay") {
+            options.heatmap_overlay = false;
         } else if (arg == "--help" || arg == "-h") {
             PrintUsage(argv[0]);
             std::exit(0);
@@ -265,6 +289,17 @@ Options ParseArgs(int argc, char **argv)
         }
     }
     return options;
+}
+
+at::SessionConfig MakeSessionConfig(const Options &options)
+{
+    at::SessionConfig config;
+    config.heatmap.model_path = options.heatmap_model;
+    config.heatmap.context = options.heatmap_context;
+    config.heatmap.precision = options.heatmap_precision;
+    config.heatmap.threshold = options.heatmap_threshold;
+    config.heatmap.overlay = options.heatmap_overlay;
+    return config;
 }
 
 at::CameraParams ToAtParams(const camcap::CameraParams &params)
@@ -324,9 +359,31 @@ std::string QualityJson(const at::ImageQuality &quality)
     return out.str();
 }
 
+std::string RectJson(const cv::Rect &rect)
+{
+    std::ostringstream out;
+    out << "{\"x\":" << rect.x << ",\"y\":" << rect.y
+        << ",\"width\":" << rect.width << ",\"height\":" << rect.height << "}";
+    return out.str();
+}
+
+std::string HeatmapJson(const at::HeatmapObservation &heatmap)
+{
+    std::ostringstream out;
+    out << "{\"available\":" << (heatmap.available ? "true" : "false")
+        << ",\"roi\":" << RectJson(heatmap.roi)
+        << ",\"confidence\":" << heatmap.confidence
+        << ",\"feature_strength\":" << heatmap.feature_strength
+        << ",\"stability\":" << heatmap.stability
+        << ",\"source\":\"" << EscapeJson(heatmap.source)
+        << "\",\"model_version\":\"" << EscapeJson(heatmap.model_version) << "\"}";
+    return out.str();
+}
+
 std::string TraceJson(const at::StepResult &result,
                       const at::CameraParams &current_params,
-                      const std::string &image_path)
+                      const std::string &image_path,
+                      const at::AtOrchestrator *orchestrator)
 {
     std::ostringstream out;
     out << "{\"trace_version\":" << result.trace.trace_version << ",\"step\":"
@@ -341,7 +398,14 @@ std::string TraceJson(const at::StepResult &result,
         << ",\"current_params\":" << ParamsJson(current_params)
         << ",\"next_params\":" << ParamsJson(result.next_params)
         << ",\"quality\":" << QualityJson(result.trace.quality)
+        << ",\"heatmap\":" << HeatmapJson(result.trace.heatmap)
         << ",\"reason\":\"" << EscapeJson(result.trace.reason) << "\"";
+    if (orchestrator != nullptr) {
+        const std::string perf = orchestrator->HeatmapPerfJson();
+        if (perf != "null") {
+            out << ",\"heatmap_perf\":" << perf;
+        }
+    }
     if (!image_path.empty()) {
         out << ",\"image_path\":\"" << EscapeJson(image_path) << "\"";
     }
@@ -509,11 +573,12 @@ Response AtStepResponse(camcap::Camera &camera,
 
     Response response = OkResponse(camera);
     response.image_encoding = "png";
-    if (!EncodePng(mat.value(), response.image)) {
+    const cv::Mat display_image = orchestrator.BlendForDisplay(mat.value());
+    if (!EncodePng(display_image, response.image)) {
         return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
                                                        "failed to encode png"));
     }
-    response.trace_json = TraceJson(result, input.current_params, "");
+    response.trace_json = TraceJson(result, input.current_params, "", &orchestrator);
     response.at_json = std::string("{\"finished\":") + (result.finished ? "true" : "false") +
                        ",\"need_decode\":" + (result.need_decode ? "true" : "false") +
                        ",\"step\":" + std::to_string(result.trace.step_index) + "}";
@@ -522,6 +587,8 @@ Response AtStepResponse(camcap::Camera &camera,
 
 int RunBatch(const Options &options)
 {
+    at::AtOrchestrator orchestrator(MakeSessionConfig(options));
+
     if (options.save_images || !options.output_dir.empty()) {
         std::filesystem::path output_dir = options.output_dir.empty() ? "at_device_run" : options.output_dir;
         std::filesystem::create_directories(output_dir);
@@ -544,12 +611,13 @@ int RunBatch(const Options &options)
     camcap::DeviceConfig device_config;
     device_config.device = options.device;
     camcap::Camera camera(device_config);
+    std::cerr << "camera open start: device=" << options.device << '\n';
     if (auto opened = camera.open(); !opened) {
         std::cerr << "open camera failed: " << opened.error().message << '\n';
         return 1;
     }
+    std::cerr << "camera open done\n";
 
-    at::AtOrchestrator orchestrator(at::SessionConfig{});
     camcap::CameraParams current = options.initial_params;
 
     for (int step = 0; step < options.steps; ++step) {
@@ -564,21 +632,22 @@ int RunBatch(const Options &options)
             return 1;
         }
 
-        std::string image_path;
-        if (!output_dir.empty()) {
-            image_path = (output_dir / ("step_" + std::to_string(step) + ".png")).string();
-            if (!cv::imwrite(image_path, mat.value())) {
-                std::cerr << "failed to save image: " << image_path << '\n';
-                return 1;
-            }
-        }
-
         at::FrameContext input;
         input.image = mat.value();
         input.current_params = ToAtParams(current);
 
         const at::StepResult result = orchestrator.ProcessStep(input);
-        const std::string trace_json = TraceJson(result, input.current_params, image_path);
+        std::string image_path;
+        if (!output_dir.empty()) {
+            image_path = (output_dir / ("step_" + std::to_string(step) + ".png")).string();
+            const cv::Mat display_image = orchestrator.BlendForDisplay(mat.value());
+            if (!cv::imwrite(image_path, display_image)) {
+                std::cerr << "failed to save image: " << image_path << '\n';
+                return 1;
+            }
+        }
+
+        const std::string trace_json = TraceJson(result, input.current_params, image_path, &orchestrator);
         std::cout << trace_json << std::endl;
         if (trace_file.is_open()) {
             trace_file << trace_json << '\n';
@@ -595,21 +664,23 @@ int RunBatch(const Options &options)
 
 int RunServer(const Options &options)
 {
+    at::AtOrchestrator orchestrator(MakeSessionConfig(options));
+
     camcap::DeviceConfig device_config;
     device_config.device = options.device;
     camcap::Camera camera(device_config);
+    std::cerr << "camera open start: device=" << options.device << '\n';
     if (auto opened = camera.open(); !opened) {
         std::cerr << "open camera failed: " << opened.error().message << '\n';
         return 1;
     }
+    std::cerr << "camera open done\n";
 
     camcap::CameraParams current_params = options.initial_params;
     if (auto set = camera.setParams(current_params); !set) {
         std::cerr << "set initial params failed: " << set.error().message << '\n';
         return 1;
     }
-
-    at::AtOrchestrator orchestrator(at::SessionConfig{});
 
     const int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_fd < 0) {
@@ -739,5 +810,10 @@ int main(int argc, char **argv)
         return 2;
     }
 
-    return options.server ? RunServer(options) : RunBatch(options);
+    try {
+        return options.server ? RunServer(options) : RunBatch(options);
+    } catch (const std::exception &e) {
+        std::cerr << "Error: " << e.what() << '\n';
+        return 1;
+    }
 }
