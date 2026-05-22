@@ -12,7 +12,7 @@ struct TengineHeatmapConfig {
     std::string model_path;
     std::string context = "timvx";
     std::string precision = "uint8";
-    double threshold = 40.0;
+    double threshold = kDefaultHeatmapThreshold;
     bool overlay = true;
 };
 

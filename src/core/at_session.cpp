@@ -141,7 +141,6 @@ StepResult AtSession::ProcessStep(const FrameContext &context)
     result.need_decode = decision.need_decode;
     result.next_params = ClampParams(decision.next_params);
     result.best_candidate = best_candidate_;
-    result.trace.trace_version = kTraceVersion;
     result.trace.step_index = state_.step_index;
     result.trace.stage_step_count = state_.stage_step_count;
     result.trace.phase = state_.phase;
@@ -149,11 +148,7 @@ StepResult AtSession::ProcessStep(const FrameContext &context)
     result.trace.finish_reason = decision.finish_reason;
     result.trace.quality = observation.quality;
     result.trace.heatmap = observation.heatmap;
-    result.trace.decode = observation.decode;
-    result.trace.preprocess = observation.preprocess;
     result.trace.decode_used = state_.decode_used;
-    result.trace.decode_budget = config_.budget.decode_budget;
-    result.trace.active_max_steps = config_.budget.max_steps;
     result.trace.reason = decision.reason;
 
     if (state_.stage_step_count >= config_.budget.max_steps && !result.finished) {

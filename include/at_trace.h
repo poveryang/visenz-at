@@ -22,7 +22,6 @@ struct CandidateRecord {
 };
 
 struct StepTrace {
-    int trace_version = kTraceVersion;
     int step_index = 0;
     int stage_step_count = 0;
     StepPhase phase = StepPhase::Observe;
@@ -30,12 +29,8 @@ struct StepTrace {
     FinishReason finish_reason = FinishReason::None;
     ImageQuality quality{};
     HeatmapObservation heatmap{};
-    DecodeFeedback decode{};
-    PreprocessReport preprocess{};
-    int decode_used = 0;
-    int decode_budget = 0;
-    int active_max_steps = 0;
     std::string reason;
+    int decode_used = 0;
 };
 
 struct StepResult {

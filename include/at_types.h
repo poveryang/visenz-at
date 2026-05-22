@@ -8,8 +8,7 @@
 
 namespace at {
 
-// trace 协议版本（与库发布版本无关）
-inline constexpr int kTraceVersion = 1;
+inline constexpr double kDefaultHeatmapThreshold = 40.0;
 
 // 库发布版本：在 CMakeLists.txt 的 project(AT VERSION ...) 中维护
 const char *GetLibVersion();
@@ -141,7 +140,7 @@ struct HeatmapConfig {
     std::string model_path;
     std::string context = "timvx";
     std::string precision = "uint8";
-    double threshold = 40.0;
+    double threshold = kDefaultHeatmapThreshold;
     bool overlay = true;
 };
 

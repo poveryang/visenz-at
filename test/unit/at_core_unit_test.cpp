@@ -88,7 +88,6 @@ void TestPipelineFinishesWithoutDecode()
         context.decode = {};
     }
     assert(last.finished);
-    assert(last.trace.trace_version == at::kTraceVersion);
     assert(last.trace.finish_reason == at::FinishReason::BestCandidateFound ||
            last.trace.finish_reason == at::FinishReason::BudgetExhausted);
 }
@@ -96,16 +95,6 @@ void TestPipelineFinishesWithoutDecode()
 void TestGetLibVersionMatchesProject()
 {
     assert(std::string(at::GetLibVersion()) == "1.0.0");
-}
-
-void TestTraceVersionPresent()
-{
-    at::AtSession session(MakeConfig());
-    at::FrameContext context;
-    context.image = MakeImage(120);
-    context.current_params = MakeParams();
-    const at::StepResult result = session.ProcessStep(context);
-    assert(result.trace.trace_version == at::kTraceVersion);
 }
 
 } // namespace
@@ -116,7 +105,6 @@ int main()
     TestDarkFrameIncreasesExposure();
     TestFocusSweepAdvancesPhase();
     TestPipelineFinishesWithoutDecode();
-    TestTraceVersionPresent();
     std::cout << "at_core_unit_test: all passed\n";
     return 0;
 }

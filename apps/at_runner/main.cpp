@@ -386,15 +386,14 @@ std::string TraceJson(const at::StepResult &result,
                       const at::AtOrchestrator *orchestrator)
 {
     std::ostringstream out;
-    out << "{\"trace_version\":" << result.trace.trace_version << ",\"step\":"
-        << result.trace.step_index << ",\"phase\":\"" << at::ToString(result.trace.phase)
-        << "\",\"action\":\"" << at::ToString(result.trace.action) << "\",\"need_decode\":"
+    out << "{\"step\":" << result.trace.step_index << ",\"phase\":\""
+        << at::ToString(result.trace.phase) << "\",\"action\":\""
+        << at::ToString(result.trace.action) << "\",\"need_decode\":"
         << (result.need_decode ? "true" : "false") << ",\"finished\":"
         << (result.finished ? "true" : "false") << ",\"finish_reason\":\""
         << at::ToString(result.trace.finish_reason) << "\",\"stage_step_count\":"
         << result.trace.stage_step_count << ",\"decode_used\":"
-        << result.trace.decode_used << ",\"decode_budget\":" << result.trace.decode_budget
-        << ",\"active_max_steps\":" << result.trace.active_max_steps
+        << result.trace.decode_used
         << ",\"current_params\":" << ParamsJson(current_params)
         << ",\"next_params\":" << ParamsJson(result.next_params)
         << ",\"quality\":" << QualityJson(result.trace.quality)
