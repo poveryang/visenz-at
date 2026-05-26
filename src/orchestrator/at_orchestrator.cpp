@@ -66,6 +66,15 @@ StepResult AtOrchestrator::ProcessStep(FrameContext context)
     return result;
 }
 
+HeatmapObservation AtOrchestrator::ObserveHeatmap(FrameContext context)
+{
+    context.preprocess = preprocess_->Apply(context);
+    if (context.heatmap.available) {
+        return context.heatmap;
+    }
+    return heatmap_->Infer(context);
+}
+
 cv::Mat AtOrchestrator::BlendForDisplay(const cv::Mat &image) const
 {
     return heatmap_->BlendForDisplay(image);

@@ -47,6 +47,7 @@ MVP 当前使用的命令：
 - `get_status`
 - `set_params`
 - `capture`
+- `capture_heatmap`
 - `close_lights`
 - `reset_at`
 - `at_step`
@@ -60,6 +61,7 @@ MVP 当前使用的命令：
 
 采图和 AT step 当前使用 `png` 编码。启用 heatmap 后，`at_step` 返回的图像会融合
 heatmap 伪彩色并绘制 ROI，便于观察 AT 过程；`capture` 仍返回当前相机图像。
+`capture_heatmap` 只采当前帧并执行 heatmap 推理，不推进 AT 状态，适合采集模型验证集。
 `at_step` 的响应会包含：
 
 - `image`：本 step 采到的 PNG 图像。
@@ -175,3 +177,103 @@ at_device_runner --server --device vs1000p_2mp --port 8080
 - 预览当前画面。
 - Reset AT，按单步执行 AT。
 - Run AT，连续执行 AT step，并把每一步图像和 trace 回传到上位机显示。
+
+## Heatmap 验证集采集
+
+`heatmap_dataset_capture.py` 在上位机侧按参数网格连续采集样本。默认只调用
+`capture` 保存原始图像，不做 heatmap 推理；需要同时记录模型响应时增加
+`--with-heatmap`。
+
+图像文件名会包含参数，格式固定且对齐：
+
+```text
+s0001_e003000_g050_f0300_l1111.png
+```
+
+- `e`：曝光时间，6 位，最大按 100000 对齐。
+- `g`：增益，3 位。
+- `f`：对焦位置，4 位。
+- `l`：补光灯，固定 4 位。
+
+连续对焦采集：
+
+```bash
+python3 tools/at_capture/heatmap_dataset_capture.py \
+  --host 10.80.184.167 --port 8080 \
+  --output-dir datasets/hmap_focus_001 \
+  --exposure 3000 --gain 50 --focus-range 0:1023:20 \
+  --lights "1111;1000;0100" --settle-ms 120
+```
+
+不同增益下扫描曝光：
+
+```bash
+python3 tools/at_capture/heatmap_dataset_capture.py \
+  --host 10.80.184.167 --port 8080 \
+  --output-dir datasets/hmap_exp_gain_001 \
+  --exposure-range 200:20000:400 --gains 20,50,80,110 \
+  --focus 300 --lights "1111" --settle-ms 120
+```
+
+固定曝光扫描增益：
+
+```bash
+python3 tools/at_capture/heatmap_dataset_capture.py \
+  --host 10.80.184.167 --port 8080 \
+  --output-dir datasets/hmap_gain_001 \
+  --exposure 3000 --gain-range 1:128:4 \
+  --focus 300 --lights "1111"
+```
+
+补光灯组合：
+
+```bash
+# 指定组合
+python3 tools/at_capture/heatmap_dataset_capture.py \
+  --host 10.80.184.167 --output-dir datasets/hmap_light_001 \
+  --exposure 3000 --gain 50 --focus 300 \
+  --lights "0000;1000;0100;0010;0001;1111"
+
+# 全部 16 种组合
+python3 tools/at_capture/heatmap_dataset_capture.py \
+  --host 10.80.184.167 --output-dir datasets/hmap_light_all_001 \
+  --exposure 3000 --gain 50 --focus 300 --all-lights
+```
+
+输出目录：
+
+```text
+datasets/hmap_xxx/
+  images/
+  manifest.jsonl
+  sweep_plan.json
+```
+
+默认保存原始图像，并在 `manifest.jsonl` 中记录采集参数。增加 `--with-heatmap`
+后会额外记录 heatmap trace 和推理耗时；若需要直接保存融合图，再增加 `--overlay`。
+如果只需要采集训练/验证原图，不需要额外参数。
+
+## Heatmap 指标统计
+
+基础指标统计：
+
+```bash
+python3 tools/at_capture/heatmap_dataset_metrics.py \
+  --manifest datasets/hmap_exp_gain_001/manifest.jsonl \
+  --output datasets/hmap_exp_gain_001/metrics.json \
+  --samples-output datasets/hmap_exp_gain_001/sample_metrics.jsonl \
+  --group-by gain lights
+```
+
+当前指标包括：
+
+- 图像亮度、对比度、清晰度、饱和像素比例、噪声代理值。
+- heatmap available rate、confidence、feature strength、ROI 面积占比。
+- TIM-VX 推理耗时。
+- 可选人工标注 ROI 后的 IoU 和 ROI 中心命中率。
+
+人工标注文件格式：
+
+```json
+{"image_path":"images/capture_xxx.png","roi":{"x":100,"y":80,"width":300,"height":160}}
+```

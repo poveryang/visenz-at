@@ -6,3 +6,4 @@ Diagnostics:
     Remove:
       - modernize-use-trailing-return-type
       - performance-enum-size
+      - readability-magic-numbers

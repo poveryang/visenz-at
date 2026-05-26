@@ -103,6 +103,13 @@ class CaptureServiceClient:
         self._ensure_ok(header, "capture")
         return self._frame_from_response(header, image_bytes, encoding, "capture")
 
+    def capture_heatmap(self, encoding: str = "png", overlay: bool = False) -> CaptureFrame:
+        header, image_bytes = self.request(
+            {"command": "capture_heatmap", "encoding": encoding, "overlay": overlay}
+        )
+        self._ensure_ok(header, "capture_heatmap")
+        return self._frame_from_response(header, image_bytes, encoding, "capture_heatmap")
+
     def reset_at(self, params: CameraParams | None = None) -> dict[str, Any]:
         command: dict[str, Any] = {"command": "reset_at"}
         if params is not None:
@@ -118,13 +125,20 @@ class CaptureServiceClient:
         self._ensure_ok(header, "at_step")
         return self._frame_from_response(header, image_bytes, encoding, "at_step")
 
-    def save_frame(self, frame: CaptureFrame, output_dir: Path, note: str = "") -> Path:
+    def save_frame(
+        self,
+        frame: CaptureFrame,
+        output_dir: Path,
+        note: str = "",
+        filename_stem: str | None = None,
+    ) -> Path:
         image_dir = output_dir / "images"
         image_dir.mkdir(parents=True, exist_ok=True)
 
         stamp = _filename_stamp(frame.captured_at)
         extension = frame.encoding if frame.encoding else "png"
-        image_path = image_dir / f"capture_{stamp}.{extension}"
+        stem = filename_stem or f"capture_{stamp}"
+        image_path = image_dir / f"{stem}.{extension}"
         image_path.write_bytes(frame.image_bytes)
 
         record = {

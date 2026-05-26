@@ -169,6 +169,30 @@ std::optional<int> FindInt(const std::string &json, const std::string &key)
     return std::stoi(json.substr(begin, end - begin));
 }
 
+std::optional<bool> FindBool(const std::string &json, const std::string &key)
+{
+    const std::string quoted_key = "\"" + key + "\"";
+    const auto key_pos = json.find(quoted_key);
+    if (key_pos == std::string::npos) {
+        return std::nullopt;
+    }
+    const auto colon = json.find(':', key_pos + quoted_key.size());
+    if (colon == std::string::npos) {
+        return std::nullopt;
+    }
+    auto begin = colon + 1;
+    while (begin < json.size() && std::isspace(static_cast<unsigned char>(json[begin])) != 0) {
+        ++begin;
+    }
+    if (json.compare(begin, 4, "true") == 0) {
+        return true;
+    }
+    if (json.compare(begin, 5, "false") == 0) {
+        return false;
+    }
+    return std::nullopt;
+}
+
 std::optional<std::array<int, 4>> FindLights(const std::string &json)
 {
     const std::string quoted_key = "\"lights\"";
@@ -412,6 +436,24 @@ std::string TraceJson(const at::StepResult &result,
     return out.str();
 }
 
+std::string HeatmapCaptureTraceJson(const at::HeatmapObservation &heatmap,
+                                    const at::CameraParams &current_params,
+                                    const at::AtOrchestrator *orchestrator)
+{
+    std::ostringstream out;
+    out << "{\"event\":\"capture_heatmap\""
+        << ",\"current_params\":" << ParamsJson(current_params)
+        << ",\"heatmap\":" << HeatmapJson(heatmap);
+    if (orchestrator != nullptr) {
+        const std::string perf = orchestrator->HeatmapPerfJson();
+        if (perf != "null") {
+            out << ",\"heatmap_perf\":" << perf;
+        }
+    }
+    out << "}";
+    return out.str();
+}
+
 std::string StatusJson(const camcap::Status &status)
 {
     std::ostringstream out;
@@ -544,6 +586,32 @@ Response CaptureResponse(camcap::Camera &camera)
         return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
                                                        "failed to encode png"));
     }
+    return response;
+}
+
+Response CaptureHeatmapResponse(camcap::Camera &camera,
+                                at::AtOrchestrator &orchestrator,
+                                const camcap::CameraParams &current_params,
+                                const bool overlay)
+{
+    auto mat = CaptureMat(camera);
+    if (!mat) {
+        return ErrorResponse(camera, mat.error());
+    }
+
+    at::FrameContext input;
+    input.image = mat.value();
+    input.current_params = ToAtParams(current_params);
+    const at::HeatmapObservation heatmap = orchestrator.ObserveHeatmap(input);
+
+    Response response = OkResponse(camera);
+    response.image_encoding = "png";
+    const cv::Mat image = overlay ? orchestrator.BlendForDisplay(mat.value()) : mat.value();
+    if (!EncodePng(image, response.image)) {
+        return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
+                                                       "failed to encode png"));
+    }
+    response.trace_json = HeatmapCaptureTraceJson(heatmap, input.current_params, &orchestrator);
     return response;
 }
 
@@ -753,6 +821,17 @@ int RunServer(const Options &options)
                     continue;
                 }
                 (void)SendResponse(client_fd, CaptureResponse(camera));
+            } else if (*command == "capture_heatmap") {
+                if (auto encoding = FindString(*command_text, "encoding"); encoding && *encoding != "png") {
+                    (void)SendResponse(client_fd,
+                                       ErrorResponse(camera, camcap::makeError(
+                                                                 camcap::ErrorCode::ProtocolError,
+                                                                 "only png encoding is supported")));
+                    continue;
+                }
+                const bool overlay = FindBool(*command_text, "overlay").value_or(true);
+                (void)SendResponse(client_fd,
+                                   CaptureHeatmapResponse(camera, orchestrator, current_params, overlay));
             } else if (*command == "close_lights") {
                 current_params.lights = {0, 0, 0, 0};
                 auto set = camera.setParams(current_params);

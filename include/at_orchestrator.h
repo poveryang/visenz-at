@@ -17,6 +17,7 @@ public:
     void Reset();
 
     StepResult ProcessStep(FrameContext context);
+    HeatmapObservation ObserveHeatmap(FrameContext context);
 
     cv::Mat BlendForDisplay(const cv::Mat &image) const;
     std::string HeatmapPerfJson() const;

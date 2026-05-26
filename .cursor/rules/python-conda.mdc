@@ -1,0 +1,49 @@
+---
+description: 运行 Python 脚本时使用 conda 环境（默认 base）
+alwaysApply: true
+---
+
+# Python：使用 Conda 环境
+
+在本仓库执行、调试或验证 **任何 Python** 相关操作时，使用 conda，不要用系统自带的裸 `python3` / `pip`。
+
+## 默认环境
+
+- 环境名：`base`（可用 `CONDA_ENV` 覆盖，见下）
+- 优先命令形式：
+
+```bash
+conda run -n base python <script.py> [args...]
+conda run -n base python -m pip install <pkg>
+conda run -n base python -m py_compile tools/at_capture/*.py
+```
+
+需要交互式 shell 时：
+
+```bash
+conda activate base
+python tools/at_capture/at_mvp_gui.py --host <设备IP> --port 8080
+```
+
+## Agent / 终端要求
+
+1. Shell 里跑 Python 前，确认 `conda` 在 PATH；不可用则说明并停，不要静默退回系统 Python。
+2. 安装依赖、冒烟、`py_compile`、GUI、数据集脚本，一律走 `conda run -n base`（或已激活的 `base`）。
+3. 文档/回复里给用户的可复制命令，也应带 `conda run -n base` 或 `conda activate base`。
+
+## 本仓库常见入口
+
+```bash
+conda run -n base python tools/at_capture/at_mvp_gui.py --host 10.80.184.167 --port 8080
+conda run -n base python tools/at_capture/heatmap_dataset_capture.py --help
+conda run -n base python -m py_compile tools/at_capture/capture_client.py tools/at_capture/at_mvp_gui.py
+```
+
+## 覆盖默认环境
+
+仅当用户明确要求其它环境时，替换 `base`；也可读取环境变量：
+
+```bash
+export CONDA_ENV=hmap   # 示例：临时改用 hmap
+conda run -n "${CONDA_ENV:-base}" python ...
+```

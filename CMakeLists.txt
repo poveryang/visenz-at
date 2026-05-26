@@ -106,7 +106,7 @@ if (HMAP_SDK_ROOT)
   set_target_properties(AT_HMAP_TENGINE PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_include_directories(AT_HMAP_TENGINE PUBLIC
           "${CMAKE_SOURCE_DIR}/include"
-          PRIVATE
+          PRIVAT
           "${CMAKE_SOURCE_DIR}/src")
   target_link_libraries(AT_HMAP_TENGINE PUBLIC ${OpenCV_LIBS} HMAP::hmap ${_hmap_tengine_libs})
 

@@ -129,7 +129,10 @@ class ATMvpGui(tk.Tk):
             ).grid(row=0, column=index, padx=(0, 10), pady=0)
 
         ttk.Button(params, text="Capture", command=self.capture).grid(row=4, column=0, padx=4, pady=(8, 4))
-        ttk.Button(params, text="Save Last", command=self.save_last).grid(row=4, column=1, sticky=tk.W, padx=4, pady=(8, 4))
+        ttk.Button(params, text="Capture HMap", command=self.capture_heatmap).grid(
+            row=4, column=1, sticky=tk.W, padx=4, pady=(8, 4)
+        )
+        ttk.Button(params, text="Save Last", command=self.save_last).grid(row=4, column=1, sticky=tk.E, padx=4, pady=(8, 4))
 
         at_controls = ttk.LabelFrame(left, text="AT Execution")
         at_controls.pack(fill=tk.X, pady=8)
@@ -259,6 +262,26 @@ class ATMvpGui(tk.Tk):
             )
         except Exception as exc:
             self.status_var.set(f"Capture failed: {exc}")
+
+    def capture_heatmap(self) -> None:
+        try:
+            frame = self.client.capture_heatmap(overlay=True)
+            self.last_frame = frame
+            self._show_image(frame.image)
+            self.status_var.set(f"Captured heatmap {frame.image.shape[1]}x{frame.image.shape[0]}")
+            self._write_trace(
+                {
+                    "event": "capture_heatmap",
+                    "captured_at": frame.captured_at,
+                    "params": self._params_json(frame.params),
+                    "shape": list(frame.image.shape),
+                    "encoding": frame.encoding,
+                    "status": frame.status,
+                    "trace": frame.trace,
+                }
+            )
+        except Exception as exc:
+            self.status_var.set(f"Capture heatmap failed: {exc}")
 
     def reset_at(self) -> None:
         try:
