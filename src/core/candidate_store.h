@@ -10,7 +10,8 @@ CandidateRecord MakeCandidate(const FrameContext &context,
                               const cv::Rect &roi,
                               const ImageQuality &quality,
                               StepPhase phase,
-                              TuneAction action);
+                              TuneAction action,
+                              const FlowConfig &flow);
 
 void UpdateBestCandidate(const CandidateRecord &candidate,
                          std::optional<CandidateRecord> &best_candidate);

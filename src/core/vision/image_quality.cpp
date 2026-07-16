@@ -3,6 +3,8 @@
 #include "core/vision/roi_tracker.h"
 
 #include <algorithm>
+#include <array>
+#include <cmath>
 
 #include <opencv2/imgproc.hpp>
 
@@ -78,6 +80,38 @@ ImageQuality AnalyzeImageQuality(const cv::Mat &image, const cv::Rect &roi)
     cv::absdiff(roi_gray, blurred, noise);
     quality.noise_proxy = MeanOfMat(noise);
     return quality;
+}
+
+double GrayEntropy(const cv::Mat &image, const cv::Rect &roi)
+{
+    if (image.empty()) {
+        return 0.0;
+    }
+    const cv::Mat gray = ToGray(image);
+    const cv::Rect full_image(0, 0, gray.cols, gray.rows);
+    const cv::Rect target_roi = roi.empty() ? full_image : ClipRect(roi, gray.size());
+    if (target_roi.empty()) {
+        return 0.0;
+    }
+
+    const cv::Mat patch = gray(target_roi);
+    std::array<int, 256> histogram{};
+    for (int row = 0; row < patch.rows; ++row) {
+        const uchar *pixels = patch.ptr<uchar>(row);
+        for (int col = 0; col < patch.cols; ++col) {
+            ++histogram[pixels[col]];
+        }
+    }
+
+    const double total = static_cast<double>(patch.total());
+    double entropy = 0.0;
+    for (const int count : histogram) {
+        if (count > 0) {
+            const double p = count / total;
+            entropy -= p * std::log2(p);
+        }
+    }
+    return entropy;
 }
 
 } // namespace at

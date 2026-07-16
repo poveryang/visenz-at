@@ -1,5 +1,7 @@
 #include "core/candidate_store.h"
 
+#include "core/vision/image_quality.h"
+
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -7,39 +9,64 @@
 namespace at {
 namespace {
 
-// ---- 候选帧评分模型 ----
-// score = decode + Σ(归一化质量分 × 权重)。decode 成功恒为 1.0，压过其余分项。
-constexpr double kIdealBrightness = 110.0;        // 灰度均值最优点，偏离线性扣分
-constexpr double kSaturationPenaltyGain = 4.0;    // 饱和占比放大系数（25% 饱和即 0 分）
-constexpr double kNoiseFullScale = 30.0;          // 噪声代理满量程（达到即 0 分）
-constexpr double kSharpnessFullScale = 80.0;      // 清晰度满量程（达到即 1 分）
-constexpr double kBrightnessWeight = 0.35;
-constexpr double kSaturationWeight = 0.25;
-constexpr double kNoiseWeight = 0.15;
-constexpr double kSharpnessWeight = 0.15;
-constexpr double kHeatmapWeight = 0.30;
+// ---- 面向解码的候选帧评分 ----
+// 解码成功绝对支配；未解码时以“码区可读性”代理指标排序：
+// 清晰度（Laplacian σ）、对比度（灰度 σ）、灰度熵为主，亮度只要求落在
+// 就绪窗口内（窗外线性衰减），饱和（高光溢出）按占比惩罚，
+// 有检测观测的帧再按置信度加成，使锁定 ROI 的帧优先胜出。
+constexpr double kDecodeSuccessScore = 2.0;   // 解码成功的支配性得分
+constexpr double kDecodePartialWeight = 0.5;  // 解码失败但有部分得分时的权重
+constexpr double kSharpnessWeight = 0.30;
+constexpr double kSharpnessFullScale = 80.0;  // Laplacian σ 满量程（达到即 1 分）
+constexpr double kContrastWeight = 0.20;
+constexpr double kContrastFullScale = 64.0;   // 灰度 σ 满量程
+constexpr double kEntropyWeight = 0.15;
+constexpr double kEntropyFullScale = 8.0;     // 8bit 灰度熵上限
+constexpr double kBrightnessWeight = 0.15;
+constexpr double kHeatmapWeight = 0.20;
+constexpr double kSaturationPenalty = 0.25;
+constexpr double kSaturationPenaltyGain = 4.0; // 饱和占比放大（25% 饱和即满惩罚）
 
 double Clamp01(double value)
 {
     return std::clamp(value, 0.0, 1.0);
 }
 
-double ScoreCandidate(const FrameContext &context, const ImageQuality &quality)
+// 就绪窗口内 1 分；窗外按半窗宽线性衰减到 0。
+double BrightnessWindowScore(double brightness, const FlowConfig &flow)
 {
-    const double decode_score = context.decode.success ? 1.0 : context.decode.score;
-    const double brightness_score =
-        1.0 - Clamp01(std::abs(quality.brightness - kIdealBrightness) / kIdealBrightness);
-    const double saturation_score = 1.0 - Clamp01(quality.saturation_ratio * kSaturationPenaltyGain);
-    const double noise_score = 1.0 - Clamp01(quality.noise_proxy / kNoiseFullScale);
+    if (brightness >= flow.min_ready_brightness && brightness <= flow.max_ready_brightness) {
+        return 1.0;
+    }
+    const double window = std::max(1.0, flow.max_ready_brightness - flow.min_ready_brightness);
+    const double distance = brightness < flow.min_ready_brightness
+                                ? flow.min_ready_brightness - brightness
+                                : brightness - flow.max_ready_brightness;
+    return std::max(0.0, 1.0 - distance / (window * 0.5));
+}
+
+double ScoreCandidate(const FrameContext &context,
+                      const ImageQuality &quality,
+                      double entropy,
+                      const FlowConfig &flow)
+{
+    const double decode_score = context.decode.success
+                                    ? kDecodeSuccessScore
+                                    : kDecodePartialWeight * Clamp01(context.decode.score);
     const double sharpness_score = Clamp01(quality.sharpness / kSharpnessFullScale);
-    const double heatmap_score = context.heatmap.available ? context.heatmap.confidence : 0.0;
+    const double contrast_score = Clamp01(quality.contrast / kContrastFullScale);
+    const double entropy_score = Clamp01(entropy / kEntropyFullScale);
+    const double brightness_score = BrightnessWindowScore(quality.brightness, flow);
+    const double heatmap_score = context.heatmap.available ? Clamp01(context.heatmap.confidence) : 0.0;
+    const double saturation_over = Clamp01(quality.saturation_ratio * kSaturationPenaltyGain);
 
     return decode_score +
-           brightness_score * kBrightnessWeight +
-           saturation_score * kSaturationWeight +
-           noise_score * kNoiseWeight +
            sharpness_score * kSharpnessWeight +
-           heatmap_score * kHeatmapWeight;
+           contrast_score * kContrastWeight +
+           entropy_score * kEntropyWeight +
+           brightness_score * kBrightnessWeight +
+           heatmap_score * kHeatmapWeight -
+           saturation_over * kSaturationPenalty;
 }
 
 } // namespace
@@ -48,7 +75,8 @@ CandidateRecord MakeCandidate(const FrameContext &context,
                               const cv::Rect &roi,
                               const ImageQuality &quality,
                               StepPhase phase,
-                              TuneAction action)
+                              TuneAction action,
+                              const FlowConfig &flow)
 {
     CandidateRecord candidate;
     candidate.params = context.current_params;
@@ -58,13 +86,17 @@ CandidateRecord MakeCandidate(const FrameContext &context,
     candidate.quality = quality;
     candidate.heatmap = context.heatmap;
     candidate.decode = context.decode;
-    candidate.score = ScoreCandidate(context, quality);
+
+    const double entropy = GrayEntropy(context.image, roi);
+    candidate.score = ScoreCandidate(context, quality, entropy, flow);
 
     std::ostringstream reason;
     reason << "phase=" << ToString(phase)
            << " action=" << ToString(action)
            << " brightness=" << quality.brightness
            << " sharpness=" << quality.sharpness
+           << " contrast=" << quality.contrast
+           << " entropy=" << entropy
            << " decode=" << (context.decode.success ? "success" : "none/fail");
     candidate.reason = reason.str();
     return candidate;

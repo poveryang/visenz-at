@@ -47,27 +47,44 @@ FocusTuneWithCoarseExposure
 
 内部阶段 `Observe` 用于统一质量采样，不暴露给 GUI。
 
-### 4.1 检测前置（v5.3，阶段枚举不变）
+### 4.1 面向解码的调节流程（v5.4，阶段枚举不变）
 
-`FocusTuneWithCoarseExposure` 内部细化为「检测驱动」的两段式流程，全部在
+`FocusTuneWithCoarseExposure` 内部细分为四个子阶段，全部在
 `src/core/at_session.cpp` 实现，公共契约与阶段枚举不变：
 
 ```text
-搜索：多亮度粗对焦（每遍 = 先收敛亮度，再整遍扫焦）
-  每帧运行码区检测（YoloDetectProvider，经 HeatmapProvider 契约注入）
-  按目标亮度档位 {中, 暗, 亮} 逐遍执行：
-    1) 收敛亮度到该档目标（步数上限 flow.exposure_steps_per_profile）
-    2) 整遍粗对焦扫描，全程监测码区
-  连续 kRoiLockHits(3) 帧检测框 IoU >= 0.5  ->  锁定 ROI
-锁定：ROI 精细对焦
-  先基于 ROI 测光收敛曝光（BrightnessReady 以 ROI 质量判定）
-  再围绕历史最佳清晰度位置（ROI 清晰度）做窗口精扫
-之后 ExposurePerLightProfile 基于 ROI 测光，焦点钉在最佳清晰度位置
+CoarseSweep   对焦前先把亮度收敛到就绪窗口中值（比例式 AE，见下），
+              然后整遍等距粗对焦扫描（不依赖检测模块，普通设备可用）；
+              全程每帧检测码区，连续 kRoiLockHits(3) 帧 IoU >= 0.5
+              即锁定并立即转入 FineSweep（"立即用目标 ROI 精调"）。
+FineSweep     围绕最佳清晰度位置 ±half 窗口等距精扫（中心进入时锁存，
+              不随精扫自身漂移）；已锁定时先基于 ROI 测光收敛曝光，
+              再按 ROI 清晰度精调。
+ProbeDark     精扫结束仍未锁定、且设备具备检测能力（配置了检测模型或
+ProbeBright   出现过检测观测）时：把亮度压到暗区 / 抬到亮区各驻留数帧，
+              探测"更暗/更亮才可见"的码区；探针期间一旦锁定，跳回
+              FineSweep 精调后直接进入曝光阶段（跳过剩余探针）。
+
+ExposurePerLightProfile  逐补光灯组合做传统 AE；锁定后按码区 ROI 测光，
+                          焦点钉在 ROI 清晰度最优位置；检测持续运行，
+                          允许此阶段后补锁定。
+CandidateDecodeRanking   可选：以 decode 预算 + 少量等待帧为上限请求解码
+                          验证，超时放弃排名（不烧全局预算）。
 ```
 
+比例式 AE：亮度近似正比于 exp_time × gain，单步按 target/brightness
+比例更新（上限 4x），增亮优先加曝光时间、减亮优先降增益（低增益优先，
+控噪声）；饱和超限时强制回退。
+
+候选评分面向解码：解码成功绝对支配；未解码时按 ROI 清晰度(0.30)、
+对比度(0.20)、灰度熵(0.15)、亮度窗口(0.15)、检测置信(0.20) 加权，
+饱和占比(0.25) 惩罚。
+
 实现约束：不改 `include/at_*.h`（ABI/API 冻结），新增状态一律复用既有成员
-（`previous_roi_` = 锁定 ROI；`exposure_tune_index` 在对焦阶段复用为精扫计数）
-或从 `candidates_` 记录派生（连续命中数、连续曝光调整数、最佳清晰度帧）。
+（`previous_roi_` = 锁定 ROI；`focus_tune_index` = 对焦子阶段编码；
+`exposure_tune_index` = 子阶段内步数；`light_profile_index` 在精扫期间
+暂存精扫中心）或从 `candidates_` 记录派生（连续命中数、连续曝光调整数、
+探针驻留帧数、最佳清晰度帧）。
 
 码区观测统一由 `YoloDetectProvider` 提供（`AT_WITH_YOLO_TENGINE`）：
 `HeatmapConfig.model_path` 非空即加载 YOLO 模型；`threshold` 语义为置信度 (0,1]，

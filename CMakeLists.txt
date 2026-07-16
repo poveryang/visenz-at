@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # 发版时只改此处版本号；安装目录与库内版本 API 均由此派生
-project(AT VERSION 5.3.0)
+project(AT VERSION 5.4.0)
 
 # 跨平台下限: imx8mini GCC 7.3 + CMake 3.10
 set(CMAKE_CXX_STANDARD 17)
