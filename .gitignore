@@ -1,5 +1,6 @@
 /release/
 /build/
+/build_host/
 /test/3rdparty/
 
 .DS_Store
