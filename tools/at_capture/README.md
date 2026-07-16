@@ -17,8 +17,8 @@
 
 - 设备端：部署 `at_device_runner --server`，它链接 `AT` 核心库和 `smore-cam-cap` SDK，
   负责打开相机、手动控参、预览采图和执行 AT step。
-- 上位机：Python 工具连接 `at_device_runner`，显示预览图像，触发 AT 执行，
-  并记录每一步返回的图像、状态和 trace。
+- 上位机：Python 工具连接 `at_device_runner`，显示预览图像并触发设备端 AT；
+  常规运行只轮询轻量状态和 trace，预览图是可选、低频、按需回传的。
 - AT core：只接收图像、相机参数、设备状态和 trace，不直接依赖相机 SDK。
 
 `smore-cam-cap` 不作为 `AT_CORE` 的直接依赖，只在设备端 runner/adapter 边界链接。
@@ -29,8 +29,8 @@
 - `at_mvp_gui.py`：Python 桌面工具，支持手动设置相机参数、图像预览、
   图像保存、AT step 执行和 trace 记录。
 - `apps/at_runner/main.cpp`：设备端 AT runner 源码（安装名为 `at_device_runner`）。
-- `src/providers/tengine_heatmap_provider.cpp`：AT 的可选 heatmap provider，
-  负责加载 `heatmap-model/cpp` 导出的 Tengine/TIM-VX 模型。
+- `src/providers/yolo_detect_provider.cpp`：AT 的 YOLO 码区检测 provider，
+  负责加载 `heatmap-model/cpp` 的 YOLOv8 Tengine/TIM-VX 模型。
 
 ## AT Runner 协议
 
@@ -51,6 +51,7 @@ MVP 当前使用的命令：
 - `close_lights`
 - `reset_at`
 - `at_step`
+- `run_at_async` / `get_run_status` / `stop_at_async` / `get_preview`
 
 `set_params` 字段：
 
@@ -68,6 +69,11 @@ heatmap 伪彩色并绘制 ROI，便于观察 AT 过程；`capture` 仍返回当
 - `trace`：本 step 的 AT trace，包含 `heatmap` 字段。
 - `at`：`finished`、`need_decode`、`step` 等执行状态。
 
+`run_at_async` 适合实际性能测试：AT 循环一直在设备端执行，关键路径不进行 PNG
+编码、磁盘写入或网络发送。`get_run_status` 只返回最新 trace 和进度；设置
+`preview_every > 0` 后，设备仅保存对应步的原始帧，主机调用 `get_preview` 时才编码并
+拉取最新一张图。因此预览默认关闭（`0`），不会影响设备端测时。
+
 ## 设备端启动参考
 
 部署当前工程生成的 `at_device_runner`。当前 AT 上位机默认连接：
@@ -82,9 +88,9 @@ port: 8080
 ```bash
 at_device_runner --server --device vs1000p_2mp --port 8080
 
-# 启用 heatmap 推理与融合显示
+# 启用 YOLO 码区检测
 at_device_runner --server --device vs1000p_2mp --port 8080 \
-  --heatmap-model /tmp/at_runner/model/model-uint8.tmfile \
+  --heatmap-model /tmp/at_runner/model/barcode-yolov8n-gray-final-uint8.tmfile \
   --heatmap-context timvx
 ```
 
@@ -140,7 +146,7 @@ cmake --build /Users/yjunj/Projects/smore-cam-cap/build/imx8plus --target instal
 ./scripts/build/imx8plus.sh
 
 # 产物: release/AT_v<version>/imx8plus/bin/at_device_runner
-# 若 ~/Projects/heatmap-model/cpp 下存在 libHMAP.a 和 model-uint8.tmfile，会自动构建 AT_HMAP_TENGINE 并安装模型
+# 默认 ENABLE_YOLO=ON：使用 ~/Projects/heatmap-model 的 YOLO 检测器构建 AT_YOLO_TENGINE 并安装 yolov8 tmfile
 # 部署(上传+启动) / 测试: cp scripts/device/device.env.example scripts/device/device.env 后 ./scripts/device/runner.sh all
 ```
 
@@ -176,7 +182,8 @@ at_device_runner --server --device vs1000p_2mp --port 8080
 - 手动设置曝光、增益、焦距和补光灯。
 - 预览当前画面。
 - Reset AT，按单步执行 AT。
-- Run AT，连续执行 AT step，并把每一步图像和 trace 回传到上位机显示。
+- Run on Device，连续在设备端执行 AT；界面轮询进度和 trace。预览频率为 `0` 时完全
+  不传图，设置为 N 时每 N 步可异步查看最新一帧。
 
 ## Heatmap 验证集采集
 

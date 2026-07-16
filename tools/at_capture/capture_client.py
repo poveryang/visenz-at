@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import socket
 import struct
+import threading
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -60,6 +61,7 @@ class CaptureServiceClient:
         self.sock: Optional[socket.socket] = None
         self.current_params = CameraParams()
         self.last_status: dict[str, Any] = {}
+        self._request_lock = threading.Lock()
 
     @property
     def connected(self) -> bool:
@@ -125,6 +127,31 @@ class CaptureServiceClient:
         self._ensure_ok(header, "at_step")
         return self._frame_from_response(header, image_bytes, encoding, "at_step")
 
+    def run_at_async(self, params: CameraParams, max_steps: int, preview_every: int = 0) -> dict[str, Any]:
+        header, _ = self.request({
+            "command": "run_at_async", "max_steps": max_steps, "preview_every": preview_every,
+            "params": params.to_request(), **params.to_request(),
+        })
+        self._ensure_ok(header, "run_at_async")
+        return dict(header.get("at", {}))
+
+    def get_run_status(self) -> dict[str, Any]:
+        header, _ = self.request({"command": "get_run_status"})
+        self._ensure_ok(header, "get_run_status")
+        return dict(header.get("at", {}))
+
+    def stop_at_async(self) -> dict[str, Any]:
+        header, _ = self.request({"command": "stop_at_async"})
+        self._ensure_ok(header, "stop_at_async")
+        return dict(header.get("at", {}))
+
+    def get_preview(self) -> CaptureFrame | None:
+        header, image_bytes = self.request({"command": "get_preview"})
+        self._ensure_ok(header, "get_preview")
+        if not image_bytes:
+            return None
+        return self._frame_from_response(header, image_bytes, "png", "get_preview")
+
     def save_frame(
         self,
         frame: CaptureFrame,
@@ -161,18 +188,19 @@ class CaptureServiceClient:
         return image_path
 
     def request(self, command: dict[str, Any]) -> tuple[dict[str, Any], bytes]:
-        if self.sock is None:
-            raise RuntimeError("capture service is not connected")
+        with self._request_lock:
+            if self.sock is None:
+                raise RuntimeError("capture service is not connected")
 
-        payload = json.dumps(command, separators=(",", ":")).encode("utf-8")
-        self.sock.sendall(struct.pack("!I", len(payload)))
-        self.sock.sendall(payload)
+            payload = json.dumps(command, separators=(",", ":")).encode("utf-8")
+            self.sock.sendall(struct.pack("!I", len(payload)))
+            self.sock.sendall(payload)
 
-        header_size = struct.unpack("!I", self._recv_exact(4))[0]
-        header = json.loads(self._recv_exact(header_size).decode("utf-8"))
-        image_size = int(header.get("image", {}).get("size", 0))
-        image = self._recv_exact(image_size) if image_size else b""
-        return header, image
+            header_size = struct.unpack("!I", self._recv_exact(4))[0]
+            header = json.loads(self._recv_exact(header_size).decode("utf-8"))
+            image_size = int(header.get("image", {}).get("size", 0))
+            image = self._recv_exact(image_size) if image_size else b""
+            return header, image
 
     def _frame_from_response(
         self, header: dict[str, Any], image_bytes: bytes, fallback_encoding: str, event: str

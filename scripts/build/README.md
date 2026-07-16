@@ -29,9 +29,10 @@ ENABLE_AT_RUNNER=OFF ./scripts/build/imx8plus.sh
 | `CLEAN_BUILD` | `1` | 配置前删除 `build/<platform>` |
 | `ENABLE_AT_RUNNER` | imx8plus: `ON`，其它: `OFF` | 是否编译 `at_device_runner` |
 | `SMORE_CAM_CAP_SDK_HOST` | `~/Projects/smore-cam-cap/release/vs1000p_2mp` | 仅 imx8plus runner |
-| `ENABLE_HMAP` | imx8plus: `ON` | 是否构建 AT Tengine heatmap provider（`AT_HMAP_TENGINE`） |
-| `HMAP_SDK_HOST` | `~/Projects/heatmap-model/cpp` | heatmap C++ 工程根目录 |
-| `HMAP_INSTALL_RUNTIME_LIBS` | `OFF` | 是否把 heatmap SDK 自带 Tengine/Vivante `.so` 安装进 AT release；设备部署默认使用板端 `/usr/lib` |
+| `ENABLE_YOLO` | imx8plus: `ON` | 是否构建 AT YOLO 检测 provider（`AT_YOLO_TENGINE`） |
+| `YOLO_REPO_HOST` | `~/Projects/heatmap-model` | YOLO 检测器仓库根目录（需含 `cpp/` 与 `deploy/`） |
+| `YOLO_MODEL_HOST` | `<YOLO_REPO_HOST>/deploy/vs1000pro/yolov8n-gray/tmfile/barcode-yolov8n-gray-final-uint8.tmfile` | 安装进 release `model/` 的检测模型 |
+| `YOLO_INSTALL_RUNTIME_LIBS` | `OFF` | 是否把 SDK 自带 Tengine/Vivante `.so` 安装进 AT release；设备部署默认使用板端 `/usr/lib` |
 | `CONTINUE_ON_ERROR` | `1` | 仅 `all.sh`：单平台失败是否继续 |
 
 设备部署与联调见 [`../device/README.md`](../device/README.md)。

@@ -47,6 +47,20 @@
 
 ## Release Notes
 
+### 5.3.0
+
+1. 引入 YOLOv8 码区检测模型（heatmap-model 仓库 `cpp/` 的 `YoloDetector`），以既有 `HeatmapProvider`
+   接口接入（`src/providers/yolo_detect_provider.*`），`include/at_*.h` 公共接口零改动，上位软件无需重编。
+   `--heatmap-model` 传 yolov8 tmfile 即可；threshold 语义为检测置信度 (0,1]，超范围回落默认 0.25。
+2. AT 主线检测前置：对焦阶段每帧执行检测；未发现码区时按多档目标亮度（中/暗/亮）做多遍
+   「先收敛亮度 → 再整遍粗对焦扫描」；连续 3 帧检测框 IoU 稳定即锁定 ROI，
+   转入围绕最佳清晰度位置的精细对焦（清晰度按 ROI 计算）。
+3. 锁定 ROI 后，后续曝光/灯光阶段基于 ROI 测光；检测偶发丢帧时沿用锁定 ROI，不回退全图统计。
+4. 移除旧热图（hmap）实现路径：删除 `tengine_heatmap_provider` 与 `include/at_heatmap_tengine.h`，
+   码区观测统一由 YOLO 检测 provider 提供（`HeatmapObservation` 等公共类型名不变）。
+5. 构建：新增 `YOLO_SDK_ROOT`/`YOLO_MODEL_FILE`/`YOLO_INSTALL_RUNTIME_LIBS` CMake 变量与
+   `ENABLE_YOLO`（imx8plus.sh 默认 ON）；新增 `PLATFORM=host` 用于本机单测。
+
 ### 5.1.3
 
 1. refine调节亮度时增加fraction，用于产生更多曝光增益组合，目前的逻辑是先用给定的最大曝光跑完搜索亮度，如果全部搜索亮度都跑完也没达到给定解码率，就会去到下一个fraction，改变最大曝光值

@@ -47,6 +47,33 @@ FocusTuneWithCoarseExposure
 
 内部阶段 `Observe` 用于统一质量采样，不暴露给 GUI。
 
+### 4.1 检测前置（v5.3，阶段枚举不变）
+
+`FocusTuneWithCoarseExposure` 内部细化为「检测驱动」的两段式流程，全部在
+`src/core/at_session.cpp` 实现，公共契约与阶段枚举不变：
+
+```text
+搜索：多亮度粗对焦（每遍 = 先收敛亮度，再整遍扫焦）
+  每帧运行码区检测（YoloDetectProvider，经 HeatmapProvider 契约注入）
+  按目标亮度档位 {中, 暗, 亮} 逐遍执行：
+    1) 收敛亮度到该档目标（步数上限 flow.exposure_steps_per_profile）
+    2) 整遍粗对焦扫描，全程监测码区
+  连续 kRoiLockHits(3) 帧检测框 IoU >= 0.5  ->  锁定 ROI
+锁定：ROI 精细对焦
+  先基于 ROI 测光收敛曝光（BrightnessReady 以 ROI 质量判定）
+  再围绕历史最佳清晰度位置（ROI 清晰度）做窗口精扫
+之后 ExposurePerLightProfile 基于 ROI 测光，焦点钉在最佳清晰度位置
+```
+
+实现约束：不改 `include/at_*.h`（ABI/API 冻结），新增状态一律复用既有成员
+（`previous_roi_` = 锁定 ROI；`exposure_tune_index` 在对焦阶段复用为精扫计数）
+或从 `candidates_` 记录派生（连续命中数、连续曝光调整数、最佳清晰度帧）。
+
+码区观测统一由 `YoloDetectProvider` 提供（`AT_WITH_YOLO_TENGINE`）：
+`HeatmapConfig.model_path` 非空即加载 YOLO 模型；`threshold` 语义为置信度 (0,1]，
+超出该范围时回落默认 0.25。`HeatmapObservation`/`HeatmapProvider` 等公共类型名
+保留为冻结契约词汇；旧热图（hmap）实现路径已于 5.3.0 移除。
+
 ## 5. 转移表（表驱动）
 
 | From | Guard | To |

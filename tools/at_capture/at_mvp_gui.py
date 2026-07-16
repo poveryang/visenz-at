@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import threading
 import tkinter as tk
 from pathlib import Path
 from tkinter import ttk
@@ -21,7 +22,8 @@ class ATMvpGui(tk.Tk):
     PARAM_APPLY_DELAY_MS = 350
     EXPOSURE_RANGE_US = (1, 40000)
     GAIN_RANGE = (1, 128)
-    FOCUS_RANGE = (0, 1023)
+    FOCUS_RANGE = (0, 420)
+    ASYNC_POLL_MS = 300
 
     def __init__(self, host: str, port: int, output_dir: Path) -> None:
         super().__init__()
@@ -34,7 +36,7 @@ class ATMvpGui(tk.Tk):
         self.preview_source_image = None
         self.preview = None
         self.at_running = False
-        self.at_remaining_steps = 0
+        self.last_preview_version = 0
         self.param_apply_after_id = None
         self.suspend_param_apply = False
 
@@ -45,7 +47,7 @@ class ATMvpGui(tk.Tk):
         self.focus_var = tk.IntVar(value=30)
         self.light_vars = [tk.IntVar(value=1) for _ in range(4)]
         self.at_steps_var = tk.StringVar(value="80")
-        self.at_interval_var = tk.StringVar(value="30")
+        self.preview_every_var = tk.StringVar(value="0")
         self.status_var = tk.StringVar(value="Disconnected")
         self.service_status_var = tk.StringVar(value="{}")
         self.at_trace_var = tk.StringVar(value="{}")
@@ -138,12 +140,12 @@ class ATMvpGui(tk.Tk):
         at_controls.pack(fill=tk.X, pady=8)
         ttk.Label(at_controls, text="Max Steps").grid(row=0, column=0, sticky=tk.W, padx=4, pady=4)
         ttk.Entry(at_controls, textvariable=self.at_steps_var, width=8).grid(row=0, column=1, padx=4, pady=4)
-        ttk.Label(at_controls, text="Interval ms").grid(row=0, column=2, sticky=tk.W, padx=(12, 4), pady=4)
-        ttk.Entry(at_controls, textvariable=self.at_interval_var, width=8).grid(row=0, column=3, padx=4, pady=4)
+        ttk.Label(at_controls, text="Preview every N steps (0=off)").grid(row=0, column=2, sticky=tk.W, padx=(12, 4), pady=4)
+        ttk.Entry(at_controls, textvariable=self.preview_every_var, width=8).grid(row=0, column=3, padx=4, pady=4)
         ttk.Button(at_controls, text="Reset AT", command=self.reset_at).grid(row=1, column=0, padx=4, pady=(8, 4))
-        ttk.Button(at_controls, text="AT Step", command=self.at_step).grid(row=1, column=1, padx=4, pady=(8, 4))
-        ttk.Button(at_controls, text="Run AT", command=self.run_at).grid(row=1, column=2, padx=4, pady=(8, 4))
-        ttk.Button(at_controls, text="Stop AT", command=self.stop_at).grid(row=1, column=3, padx=4, pady=(8, 4))
+        ttk.Button(at_controls, text="AT Step (debug)", command=self.at_step).grid(row=1, column=1, padx=4, pady=(8, 4))
+        ttk.Button(at_controls, text="Run on Device", command=self.run_at).grid(row=1, column=2, padx=4, pady=(8, 4))
+        ttk.Button(at_controls, text="Stop Device Run", command=self.stop_at).grid(row=1, column=3, padx=4, pady=(8, 4))
 
         preview_frame = ttk.LabelFrame(right, text="Preview")
         preview_frame.grid(row=0, column=0, sticky=tk.NSEW)
@@ -327,41 +329,82 @@ class ATMvpGui(tk.Tk):
             return
         try:
             params = self.current_params()
-            at_state = self.client.reset_at(params)
-            self.at_remaining_steps = max(1, int(self.at_steps_var.get()))
-            self.at_running = True
-            self._write_trace({"event": "run_at_start", "params": self._params_json(params), "at": at_state})
-            self.status_var.set("AT running")
-            self.after(1, self._run_at_next)
+            max_steps = max(1, int(self.at_steps_var.get()))
+            preview_every = max(0, int(self.preview_every_var.get()))
+            self.status_var.set("Starting device-side AT run…")
+            self._background(
+                lambda: self.client.run_at_async(params, max_steps, preview_every),
+                lambda state: self._async_run_started(params, state),
+            )
         except Exception as exc:
             self.at_running = False
             self.status_var.set(f"Run AT failed: {exc}")
 
     def stop_at(self) -> None:
-        self.at_running = False
-        self.status_var.set("AT stopped")
-        self._write_trace({"event": "run_at_stop"})
-
-    def _run_at_next(self) -> None:
         if not self.at_running:
             return
-        if self.at_remaining_steps <= 0:
-            self.at_running = False
-            self.status_var.set("AT stopped: max steps reached")
-            self._write_trace({"event": "run_at_done", "reason": "max_steps"})
+        self.status_var.set("Stopping device-side AT run…")
+        self._background(self.client.stop_at_async, lambda state: self._async_run_update(state))
+
+    def _async_run_started(self, params: CameraParams, state: dict) -> None:
+        self.at_running = True
+        self.last_preview_version = 0
+        self._write_trace({"event": "run_at_async_start", "params": self._params_json(params), "at": state})
+        self._async_run_update(state)
+        self.after(self.ASYNC_POLL_MS, self._poll_async_run)
+
+    def _poll_async_run(self) -> None:
+        if not self.at_running:
             return
 
-        finished = self.at_step()
-        self.at_remaining_steps -= 1
-        if finished:
-            self.at_running = False
-            self._write_trace({"event": "run_at_done", "reason": "at_finished"})
-            return
-        try:
-            interval_ms = max(1, int(self.at_interval_var.get()))
-        except ValueError:
-            interval_ms = 30
-        self.after(interval_ms, self._run_at_next)
+        def poll() -> tuple[dict, object | None]:
+            state = self.client.get_run_status()
+            # Do not ask the device to encode the same cached frame repeatedly.
+            version = int(state.get("preview_version", 0))
+            frame = self.client.get_preview() if version > self.last_preview_version else None
+            return state, frame
+
+        self._background(poll, self._async_poll_complete)
+
+    def _async_poll_complete(self, result: tuple[dict, object | None]) -> None:
+        state, frame = result
+        preview_version = int(state.get("preview_version", 0))
+        if frame is not None:
+            self.last_frame = frame
+            self._show_image(frame.image)
+            self.last_preview_version = preview_version
+            step = state.get("last_trace", {}).get("step", preview_version)
+            image_path = self.client.save_frame(frame, self.output_dir, note="async_at_preview", filename_stem=f"at_preview_{step:03d}")
+            self._write_trace({"event": "async_preview_saved", "step": step, "preview_version": preview_version,
+                               "image_path": str(image_path)})
+        self._async_run_update(state)
+        if self.at_running:
+            self.after(self.ASYNC_POLL_MS, self._poll_async_run)
+
+    def _async_run_update(self, state: dict) -> None:
+        last_trace = state.get("last_trace")
+        if isinstance(last_trace, dict):
+            self.at_trace_var.set(json.dumps(last_trace, ensure_ascii=False, sort_keys=True))
+            self._write_trace({"event": "run_at_async_step", "trace": last_trace})
+        running = bool(state.get("running"))
+        self.at_running = running
+        self.status_var.set(
+            f"Device AT: {state.get('completed_steps', 0)}/{state.get('max_steps', 0)} "
+            f"— {state.get('finish_reason', 'Running')}"
+        )
+        if not running:
+            self._write_trace({"event": "run_at_async_done", "at": state})
+
+    def _background(self, action, on_success) -> None:
+        def worker() -> None:
+            try:
+                value = action()
+            except Exception as exc:
+                self.after(0, lambda: self.status_var.set(f"Device request failed: {exc}"))
+                return
+            self.after(0, lambda: on_success(value))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     def save_last(self) -> None:
         if self.last_frame is None:

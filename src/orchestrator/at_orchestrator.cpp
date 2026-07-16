@@ -1,7 +1,7 @@
 #include "at_orchestrator.h"
 
-#if defined(AT_WITH_HMAP_TENGINE)
-#include "at_heatmap_tengine.h"
+#if defined(AT_WITH_YOLO_TENGINE)
+#include "providers/yolo_detect_provider.h"
 #endif
 
 #include <filesystem>
@@ -10,25 +10,27 @@
 namespace at {
 namespace {
 
+// 码区观测 provider：model_path 非空即加载 YOLO 检测模型。
+// 复用既有 HeatmapConfig/HeatmapProvider 契约，公共接口无需改动。
 std::unique_ptr<HeatmapProvider> MakeHeatmapProvider(const HeatmapConfig &config)
 {
     if (config.model_path.empty()) {
         return std::make_unique<NullHeatmapProvider>();
     }
     if (!std::filesystem::exists(config.model_path)) {
-        throw std::runtime_error("heatmap model not found: " + config.model_path);
+        throw std::runtime_error("detect model not found: " + config.model_path);
     }
 
-#if defined(AT_WITH_HMAP_TENGINE)
-    TengineHeatmapConfig tconfig;
-    tconfig.model_path = config.model_path;
-    tconfig.context = config.context;
-    tconfig.precision = config.precision;
-    tconfig.threshold = config.threshold;
-    tconfig.overlay = config.overlay;
-    return std::make_unique<TengineHeatmapProvider>(std::move(tconfig));
+#if defined(AT_WITH_YOLO_TENGINE)
+    YoloDetectConfig yconfig;
+    yconfig.model_path = config.model_path;
+    yconfig.context = config.context;
+    yconfig.precision = config.precision;
+    yconfig.threshold = config.threshold;
+    yconfig.overlay = config.overlay;
+    return std::make_unique<YoloDetectProvider>(std::move(yconfig));
 #else
-    throw std::runtime_error("heatmap model requires AT built with HMAP support");
+    throw std::runtime_error("detect model requires AT built with YOLO support");
 #endif
 }
 

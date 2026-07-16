@@ -70,9 +70,9 @@ at_docker_build() {
     docker_volumes+=(-v "${SMORE_CAM_CAP_SDK_HOST}:/smore_cam_cap:ro")
     echo "camcap sdk: ${SMORE_CAM_CAP_SDK_HOST} -> /smore_cam_cap"
   fi
-  if [[ -n "${HMAP_SDK_HOST:-}" ]]; then
-    docker_volumes+=(-v "${HMAP_SDK_HOST}:/hmap_sdk:ro")
-    echo "hmap sdk:   ${HMAP_SDK_HOST} -> /hmap_sdk"
+  if [[ -n "${YOLO_REPO_HOST:-}" ]]; then
+    docker_volumes+=(-v "${YOLO_REPO_HOST}:/yolo_repo:ro")
+    echo "yolo repo:  ${YOLO_REPO_HOST} -> /yolo_repo"
   fi
 
   AT_CONTAINER_ID="$(

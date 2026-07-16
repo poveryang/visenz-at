@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cerrno>
 #include <cctype>
 #include <chrono>
@@ -24,10 +25,12 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -48,7 +51,7 @@ struct Options {
     std::string heatmap_context{"timvx"};
     std::string heatmap_precision{"uint8"};
     bool heatmap_overlay{true};
-    double heatmap_threshold{40.0};
+    double heatmap_threshold{0.25};
 };
 
 struct Response {
@@ -59,6 +62,31 @@ struct Response {
     std::string at_json;
     std::string image_encoding;
     std::vector<unsigned char> image;
+};
+
+// Timings are deliberately taken around the device-facing calls.  Heatmap/model
+// timings remain in heatmap_perf, while these fields identify lens, capture and
+// optional image-export stalls separately.
+struct StepTiming {
+    double set_params_ms{-1.0};
+    double capture_ms{-1.0};
+    double at_core_ms{-1.0};
+    double image_save_ms{-1.0};
+    double total_ms{-1.0};
+};
+
+struct AsyncRunState {
+    mutable std::mutex mutex;
+    std::atomic_bool stop_requested{false};
+    bool running{false};
+    bool finished{false};
+    int max_steps{0};
+    int completed_steps{0};
+    std::string finish_reason{"Idle"};
+    std::string last_trace_json;
+    int preview_version{0};
+    cv::Mat latest_preview;  // Raw frame only: encoding is deferred to get_preview.
+    std::thread worker;
 };
 
 std::string EscapeJson(const std::string &text)
@@ -249,13 +277,13 @@ void PrintUsage(const char *program)
               << " [--device vs1000p_2mp] [--steps 8] [--exposure-us 1000]"
               << " [--gain 50] [--focus 30] [--lights 1,1,1,1]"
               << " [--out-dir /tmp/at_run] [--save-images]"
-              << " [--heatmap-model /path/model-uint8.tmfile]\n"
+              << " [--heatmap-model /path/yolo-uint8.tmfile]\n"
               << "       " << program
               << " --server [--device vs1000p_2mp] [--port 8080]"
               << " [--exposure-us 1000] [--gain 50] [--focus 30] [--lights 1,1,1,1]"
-              << " [--heatmap-model /path/model-uint8.tmfile]\n"
-              << "Heatmap options: [--heatmap-context timvx|cpu] [--heatmap-precision uint8|fp32]"
-              << " [--heatmap-threshold 40] [--no-heatmap-overlay]\n";
+              << " [--heatmap-model /path/yolo-uint8.tmfile]\n"
+              << "Detect options: [--heatmap-context timvx|cpu] [--heatmap-precision uint8|fp32]"
+              << " [--heatmap-threshold 0.25] [--no-heatmap-overlay]\n";
 }
 
 Options ParseArgs(int argc, char **argv)
@@ -318,6 +346,20 @@ Options ParseArgs(int argc, char **argv)
 at::SessionConfig MakeSessionConfig(const Options &options)
 {
     at::SessionConfig config;
+    // VS1000P 2MP 镜头的可用机械焦点行程约为 [0, 420]。AT 的通用默认值
+    // 覆盖更宽的设备范围；runner 必须在设备边界处收紧，避免粗扫/精扫产生
+    // 无效的大行程移动。
+    if (options.device == "vs1000p_2mp" || options.device == "vs1000p_5mp") {
+        config.camera.min_focus_pos = 0;
+        config.camera.max_focus_pos = 420;
+        // VS1000P 的有效照明组合限定为三组。避免关灯/单灯导致无码或
+        // 低亮度帧挤占流程预算，也保持现场可复现的灯光切换顺序。
+        config.flow.light_profiles = {
+            {1, 1, 1, 1},
+            {1, 1, 0, 0},
+            {0, 0, 1, 1},
+        };
+    }
     config.heatmap.model_path = options.heatmap_model;
     config.heatmap.context = options.heatmap_context;
     config.heatmap.precision = options.heatmap_precision;
@@ -407,7 +449,8 @@ std::string HeatmapJson(const at::HeatmapObservation &heatmap)
 std::string TraceJson(const at::StepResult &result,
                       const at::CameraParams &current_params,
                       const std::string &image_path,
-                      const at::AtOrchestrator *orchestrator)
+                      const at::AtOrchestrator *orchestrator,
+                      const StepTiming *timing = nullptr)
 {
     std::ostringstream out;
     out << "{\"step\":" << result.trace.step_index << ",\"phase\":\""
@@ -431,6 +474,14 @@ std::string TraceJson(const at::StepResult &result,
     }
     if (!image_path.empty()) {
         out << ",\"image_path\":\"" << EscapeJson(image_path) << "\"";
+    }
+    if (timing != nullptr) {
+        if (timing->set_params_ms >= 0.0) out << ",\"device_set_params_ms\":" << timing->set_params_ms;
+        if (timing->capture_ms >= 0.0) out << ",\"device_capture_ms\":" << timing->capture_ms;
+        if (timing->at_core_ms >= 0.0) out << ",\"device_at_core_ms\":" << timing->at_core_ms;
+        if (timing->image_save_ms >= 0.0) out << ",\"device_image_save_ms\":" << timing->image_save_ms;
+        if (timing->at_core_ms >= 0.0) out << ",\"device_core_ms\":" << (timing->set_params_ms + timing->capture_ms + timing->at_core_ms);
+        if (timing->total_ms >= 0.0) out << ",\"device_total_ms\":" << timing->total_ms;
     }
     out << "}";
     return out.str();
@@ -688,24 +739,28 @@ int RunBatch(const Options &options)
     camcap::CameraParams current = options.initial_params;
 
     for (int step = 0; step < options.steps; ++step) {
+        const auto step_start = std::chrono::steady_clock::now();
         if (auto set = camera.setParams(current); !set) {
             std::cerr << "set params failed: " << set.error().message << '\n';
             return 1;
         }
+        const auto set_end = std::chrono::steady_clock::now();
 
         auto mat = CaptureMat(camera);
         if (!mat) {
             std::cerr << "capture failed: " << mat.error().message << '\n';
             return 1;
         }
+        const auto capture_end = std::chrono::steady_clock::now();
 
         at::FrameContext input;
         input.image = mat.value();
         input.current_params = ToAtParams(current);
 
         const at::StepResult result = orchestrator.ProcessStep(input);
+        const auto at_core_end = std::chrono::steady_clock::now();
         std::string image_path;
-        if (!output_dir.empty()) {
+        if (options.save_images) {
             image_path = (output_dir / ("step_" + std::to_string(step) + ".png")).string();
             const cv::Mat display_image = orchestrator.BlendForDisplay(mat.value());
             if (!cv::imwrite(image_path, display_image)) {
@@ -713,8 +768,19 @@ int RunBatch(const Options &options)
                 return 1;
             }
         }
+        const auto step_end = std::chrono::steady_clock::now();
+        StepTiming timing;
+        timing.set_params_ms = std::chrono::duration<double, std::milli>(set_end - step_start).count();
+        timing.capture_ms = std::chrono::duration<double, std::milli>(capture_end - set_end).count();
+        timing.at_core_ms = std::chrono::duration<double, std::milli>(at_core_end - capture_end).count();
+        timing.image_save_ms = std::chrono::duration<double, std::milli>(step_end - at_core_end).count();
+        timing.total_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
 
-        const std::string trace_json = TraceJson(result, input.current_params, image_path, &orchestrator);
+        const std::string trace_json = TraceJson(result,
+                                                 input.current_params,
+                                                 image_path,
+                                                 &orchestrator,
+                                                 &timing);
         std::cout << trace_json << std::endl;
         if (trace_file.is_open()) {
             trace_file << trace_json << '\n';
@@ -727,6 +793,87 @@ int RunBatch(const Options &options)
     }
 
     return 0;
+}
+
+std::string AsyncRunJson(const AsyncRunState &state)
+{
+    std::lock_guard<std::mutex> lock(state.mutex);
+    std::ostringstream out;
+    out << "{\"running\":" << (state.running ? "true" : "false")
+        << ",\"finished\":" << (state.finished ? "true" : "false")
+        << ",\"completed_steps\":" << state.completed_steps
+        << ",\"max_steps\":" << state.max_steps
+        << ",\"finish_reason\":\"" << EscapeJson(state.finish_reason) << "\""
+        << ",\"preview_version\":" << state.preview_version
+        << ",\"preview_available\":" << (!state.latest_preview.empty() ? "true" : "false");
+    if (!state.last_trace_json.empty()) {
+        out << ",\"last_trace\":" << state.last_trace_json;
+    }
+    out << "}";
+    return out.str();
+}
+
+void RunAsyncAt(camcap::Camera &camera,
+                at::AtOrchestrator &orchestrator,
+                camcap::CameraParams &current_params,
+                AsyncRunState &state,
+                const int max_steps,
+                const int preview_every)
+{
+    for (int index = 0; index < max_steps && !state.stop_requested.load(); ++index) {
+        const auto started = std::chrono::steady_clock::now();
+        if (auto set = camera.setParams(current_params); !set) {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.running = false;
+            state.finished = true;
+            state.finish_reason = "CameraSetParamsFailed: " + set.error().message;
+            return;
+        }
+        const auto set_end = std::chrono::steady_clock::now();
+        auto mat = CaptureMat(camera);
+        if (!mat) {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.running = false;
+            state.finished = true;
+            state.finish_reason = "CameraCaptureFailed: " + mat.error().message;
+            return;
+        }
+        const auto capture_end = std::chrono::steady_clock::now();
+        at::FrameContext input{mat.value(), ToAtParams(current_params)};
+        const at::StepResult result = orchestrator.ProcessStep(input);
+        const auto at_end = std::chrono::steady_clock::now();
+
+        StepTiming timing;
+        timing.set_params_ms = std::chrono::duration<double, std::milli>(set_end - started).count();
+        timing.capture_ms = std::chrono::duration<double, std::milli>(capture_end - set_end).count();
+        timing.at_core_ms = std::chrono::duration<double, std::milli>(at_end - capture_end).count();
+        timing.total_ms = std::chrono::duration<double, std::milli>(at_end - started).count();
+        const std::string trace = TraceJson(result, input.current_params, "", &orchestrator, &timing);
+
+        {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.completed_steps = index + 1;
+            state.last_trace_json = trace;
+            // No encoding, no disk IO and no network IO in the AT critical path.
+            if (preview_every > 0 && ((index + 1) % preview_every == 0 || result.finished)) {
+                state.latest_preview = mat.value().clone();
+                ++state.preview_version;
+            }
+        }
+        current_params = ToCamcapParams(result.next_params, current_params);
+        if (result.finished) {
+            std::lock_guard<std::mutex> lock(state.mutex);
+            state.running = false;
+            state.finished = true;
+            state.finish_reason = at::ToString(result.trace.finish_reason);
+            return;
+        }
+    }
+
+    std::lock_guard<std::mutex> lock(state.mutex);
+    state.running = false;
+    state.finished = true;
+    state.finish_reason = state.stop_requested.load() ? "Stopped" : "MaxStepsReached";
 }
 
 int RunServer(const Options &options)
@@ -744,6 +891,7 @@ int RunServer(const Options &options)
     std::cerr << "camera open done\n";
 
     camcap::CameraParams current_params = options.initial_params;
+    AsyncRunState async_run;
     if (auto set = camera.setParams(current_params); !set) {
         std::cerr << "set initial params failed: " << set.error().message << '\n';
         return 1;
@@ -800,6 +948,78 @@ int RunServer(const Options &options)
 
             if (*command == "get_status") {
                 (void)SendResponse(client_fd, OkResponse(camera));
+            } else if (*command == "get_run_status") {
+                Response response = OkResponse(camera);
+                response.at_json = AsyncRunJson(async_run);
+                (void)SendResponse(client_fd, response);
+            } else if (*command == "run_at_async") {
+                const int max_steps = FindInt(*command_text, "max_steps").value_or(80);
+                const int preview_every = FindInt(*command_text, "preview_every").value_or(0);
+                if (max_steps <= 0 || max_steps > 10000 || preview_every < 0 || preview_every > 10000) {
+                    (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
+                        camcap::ErrorCode::ProtocolError, "max_steps must be 1..10000 and preview_every must be 0..10000")));
+                    continue;
+                }
+                {
+                    std::lock_guard<std::mutex> lock(async_run.mutex);
+                    if (async_run.running) {
+                        (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
+                            camcap::ErrorCode::ProtocolError, "an async AT run is already active")));
+                        continue;
+                    }
+                }
+                if (async_run.worker.joinable()) {
+                    async_run.worker.join();
+                }
+                if (auto params = ParseParams(*command_text)) {
+                    current_params = *params;
+                }
+                orchestrator.Reset();
+                {
+                    std::lock_guard<std::mutex> lock(async_run.mutex);
+                    async_run.stop_requested.store(false);
+                    async_run.running = true;
+                    async_run.finished = false;
+                    async_run.max_steps = max_steps;
+                    async_run.completed_steps = 0;
+                    async_run.finish_reason = "Running";
+                    async_run.last_trace_json.clear();
+                    async_run.latest_preview.release();
+                    async_run.preview_version = 0;
+                }
+                async_run.worker = std::thread(RunAsyncAt, std::ref(camera), std::ref(orchestrator),
+                                                std::ref(current_params), std::ref(async_run), max_steps, preview_every);
+                Response response = OkResponse(camera);
+                response.at_json = AsyncRunJson(async_run);
+                (void)SendResponse(client_fd, response);
+            } else if (*command == "stop_at_async") {
+                async_run.stop_requested.store(true);
+                Response response = OkResponse(camera);
+                response.at_json = AsyncRunJson(async_run);
+                (void)SendResponse(client_fd, response);
+            } else if (*command == "get_preview") {
+                cv::Mat preview;
+                {
+                    std::lock_guard<std::mutex> lock(async_run.mutex);
+                    preview = async_run.latest_preview.clone();
+                }
+                Response response = OkResponse(camera);
+                response.at_json = AsyncRunJson(async_run);
+                if (!preview.empty()) {
+                    response.image_encoding = "png";
+                    if (!EncodePng(preview, response.image)) {
+                        response = ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
+                                                                             "failed to encode deferred preview"));
+                    }
+                }
+                (void)SendResponse(client_fd, response);
+            } else if ([&async_run] {
+                           std::lock_guard<std::mutex> lock(async_run.mutex);
+                           return async_run.running;
+                       }()) {
+                (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
+                    camcap::ErrorCode::ProtocolError,
+                    "camera commands are disabled during async AT; use get_run_status, get_preview or stop_at_async")));
             } else if (*command == "set_params") {
                 auto params = ParseParams(*command_text);
                 if (!params) {
@@ -871,6 +1091,10 @@ int RunServer(const Options &options)
         close(client_fd);
     }
 
+    async_run.stop_requested.store(true);
+    if (async_run.worker.joinable()) {
+        async_run.worker.join();
+    }
     close(server_fd);
     return 0;
 }

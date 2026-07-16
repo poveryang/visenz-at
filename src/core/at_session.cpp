@@ -16,6 +16,88 @@ bool LightsEqual(const std::vector<int> &lhs, const std::vector<int> &rhs)
     return lhs == rhs;
 }
 
+// ---- 检测前置（detect-first）对焦策略的内部参数 ----
+// 码区锁定判据：连续 kRoiLockHits 帧检测可用且与当前框 IoU >= kRoiLockIoU。
+constexpr double kRoiLockIoU = 0.5;
+constexpr int kRoiLockHits = 3;
+// 锁定 ROI 与新检测框的平滑权重（新框占比）。
+constexpr double kRoiBlend = 0.5;
+// 粗对焦亮度探测档位：按就绪亮度窗口 [min_ready, max_ready] 的比例取目标亮度。
+// 第 0 遍为窗口中值（与旧行为一致），未发现码区时再以偏暗/偏亮各扫一遍。
+constexpr double kBrightnessProbeLevels[] = {0.5, 0.25, 0.8};
+constexpr int kBrightnessProbePasses =
+    static_cast<int>(sizeof(kBrightnessProbeLevels) / sizeof(kBrightnessProbeLevels[0]));
+// 亮度收敛只发生在每遍对焦扫描开始之前（先粗调亮度，后整遍扫焦），
+// 收敛步数上限取 flow.exposure_steps_per_profile，防止亮度无法达标时卡死。
+
+bool IsExposureAction(TuneAction action)
+{
+    return action == TuneAction::IncreaseExposure || action == TuneAction::DecreaseExposure;
+}
+
+// 从候选记录尾部统计对焦阶段连续曝光调整次数（跨帧派生状态，避免新增成员破坏 ABI）。
+int TrailingExposureTunes(const std::vector<CandidateRecord> &candidates)
+{
+    int count = 0;
+    for (auto it = candidates.rbegin(); it != candidates.rend(); ++it) {
+        if (it->phase == StepPhase::FocusTuneWithCoarseExposure && IsExposureAction(it->action)) {
+            ++count;
+        } else {
+            break;
+        }
+    }
+    return count;
+}
+
+// 当前检测框与最近历史检测框的连续命中次数（含当前帧）。
+int ConsecutiveRoiHits(const std::vector<CandidateRecord> &candidates, const cv::Rect &current)
+{
+    int hits = 1;
+    for (auto it = candidates.rbegin(); it != candidates.rend(); ++it) {
+        if (it->heatmap.available && RectIoU(it->heatmap.roi, current) >= kRoiLockIoU) {
+            ++hits;
+        } else {
+            break;
+        }
+    }
+    return hits;
+}
+
+cv::Rect BlendRect(const cv::Rect &previous, const cv::Rect &current)
+{
+    const auto mix = [](int a, int b) {
+        return static_cast<int>(std::lround((1.0 - kRoiBlend) * a + kRoiBlend * b));
+    };
+    return cv::Rect(mix(previous.x, current.x),
+                    mix(previous.y, current.y),
+                    mix(previous.width, current.width),
+                    mix(previous.height, current.height));
+}
+
+// 对焦阶段清晰度最优的候选帧；锁定后优先只看有检测的帧（ROI 清晰度）。
+const CandidateRecord *BestFocusCandidate(const std::vector<CandidateRecord> &candidates,
+                                          bool prefer_detected)
+{
+    const CandidateRecord *best = nullptr;
+    const CandidateRecord *best_detected = nullptr;
+    for (const CandidateRecord &candidate : candidates) {
+        if (candidate.phase != StepPhase::FocusTuneWithCoarseExposure) {
+            continue;
+        }
+        if (!best || candidate.quality.sharpness > best->quality.sharpness) {
+            best = &candidate;
+        }
+        if (candidate.heatmap.available &&
+            (!best_detected || candidate.quality.sharpness > best_detected->quality.sharpness)) {
+            best_detected = &candidate;
+        }
+    }
+    if (prefer_detected && best_detected) {
+        return best_detected;
+    }
+    return best;
+}
+
 } // namespace
 
 std::string ToString(StepPhase phase)
@@ -173,6 +255,15 @@ Observation AtSession::BuildObservation(const FrameContext &context) const
     Observation observation;
     observation.current_params = context.current_params;
     observation.roi = SelectAnalysisRoi(context);
+    // 码区已锁定而当前帧检测偶发丢失时，沿用锁定 ROI 测光，避免质量指标在
+    // 全图/码区之间来回跳变干扰对焦与曝光判断。
+    if (!context.heatmap.available && context.decode.regions.empty() && !previous_roi_.empty() &&
+        !context.image.empty()) {
+        const cv::Rect locked = ClipRect(previous_roi_, context.image.size());
+        if (!locked.empty()) {
+            observation.roi = locked;
+        }
+    }
     observation.quality = AnalyzeImageQuality(context.image, observation.roi);
     observation.heatmap = context.heatmap;
     observation.decode = context.decode;
@@ -196,18 +287,87 @@ StepDecision AtSession::Decide(const Observation &observation)
 
     switch (state_.phase) {
         case StepPhase::FocusTuneWithCoarseExposure: {
-            if (!BrightnessReady(observation.quality)) {
-                decision.action = observation.quality.brightness < config_.flow.min_ready_brightness
-                                      ? TuneAction::IncreaseExposure
-                                      : TuneAction::DecreaseExposure;
-                decision.reason = "coarse exposure before focus sweep";
-            } else {
-                decision.action = TuneAction::AdjustFocus;
-                decision.reason = "focus sweep";
+            const bool detect_enabled = config_.flow.enable_heatmap;
+
+            // 检测前置：每帧维护码区锁定状态（previous_roi_ 非空 = 已锁定）。
+            if (detect_enabled && observation.heatmap.available && !observation.heatmap.roi.empty()) {
+                if (!previous_roi_.empty()) {
+                    if (RectIoU(previous_roi_, observation.heatmap.roi) >= kRoiLockIoU) {
+                        previous_roi_ = BlendRect(previous_roi_, observation.heatmap.roi);
+                    }
+                } else if (ConsecutiveRoiHits(candidates_, observation.heatmap.roi) >= kRoiLockHits) {
+                    previous_roi_ = observation.heatmap.roi;
+                    decision.reason += "; roi locked";
+                }
             }
-            decision.next_params = ApplyAction(observation.current_params, decision.action, observation);
-            if (state_.focus_tune_index + 1 >= config_.flow.focus_tune_steps) {
-                decision.reason += "; focus sweep complete";
+
+            const int coarse_steps = std::max(1, config_.flow.focus_tune_steps);
+            const int focus_range = config_.camera.max_focus_pos - config_.camera.min_focus_pos;
+            const int settle_budget = std::max(1, config_.flow.exposure_steps_per_profile);
+
+            if (!previous_roi_.empty()) {
+                // 已锁定：精扫开始前先基于 ROI 测光收敛曝光，之后整遍精扫不再调曝光。
+                if (state_.exposure_tune_index == 0 && !BrightnessReady(observation.quality) &&
+                    TrailingExposureTunes(candidates_) < settle_budget) {
+                    decision.action =
+                        observation.quality.brightness < config_.flow.min_ready_brightness
+                            ? TuneAction::IncreaseExposure
+                            : TuneAction::DecreaseExposure;
+                    decision.next_params =
+                        ApplyAction(observation.current_params, decision.action, observation);
+                    decision.reason += "; settle roi brightness before fine focus";
+                } else {
+                    const CandidateRecord *best = BestFocusCandidate(candidates_, true);
+                    const int center =
+                        best ? best->params.focus_pos : observation.current_params.focus_pos;
+                    const int half =
+                        std::max(config_.budget.focus_step, focus_range / (2 * coarse_steps));
+                    const int fine_steps = std::max(2, coarse_steps);
+                    const int fine_index = std::min(state_.exposure_tune_index, fine_steps - 1);
+                    const double offset =
+                        -half + fine_index * (2.0 * half) / static_cast<double>(fine_steps - 1);
+                    decision.action = TuneAction::AdjustFocus;
+                    decision.next_params = observation.current_params;
+                    decision.next_params.focus_pos = center + static_cast<int>(std::lround(offset));
+                    decision.reason += "; fine focus on locked roi step " +
+                                       std::to_string(fine_index) + "/" +
+                                       std::to_string(fine_steps);
+                }
+            } else {
+                // 搜索中：每遍先把亮度收敛到该遍目标档，再做整遍粗对焦扫描，
+                // 全程监测码区是否出现。
+                const int max_passes = detect_enabled ? kBrightnessProbePasses : 1;
+                const int pass = std::min(state_.focus_tune_index / coarse_steps, max_passes - 1);
+                const int slot = state_.focus_tune_index % coarse_steps;
+                const double window =
+                    config_.flow.max_ready_brightness - config_.flow.min_ready_brightness;
+                const double target =
+                    config_.flow.min_ready_brightness + kBrightnessProbeLevels[pass] * window;
+                const double tolerance = std::max(12.0, window / 4.0);
+                const bool brightness_ok =
+                    pass == 0 ? BrightnessReady(observation.quality)
+                              : std::abs(observation.quality.brightness - target) <= tolerance &&
+                                    observation.quality.saturation_ratio <=
+                                        config_.flow.max_ready_saturation;
+                if (slot == 0 && !brightness_ok &&
+                    TrailingExposureTunes(candidates_) < settle_budget) {
+                    decision.action = observation.quality.brightness < target
+                                          ? TuneAction::IncreaseExposure
+                                          : TuneAction::DecreaseExposure;
+                    decision.next_params =
+                        ApplyAction(observation.current_params, decision.action, observation);
+                    decision.reason += "; settle brightness for pass " + std::to_string(pass) +
+                                       " target " + std::to_string(static_cast<int>(target));
+                } else {
+                    decision.action = TuneAction::AdjustFocus;
+                    decision.next_params = observation.current_params;
+                    decision.next_params.focus_pos =
+                        config_.camera.min_focus_pos +
+                        static_cast<int>(std::lround((slot + 0.5) * focus_range /
+                                                     static_cast<double>(coarse_steps)));
+                    decision.reason += "; coarse focus pass " + std::to_string(pass) + " slot " +
+                                       std::to_string(slot);
+                }
             }
             break;
         }
@@ -217,6 +377,11 @@ StepDecision AtSession::Decide(const Observation &observation)
                 decision.action = TuneAction::AdjustLight;
                 decision.next_params = observation.current_params;
                 decision.next_params.lights = profiles[state_.light_profile_index];
+                // 曝光阶段焦点钉在对焦阶段的最佳清晰度位置（锁定时为 ROI 清晰度最优）
+                if (const CandidateRecord *best =
+                        BestFocusCandidate(candidates_, !previous_roi_.empty())) {
+                    decision.next_params.focus_pos = best->params.focus_pos;
+                }
                 if (!BrightnessReady(observation.quality)) {
                     decision.action = observation.quality.brightness < config_.flow.min_ready_brightness
                                           ? TuneAction::IncreaseExposure
@@ -369,18 +534,29 @@ void AtSession::AdvancePhaseAfterStep(StepDecision &decision, const Observation 
     const StepPhase previous_phase = state_.phase;
 
     switch (previous_phase) {
-        case StepPhase::FocusTuneWithCoarseExposure:
-            if (decision.action == TuneAction::AdjustFocus ||
-                decision.action == TuneAction::IncreaseExposure ||
-                decision.action == TuneAction::DecreaseExposure) {
-                state_.focus_tune_index += 1;
+        case StepPhase::FocusTuneWithCoarseExposure: {
+            const bool locked = !previous_roi_.empty();
+            const int coarse_steps = std::max(1, config_.flow.focus_tune_steps);
+            const int fine_steps = std::max(2, coarse_steps);
+            const int max_passes = config_.flow.enable_heatmap ? kBrightnessProbePasses : 1;
+            if (decision.action == TuneAction::AdjustFocus) {
+                if (locked) {
+                    // 锁定后 exposure_tune_index 复用为精细对焦步计数器，
+                    // 进入曝光阶段时统一清零。
+                    state_.exposure_tune_index += 1;
+                } else {
+                    state_.focus_tune_index += 1;
+                }
             }
-            if (state_.focus_tune_index >= config_.flow.focus_tune_steps) {
+            const bool coarse_done = !locked && state_.focus_tune_index >= max_passes * coarse_steps;
+            const bool fine_done = locked && state_.exposure_tune_index >= fine_steps;
+            if (coarse_done || fine_done) {
                 state_.phase = StepPhase::ExposurePerLightProfile;
                 state_.light_profile_index = 0;
                 state_.exposure_tune_index = 0;
             }
             break;
+        }
         case StepPhase::ExposurePerLightProfile:
             state_.exposure_tune_index += 1;
             if (BrightnessReady(observation.quality) ||

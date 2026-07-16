@@ -12,5 +12,7 @@ __pycache__/
 
 captures/
 at_mvp_logs/
+# Local checkouts of separately versioned legacy modules.
+modules/
 
 scripts/device/device.env

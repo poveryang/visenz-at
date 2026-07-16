@@ -27,7 +27,7 @@ RUNNER_HEATMAP_PRECISION="${RUNNER_HEATMAP_PRECISION:-uint8}"
 RUNNER_HEATMAP_THRESHOLD="${RUNNER_HEATMAP_THRESHOLD:-40}"
 RUNNER_LOG="${RUNNER_LOG:-/tmp/at_runner.log}"
 DEPLOY_SHARED_LIBS="${DEPLOY_SHARED_LIBS:-auto}"
-DEPLOY_HMAP_RUNTIME_LIBS="${DEPLOY_HMAP_RUNTIME_LIBS:-0}"
+DEPLOY_TENGINE_RUNTIME_LIBS="${DEPLOY_TENGINE_RUNTIME_LIBS:-0}"
 DEPLOY_EXTRA="${DEPLOY_EXTRA:-}"
 SMOKE_STEPS="${SMOKE_STEPS:-10}"
 SMOKE_HOST="${SMOKE_HOST:-}"
@@ -151,7 +151,7 @@ fi
 EOF
 }
 
-is_hmap_runtime_lib() {
+is_tengine_runtime_lib() {
   case "$(basename "$1")" in
     libtengine-lite.so|libOpenVX.so|libOpenVXU.so|libGAL.so|libVSC.so|\
 libArchModelSw.so|libCLC.so|libNNArchPerf.so)
@@ -163,8 +163,8 @@ libArchModelSw.so|libCLC.so|libNNArchPerf.so)
   esac
 }
 
-remote_cleanup_hmap_runtime_libs_shell() {
-  [[ "${DEPLOY_HMAP_RUNTIME_LIBS}" != "1" ]] || return 0
+remote_cleanup_tengine_runtime_libs_shell() {
+  [[ "${DEPLOY_TENGINE_RUNTIME_LIBS}" != "1" ]] || return 0
   cat <<EOF
 if [ -d '${REMOTE_LIB_DIR}' ]; then
   rm -f '${REMOTE_LIB_DIR}'/libtengine-lite.so '${REMOTE_LIB_DIR}'/libtengine-lite.so.1
@@ -247,7 +247,7 @@ collect_deploy_pairs() {
     shopt -s nullglob
     local so
     for so in "${root}"/lib/*.so; do
-      if [[ "${DEPLOY_HMAP_RUNTIME_LIBS}" != "1" ]] && is_hmap_runtime_lib "${so}"; then
+      if [[ "${DEPLOY_TENGINE_RUNTIME_LIBS}" != "1" ]] && is_tengine_runtime_lib "${so}"; then
         continue
       fi
       pairs+=("lib/$(basename "${so}")")
@@ -296,7 +296,7 @@ cmd_show() {
   echo "ssh:        ${DEVICE_USER}@${DEVICE_HOST}:${DEVICE_SSH_PORT}"
   echo "runner:     $(runner_remote_path)  device=${RUNNER_DEVICE}  port=${RUNNER_PORT}"
   echo "heatmap:    model=${RUNNER_HEATMAP_MODEL}  context=${RUNNER_HEATMAP_CONTEXT}  precision=${RUNNER_HEATMAP_PRECISION}  threshold=${RUNNER_HEATMAP_THRESHOLD}"
-  echo "runtime:    deploy_hmap_runtime_libs=${DEPLOY_HMAP_RUNTIME_LIBS}"
+  echo "runtime:    deploy_tengine_runtime_libs=${DEPLOY_TENGINE_RUNTIME_LIBS}"
   echo "smoke:      host=${SMOKE_HOST:-${DEVICE_HOST}}  port=${SMOKE_PORT:-${RUNNER_PORT}}"
   echo "deploy list:"
   collect_deploy_pairs | sed 's/^/  /'
@@ -329,7 +329,7 @@ cmd_upload() {
 
   echo "mkdir on device: ${REMOTE_BIN_DIR} ${REMOTE_LIB_DIR} ${REMOTE_MODEL_DIR}"
   remote_ssh "mkdir -p '${REMOTE_BIN_DIR}' '${REMOTE_LIB_DIR}' '${REMOTE_MODEL_DIR}'"
-  remote_ssh "$(remote_cleanup_hmap_runtime_libs_shell)"
+  remote_ssh "$(remote_cleanup_tengine_runtime_libs_shell)"
 
   local pair local_path remote_path
   while IFS= read -r pair; do
@@ -359,8 +359,17 @@ cmd_start() {
   if [[ "${RUNNER_HEATMAP_MODEL}" != "0" && "${RUNNER_HEATMAP_MODEL}" != "OFF" && "${RUNNER_HEATMAP_MODEL}" != "off" ]]; then
     local remote_model=""
     if [[ "${RUNNER_HEATMAP_MODEL}" == "auto" ]]; then
-      if [[ -f "${root}/model/model-uint8.tmfile" ]]; then
-        remote_model="${REMOTE_MODEL_DIR%/}/model-uint8.tmfile"
+      # auto：取 release model/ 下第一个 tmfile（YOLO 检测模型）
+      local model_file=""
+      shopt -s nullglob
+      local candidate
+      for candidate in "${root}"/model/*.tmfile; do
+        model_file="$(basename "${candidate}")"
+        break
+      done
+      shopt -u nullglob
+      if [[ -n "${model_file}" ]]; then
+        remote_model="${REMOTE_MODEL_DIR%/}/${model_file}"
       fi
     elif [[ -n "${RUNNER_HEATMAP_MODEL}" ]]; then
       remote_model="${RUNNER_HEATMAP_MODEL}"
@@ -376,7 +385,7 @@ cmd_start() {
 
   echo "start ${runner} on ${DEVICE_HOST}:${RUNNER_PORT} (device background, survives SSH exit)"
   remote_ssh "${ld}$(remote_kill_runner_shell "${runner}" 0); \
-$(remote_cleanup_hmap_runtime_libs_shell); \
+$(remote_cleanup_tengine_runtime_libs_shell); \
 $(remote_prepare_runtime_libs_shell); \
 chmod +x '${runner}' 2>/dev/null || true; \
 nohup '${runner}' --server --device '${RUNNER_DEVICE}' --port '${RUNNER_PORT}' \
