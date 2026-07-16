@@ -2,13 +2,7 @@
 
 namespace at {
 
-HeatmapObservation NullHeatmapProvider::Infer(const FrameContext &)
-{
-    HeatmapObservation observation;
-    observation.available = false;
-    observation.source = "null";
-    return observation;
-}
+// ---- HeatmapProvider 基类默认实现：无叠加显示、无性能数据 ----
 
 cv::Mat HeatmapProvider::BlendForDisplay(const cv::Mat &image) const
 {
@@ -18,6 +12,16 @@ cv::Mat HeatmapProvider::BlendForDisplay(const cv::Mat &image) const
 std::string HeatmapProvider::PerfJson() const
 {
     return "null";
+}
+
+// ---- Null / Simple 占位实现：未配置真实 provider 时的默认行为 ----
+
+HeatmapObservation NullHeatmapProvider::Infer(const FrameContext &)
+{
+    HeatmapObservation observation;
+    observation.available = false;
+    observation.source = "null";
+    return observation;
 }
 
 DecodeFeedback NullDecodeProvider::Decode(const FrameContext &)

@@ -84,6 +84,15 @@ struct YoloDetectProvider::Impl {
         init_ms = ElapsedMs(start);
     }
 
+    // 本帧无有效检测：复位跨帧跟踪状态并发布“不可用”观测。
+    HeatmapObservation PublishMiss(const HeatmapObservation &observation)
+    {
+        stability = 0.0;
+        previous_roi = {};
+        last_observation = observation;
+        return observation;
+    }
+
     HeatmapObservation Infer(const FrameContext &context)
     {
         const auto total_start = std::chrono::steady_clock::now();
@@ -93,10 +102,7 @@ struct YoloDetectProvider::Impl {
 
         last_detections.clear();
         if (context.image.empty()) {
-            stability = 0.0;
-            previous_roi = {};
-            last_observation = observation;
-            return observation;
+            return PublishMiss(observation);
         }
 
         std::vector<YoloDetection> detections;
@@ -104,10 +110,7 @@ struct YoloDetectProvider::Impl {
         const bool ok = detector->Infer(context.image, detections, timing);
         RecordTiming(timing, ElapsedMs(total_start));
         if (!ok) {
-            stability = 0.0;
-            previous_roi = {};
-            last_observation = observation;
-            return observation;
+            return PublishMiss(observation);
         }
 
         detections.erase(std::remove_if(detections.begin(),
@@ -119,10 +122,7 @@ struct YoloDetectProvider::Impl {
         last_detections = detections;
 
         if (detections.empty()) {
-            stability = 0.0;
-            previous_roi = {};
-            last_observation = observation;
-            return observation;
+            return PublishMiss(observation);
         }
 
         const auto best = std::max_element(detections.begin(),
@@ -132,10 +132,7 @@ struct YoloDetectProvider::Impl {
                                            });
         const cv::Rect roi = ClipRect(ToPixelRect(best->box), context.image.size());
         if (roi.empty()) {
-            stability = 0.0;
-            previous_roi = {};
-            last_observation = observation;
-            return observation;
+            return PublishMiss(observation);
         }
 
         double score_sum = 0.0;

@@ -7,9 +7,39 @@
 namespace at {
 namespace {
 
+// ---- 候选帧评分模型 ----
+// score = decode + Σ(归一化质量分 × 权重)。decode 成功恒为 1.0，压过其余分项。
+constexpr double kIdealBrightness = 110.0;        // 灰度均值最优点，偏离线性扣分
+constexpr double kSaturationPenaltyGain = 4.0;    // 饱和占比放大系数（25% 饱和即 0 分）
+constexpr double kNoiseFullScale = 30.0;          // 噪声代理满量程（达到即 0 分）
+constexpr double kSharpnessFullScale = 80.0;      // 清晰度满量程（达到即 1 分）
+constexpr double kBrightnessWeight = 0.35;
+constexpr double kSaturationWeight = 0.25;
+constexpr double kNoiseWeight = 0.15;
+constexpr double kSharpnessWeight = 0.15;
+constexpr double kHeatmapWeight = 0.30;
+
 double Clamp01(double value)
 {
     return std::clamp(value, 0.0, 1.0);
+}
+
+double ScoreCandidate(const FrameContext &context, const ImageQuality &quality)
+{
+    const double decode_score = context.decode.success ? 1.0 : context.decode.score;
+    const double brightness_score =
+        1.0 - Clamp01(std::abs(quality.brightness - kIdealBrightness) / kIdealBrightness);
+    const double saturation_score = 1.0 - Clamp01(quality.saturation_ratio * kSaturationPenaltyGain);
+    const double noise_score = 1.0 - Clamp01(quality.noise_proxy / kNoiseFullScale);
+    const double sharpness_score = Clamp01(quality.sharpness / kSharpnessFullScale);
+    const double heatmap_score = context.heatmap.available ? context.heatmap.confidence : 0.0;
+
+    return decode_score +
+           brightness_score * kBrightnessWeight +
+           saturation_score * kSaturationWeight +
+           noise_score * kNoiseWeight +
+           sharpness_score * kSharpnessWeight +
+           heatmap_score * kHeatmapWeight;
 }
 
 } // namespace
@@ -28,20 +58,7 @@ CandidateRecord MakeCandidate(const FrameContext &context,
     candidate.quality = quality;
     candidate.heatmap = context.heatmap;
     candidate.decode = context.decode;
-
-    const double decode_score = context.decode.success ? 1.0 : context.decode.score;
-    const double brightness_score = 1.0 - Clamp01(std::abs(quality.brightness - 110.0) / 110.0);
-    const double saturation_score = 1.0 - Clamp01(quality.saturation_ratio * 4.0);
-    const double noise_score = 1.0 - Clamp01(quality.noise_proxy / 30.0);
-    const double sharpness_score = Clamp01(quality.sharpness / 80.0);
-    const double heatmap_score = context.heatmap.available ? context.heatmap.confidence : 0.0;
-
-    candidate.score = decode_score +
-                      brightness_score * 0.35 +
-                      saturation_score * 0.25 +
-                      noise_score * 0.15 +
-                      sharpness_score * 0.15 +
-                      heatmap_score * 0.30;
+    candidate.score = ScoreCandidate(context, quality);
 
     std::ostringstream reason;
     reason << "phase=" << ToString(phase)

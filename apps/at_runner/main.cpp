@@ -624,6 +624,39 @@ bool EncodePng(const cv::Mat &mat, std::vector<unsigned char> &payload)
     return cv::imencode(".png", mat, payload);
 }
 
+// 把图像以 PNG 附到响应上；编码失败时整体替换为错误响应。
+bool AttachPngImage(Response &response, camcap::Camera &camera, const cv::Mat &image)
+{
+    response.image_encoding = "png";
+    if (!EncodePng(image, response.image)) {
+        response = ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
+                                                           "failed to encode png"));
+        return false;
+    }
+    return true;
+}
+
+double MsBetween(const std::chrono::steady_clock::time_point &begin,
+                 const std::chrono::steady_clock::time_point &end)
+{
+    return std::chrono::duration<double, std::milli>(end - begin).count();
+}
+
+// capture 类命令仅支持 PNG：请求了其它编码时发送错误响应并返回 true（跳过该命令）。
+bool RejectNonPngEncoding(const int client_fd,
+                          camcap::Camera &camera,
+                          const std::string &command_text)
+{
+    const auto encoding = FindString(command_text, "encoding");
+    if (!encoding || *encoding == "png") {
+        return false;
+    }
+    (void)SendResponse(client_fd,
+                       ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::ProtocolError,
+                                                               "only png encoding is supported")));
+    return true;
+}
+
 Response CaptureResponse(camcap::Camera &camera)
 {
     auto mat = CaptureMat(camera);
@@ -632,11 +665,7 @@ Response CaptureResponse(camcap::Camera &camera)
     }
 
     Response response = OkResponse(camera);
-    response.image_encoding = "png";
-    if (!EncodePng(mat.value(), response.image)) {
-        return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
-                                                       "failed to encode png"));
-    }
+    AttachPngImage(response, camera, mat.value());
     return response;
 }
 
@@ -656,11 +685,9 @@ Response CaptureHeatmapResponse(camcap::Camera &camera,
     const at::HeatmapObservation heatmap = orchestrator.ObserveHeatmap(input);
 
     Response response = OkResponse(camera);
-    response.image_encoding = "png";
     const cv::Mat image = overlay ? orchestrator.BlendForDisplay(mat.value()) : mat.value();
-    if (!EncodePng(image, response.image)) {
-        return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
-                                                       "failed to encode png"));
+    if (!AttachPngImage(response, camera, image)) {
+        return response;
     }
     response.trace_json = HeatmapCaptureTraceJson(heatmap, input.current_params, &orchestrator);
     return response;
@@ -690,11 +717,9 @@ Response AtStepResponse(camcap::Camera &camera,
     }
 
     Response response = OkResponse(camera);
-    response.image_encoding = "png";
     const cv::Mat display_image = orchestrator.BlendForDisplay(mat.value());
-    if (!EncodePng(display_image, response.image)) {
-        return ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
-                                                       "failed to encode png"));
+    if (!AttachPngImage(response, camera, display_image)) {
+        return response;
     }
     response.trace_json = TraceJson(result, input.current_params, "", &orchestrator);
     response.at_json = std::string("{\"finished\":") + (result.finished ? "true" : "false") +
@@ -707,17 +732,15 @@ int RunBatch(const Options &options)
 {
     at::AtOrchestrator orchestrator(MakeSessionConfig(options));
 
-    if (options.save_images || !options.output_dir.empty()) {
-        std::filesystem::path output_dir = options.output_dir.empty() ? "at_device_run" : options.output_dir;
-        std::filesystem::create_directories(output_dir);
-    }
-
-    std::ofstream trace_file;
+    // --save-images 且未指定 --out-dir 时使用默认目录。
     std::filesystem::path output_dir = options.output_dir;
     if (options.save_images && output_dir.empty()) {
         output_dir = "at_device_run";
     }
+
+    std::ofstream trace_file;
     if (!output_dir.empty()) {
+        std::filesystem::create_directories(output_dir);
         const auto trace_path = output_dir / "trace.jsonl";
         trace_file.open(trace_path, std::ios::out | std::ios::trunc);
         if (!trace_file) {
@@ -770,11 +793,11 @@ int RunBatch(const Options &options)
         }
         const auto step_end = std::chrono::steady_clock::now();
         StepTiming timing;
-        timing.set_params_ms = std::chrono::duration<double, std::milli>(set_end - step_start).count();
-        timing.capture_ms = std::chrono::duration<double, std::milli>(capture_end - set_end).count();
-        timing.at_core_ms = std::chrono::duration<double, std::milli>(at_core_end - capture_end).count();
-        timing.image_save_ms = std::chrono::duration<double, std::milli>(step_end - at_core_end).count();
-        timing.total_ms = std::chrono::duration<double, std::milli>(step_end - step_start).count();
+        timing.set_params_ms = MsBetween(step_start, set_end);
+        timing.capture_ms = MsBetween(set_end, capture_end);
+        timing.at_core_ms = MsBetween(capture_end, at_core_end);
+        timing.image_save_ms = MsBetween(at_core_end, step_end);
+        timing.total_ms = MsBetween(step_start, step_end);
 
         const std::string trace_json = TraceJson(result,
                                                  input.current_params,
@@ -844,10 +867,10 @@ void RunAsyncAt(camcap::Camera &camera,
         const auto at_end = std::chrono::steady_clock::now();
 
         StepTiming timing;
-        timing.set_params_ms = std::chrono::duration<double, std::milli>(set_end - started).count();
-        timing.capture_ms = std::chrono::duration<double, std::milli>(capture_end - set_end).count();
-        timing.at_core_ms = std::chrono::duration<double, std::milli>(at_end - capture_end).count();
-        timing.total_ms = std::chrono::duration<double, std::milli>(at_end - started).count();
+        timing.set_params_ms = MsBetween(started, set_end);
+        timing.capture_ms = MsBetween(set_end, capture_end);
+        timing.at_core_ms = MsBetween(capture_end, at_end);
+        timing.total_ms = MsBetween(started, at_end);
         const std::string trace = TraceJson(result, input.current_params, "", &orchestrator, &timing);
 
         {
@@ -874,6 +897,55 @@ void RunAsyncAt(camcap::Camera &camera,
     state.running = false;
     state.finished = true;
     state.finish_reason = state.stop_requested.load() ? "Stopped" : "MaxStepsReached";
+}
+
+// run_at_async 命令：校验参数、复位会话并启动后台 AT 线程；响应立即返回。
+void HandleRunAtAsync(const int client_fd,
+                      camcap::Camera &camera,
+                      at::AtOrchestrator &orchestrator,
+                      camcap::CameraParams &current_params,
+                      AsyncRunState &async_run,
+                      const std::string &command_text)
+{
+    const int max_steps = FindInt(command_text, "max_steps").value_or(80);
+    const int preview_every = FindInt(command_text, "preview_every").value_or(0);
+    if (max_steps <= 0 || max_steps > 10000 || preview_every < 0 || preview_every > 10000) {
+        (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
+            camcap::ErrorCode::ProtocolError, "max_steps must be 1..10000 and preview_every must be 0..10000")));
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(async_run.mutex);
+        if (async_run.running) {
+            (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
+                camcap::ErrorCode::ProtocolError, "an async AT run is already active")));
+            return;
+        }
+    }
+    if (async_run.worker.joinable()) {
+        async_run.worker.join();
+    }
+    if (auto params = ParseParams(command_text)) {
+        current_params = *params;
+    }
+    orchestrator.Reset();
+    {
+        std::lock_guard<std::mutex> lock(async_run.mutex);
+        async_run.stop_requested.store(false);
+        async_run.running = true;
+        async_run.finished = false;
+        async_run.max_steps = max_steps;
+        async_run.completed_steps = 0;
+        async_run.finish_reason = "Running";
+        async_run.last_trace_json.clear();
+        async_run.latest_preview.release();
+        async_run.preview_version = 0;
+    }
+    async_run.worker = std::thread(RunAsyncAt, std::ref(camera), std::ref(orchestrator),
+                                   std::ref(current_params), std::ref(async_run), max_steps, preview_every);
+    Response response = OkResponse(camera);
+    response.at_json = AsyncRunJson(async_run);
+    (void)SendResponse(client_fd, response);
 }
 
 int RunServer(const Options &options)
@@ -953,45 +1025,8 @@ int RunServer(const Options &options)
                 response.at_json = AsyncRunJson(async_run);
                 (void)SendResponse(client_fd, response);
             } else if (*command == "run_at_async") {
-                const int max_steps = FindInt(*command_text, "max_steps").value_or(80);
-                const int preview_every = FindInt(*command_text, "preview_every").value_or(0);
-                if (max_steps <= 0 || max_steps > 10000 || preview_every < 0 || preview_every > 10000) {
-                    (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
-                        camcap::ErrorCode::ProtocolError, "max_steps must be 1..10000 and preview_every must be 0..10000")));
-                    continue;
-                }
-                {
-                    std::lock_guard<std::mutex> lock(async_run.mutex);
-                    if (async_run.running) {
-                        (void)SendResponse(client_fd, ErrorResponse(camera, camcap::makeError(
-                            camcap::ErrorCode::ProtocolError, "an async AT run is already active")));
-                        continue;
-                    }
-                }
-                if (async_run.worker.joinable()) {
-                    async_run.worker.join();
-                }
-                if (auto params = ParseParams(*command_text)) {
-                    current_params = *params;
-                }
-                orchestrator.Reset();
-                {
-                    std::lock_guard<std::mutex> lock(async_run.mutex);
-                    async_run.stop_requested.store(false);
-                    async_run.running = true;
-                    async_run.finished = false;
-                    async_run.max_steps = max_steps;
-                    async_run.completed_steps = 0;
-                    async_run.finish_reason = "Running";
-                    async_run.last_trace_json.clear();
-                    async_run.latest_preview.release();
-                    async_run.preview_version = 0;
-                }
-                async_run.worker = std::thread(RunAsyncAt, std::ref(camera), std::ref(orchestrator),
-                                                std::ref(current_params), std::ref(async_run), max_steps, preview_every);
-                Response response = OkResponse(camera);
-                response.at_json = AsyncRunJson(async_run);
-                (void)SendResponse(client_fd, response);
+                HandleRunAtAsync(client_fd, camera, orchestrator, current_params, async_run,
+                                 *command_text);
             } else if (*command == "stop_at_async") {
                 async_run.stop_requested.store(true);
                 Response response = OkResponse(camera);
@@ -1033,20 +1068,12 @@ int RunServer(const Options &options)
                 auto set = camera.setParams(current_params);
                 (void)SendResponse(client_fd, set ? OkResponse(camera) : ErrorResponse(camera, set.error()));
             } else if (*command == "capture") {
-                if (auto encoding = FindString(*command_text, "encoding"); encoding && *encoding != "png") {
-                    (void)SendResponse(client_fd,
-                                       ErrorResponse(camera, camcap::makeError(
-                                                                 camcap::ErrorCode::ProtocolError,
-                                                                 "only png encoding is supported")));
+                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
                     continue;
                 }
                 (void)SendResponse(client_fd, CaptureResponse(camera));
             } else if (*command == "capture_heatmap") {
-                if (auto encoding = FindString(*command_text, "encoding"); encoding && *encoding != "png") {
-                    (void)SendResponse(client_fd,
-                                       ErrorResponse(camera, camcap::makeError(
-                                                                 camcap::ErrorCode::ProtocolError,
-                                                                 "only png encoding is supported")));
+                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
                     continue;
                 }
                 const bool overlay = FindBool(*command_text, "overlay").value_or(true);
@@ -1069,11 +1096,7 @@ int RunServer(const Options &options)
                 response.at_json = "{\"finished\":false,\"need_decode\":false,\"step\":0,\"reset\":true}";
                 (void)SendResponse(client_fd, response);
             } else if (*command == "at_step") {
-                if (auto encoding = FindString(*command_text, "encoding"); encoding && *encoding != "png") {
-                    (void)SendResponse(client_fd,
-                                       ErrorResponse(camera, camcap::makeError(
-                                                                 camcap::ErrorCode::ProtocolError,
-                                                                 "only png encoding is supported")));
+                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
                     continue;
                 }
                 (void)SendResponse(client_fd, AtStepResponse(camera, orchestrator, current_params));
