@@ -10,7 +10,7 @@ at_read_version() {
     script_dir="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
     root="$(cd "${script_dir}/../.." && pwd)"
   fi
-  sed -n 's/^project(AT VERSION //p' "${root}/CMakeLists.txt" | tr -d ' )'
+  sed -n 's/^project(AT VERSION //p' "${root}/CMakeLists.txt" | tr -d ' )\r'
 }
 
 at_release_root() {

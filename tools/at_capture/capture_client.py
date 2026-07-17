@@ -27,8 +27,8 @@ import numpy as np
 @dataclass(frozen=True)
 class CameraParams:
     exposure_us: int = 1000
-    gain: int = 50
-    focus: int = 30
+    gain: int = 10
+    focus: int = 0
     lights: tuple[int, int, int, int] = (1, 1, 1, 1)
 
     def to_request(self) -> dict[str, Any]:
@@ -100,14 +100,23 @@ class CaptureServiceClient:
         self.current_params = _params_from_status(self.last_status, self.current_params)
         return self.last_status
 
-    def capture(self, encoding: str = "png") -> CaptureFrame:
-        header, image_bytes = self.request({"command": "capture", "encoding": encoding})
+    def capture(self, encoding: str = "jpeg", jpeg_quality: int = 80) -> CaptureFrame:
+        header, image_bytes = self.request(
+            {"command": "capture", "encoding": encoding, "jpeg_quality": jpeg_quality}
+        )
         self._ensure_ok(header, "capture")
         return self._frame_from_response(header, image_bytes, encoding, "capture")
 
-    def capture_heatmap(self, encoding: str = "png", overlay: bool = False) -> CaptureFrame:
+    def capture_heatmap(
+        self, encoding: str = "jpeg", overlay: bool = False, jpeg_quality: int = 80
+    ) -> CaptureFrame:
         header, image_bytes = self.request(
-            {"command": "capture_heatmap", "encoding": encoding, "overlay": overlay}
+            {
+                "command": "capture_heatmap",
+                "encoding": encoding,
+                "overlay": overlay,
+                "jpeg_quality": jpeg_quality,
+            }
         )
         self._ensure_ok(header, "capture_heatmap")
         return self._frame_from_response(header, image_bytes, encoding, "capture_heatmap")
@@ -122,8 +131,10 @@ class CaptureServiceClient:
         self.current_params = _params_from_status(self.last_status, params or self.current_params)
         return dict(header.get("at", {}))
 
-    def at_step(self, encoding: str = "png") -> CaptureFrame:
-        header, image_bytes = self.request({"command": "at_step", "encoding": encoding})
+    def at_step(self, encoding: str = "jpeg", jpeg_quality: int = 80) -> CaptureFrame:
+        header, image_bytes = self.request(
+            {"command": "at_step", "encoding": encoding, "jpeg_quality": jpeg_quality}
+        )
         self._ensure_ok(header, "at_step")
         return self._frame_from_response(header, image_bytes, encoding, "at_step")
 
@@ -145,12 +156,14 @@ class CaptureServiceClient:
         self._ensure_ok(header, "stop_at_async")
         return dict(header.get("at", {}))
 
-    def get_preview(self) -> CaptureFrame | None:
-        header, image_bytes = self.request({"command": "get_preview"})
+    def get_preview(self, encoding: str = "jpeg", jpeg_quality: int = 80) -> CaptureFrame | None:
+        header, image_bytes = self.request(
+            {"command": "get_preview", "encoding": encoding, "jpeg_quality": jpeg_quality}
+        )
         self._ensure_ok(header, "get_preview")
         if not image_bytes:
             return None
-        return self._frame_from_response(header, image_bytes, "png", "get_preview")
+        return self._frame_from_response(header, image_bytes, encoding, "get_preview")
 
     def save_frame(
         self,
@@ -163,7 +176,8 @@ class CaptureServiceClient:
         image_dir.mkdir(parents=True, exist_ok=True)
 
         stamp = _filename_stamp(frame.captured_at)
-        extension = frame.encoding if frame.encoding else "png"
+        encoding = frame.encoding if frame.encoding else "jpeg"
+        extension = "jpg" if encoding in ("jpeg", "jpg") else encoding
         stem = filename_stem or f"capture_{stamp}"
         image_path = image_dir / f"{stem}.{extension}"
         image_path.write_bytes(frame.image_bytes)

@@ -275,12 +275,12 @@ void PrintUsage(const char *program)
 {
     std::cerr << "Usage: " << program
               << " [--device vs1000p_2mp] [--steps 8] [--exposure-us 1000]"
-              << " [--gain 50] [--focus 30] [--lights 1,1,1,1]"
+              << " [--gain 10] [--focus 0] [--lights 1,1,1,1]"
               << " [--out-dir /tmp/at_run] [--save-images]"
               << " [--heatmap-model /path/yolo-uint8.tmfile]\n"
               << "       " << program
               << " --server [--device vs1000p_2mp] [--port 8080]"
-              << " [--exposure-us 1000] [--gain 50] [--focus 30] [--lights 1,1,1,1]"
+              << " [--exposure-us 1000] [--gain 10] [--focus 0] [--lights 1,1,1,1]"
               << " [--heatmap-model /path/yolo-uint8.tmfile]\n"
               << "Detect options: [--heatmap-context timvx|cpu] [--heatmap-precision uint8|fp32]"
               << " [--heatmap-threshold 0.25] [--no-heatmap-overlay]\n";
@@ -290,8 +290,8 @@ Options ParseArgs(int argc, char **argv)
 {
     Options options;
     options.initial_params.exposure_us = 1000;
-    options.initial_params.gain = 50;
-    options.initial_params.focus = 30;
+    options.initial_params.gain = 10;
+    options.initial_params.focus = 0;
     options.initial_params.lights = {1, 1, 1, 1};
 
     for (int i = 1; i < argc; ++i) {
@@ -618,19 +618,54 @@ camcap::Result<cv::Mat> CaptureMat(camcap::Camera &camera)
     return camcap::toCvMat(frame.value());
 }
 
-bool EncodePng(const cv::Mat &mat, std::vector<unsigned char> &payload)
+constexpr int kDefaultJpegQuality = 80;
+
+struct ImageEncodeOptions {
+    std::string encoding{"jpeg"};  // jpeg | png
+    int jpeg_quality{kDefaultJpegQuality};
+};
+
+ImageEncodeOptions ParseImageEncodeOptions(const std::string &command_text)
 {
-    payload.clear();
-    return cv::imencode(".png", mat, payload);
+    ImageEncodeOptions options;
+    if (const auto encoding = FindString(command_text, "encoding")) {
+        options.encoding = *encoding;
+    }
+    if (options.encoding == "jpg") {
+        options.encoding = "jpeg";
+    }
+    options.jpeg_quality = FindInt(command_text, "jpeg_quality").value_or(kDefaultJpegQuality);
+    options.jpeg_quality = std::clamp(options.jpeg_quality, 1, 100);
+    return options;
 }
 
-// 把图像以 PNG 附到响应上；编码失败时整体替换为错误响应。
-bool AttachPngImage(Response &response, camcap::Camera &camera, const cv::Mat &image)
+bool IsSupportedImageEncoding(const std::string &encoding)
 {
-    response.image_encoding = "png";
-    if (!EncodePng(image, response.image)) {
+    return encoding == "jpeg" || encoding == "png";
+}
+
+bool EncodeImage(const cv::Mat &mat,
+                 const ImageEncodeOptions &options,
+                 std::vector<unsigned char> &payload)
+{
+    payload.clear();
+    if (options.encoding == "png") {
+        return cv::imencode(".png", mat, payload);
+    }
+    const std::vector<int> params{cv::IMWRITE_JPEG_QUALITY, options.jpeg_quality};
+    return cv::imencode(".jpg", mat, payload, params);
+}
+
+// 把图像附到响应上；编码失败时整体替换为错误响应。
+bool AttachImage(Response &response,
+                 camcap::Camera &camera,
+                 const cv::Mat &image,
+                 const ImageEncodeOptions &options)
+{
+    response.image_encoding = options.encoding;
+    if (!EncodeImage(image, options, response.image)) {
         response = ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
-                                                           "failed to encode png"));
+                                                           "failed to encode " + options.encoding));
         return false;
     }
     return true;
@@ -642,22 +677,21 @@ double MsBetween(const std::chrono::steady_clock::time_point &begin,
     return std::chrono::duration<double, std::milli>(end - begin).count();
 }
 
-// capture 类命令仅支持 PNG：请求了其它编码时发送错误响应并返回 true（跳过该命令）。
-bool RejectNonPngEncoding(const int client_fd,
-                          camcap::Camera &camera,
-                          const std::string &command_text)
+// 不支持的 encoding 时发错误并返回 true（调用方应 continue）。
+bool RejectUnsupportedEncoding(const int client_fd,
+                               camcap::Camera &camera,
+                               const ImageEncodeOptions &options)
 {
-    const auto encoding = FindString(command_text, "encoding");
-    if (!encoding || *encoding == "png") {
+    if (IsSupportedImageEncoding(options.encoding)) {
         return false;
     }
     (void)SendResponse(client_fd,
                        ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::ProtocolError,
-                                                               "only png encoding is supported")));
+                                                               "encoding must be jpeg or png")));
     return true;
 }
 
-Response CaptureResponse(camcap::Camera &camera)
+Response CaptureResponse(camcap::Camera &camera, const ImageEncodeOptions &encode)
 {
     auto mat = CaptureMat(camera);
     if (!mat) {
@@ -665,14 +699,15 @@ Response CaptureResponse(camcap::Camera &camera)
     }
 
     Response response = OkResponse(camera);
-    AttachPngImage(response, camera, mat.value());
+    AttachImage(response, camera, mat.value(), encode);
     return response;
 }
 
 Response CaptureHeatmapResponse(camcap::Camera &camera,
                                 at::AtOrchestrator &orchestrator,
                                 const camcap::CameraParams &current_params,
-                                const bool overlay)
+                                const bool overlay,
+                                const ImageEncodeOptions &encode)
 {
     auto mat = CaptureMat(camera);
     if (!mat) {
@@ -686,7 +721,7 @@ Response CaptureHeatmapResponse(camcap::Camera &camera,
 
     Response response = OkResponse(camera);
     const cv::Mat image = overlay ? orchestrator.BlendForDisplay(mat.value()) : mat.value();
-    if (!AttachPngImage(response, camera, image)) {
+    if (!AttachImage(response, camera, image, encode)) {
         return response;
     }
     response.trace_json = HeatmapCaptureTraceJson(heatmap, input.current_params, &orchestrator);
@@ -695,7 +730,8 @@ Response CaptureHeatmapResponse(camcap::Camera &camera,
 
 Response AtStepResponse(camcap::Camera &camera,
                         at::AtOrchestrator &orchestrator,
-                        camcap::CameraParams &current_params)
+                        camcap::CameraParams &current_params,
+                        const ImageEncodeOptions &encode)
 {
     if (auto set = camera.setParams(current_params); !set) {
         return ErrorResponse(camera, set.error());
@@ -718,7 +754,7 @@ Response AtStepResponse(camcap::Camera &camera,
 
     Response response = OkResponse(camera);
     const cv::Mat display_image = orchestrator.BlendForDisplay(mat.value());
-    if (!AttachPngImage(response, camera, display_image)) {
+    if (!AttachImage(response, camera, display_image, encode)) {
         return response;
     }
     response.trace_json = TraceJson(result, input.current_params, "", &orchestrator);
@@ -1033,6 +1069,10 @@ int RunServer(const Options &options)
                 response.at_json = AsyncRunJson(async_run);
                 (void)SendResponse(client_fd, response);
             } else if (*command == "get_preview") {
+                const ImageEncodeOptions encode = ParseImageEncodeOptions(*command_text);
+                if (RejectUnsupportedEncoding(client_fd, camera, encode)) {
+                    continue;
+                }
                 cv::Mat preview;
                 {
                     std::lock_guard<std::mutex> lock(async_run.mutex);
@@ -1040,12 +1080,9 @@ int RunServer(const Options &options)
                 }
                 Response response = OkResponse(camera);
                 response.at_json = AsyncRunJson(async_run);
-                if (!preview.empty()) {
-                    response.image_encoding = "png";
-                    if (!EncodePng(preview, response.image)) {
-                        response = ErrorResponse(camera, camcap::makeError(camcap::ErrorCode::EncodeFailed,
-                                                                             "failed to encode deferred preview"));
-                    }
+                if (!preview.empty() && !AttachImage(response, camera, preview, encode)) {
+                    (void)SendResponse(client_fd, response);
+                    continue;
                 }
                 (void)SendResponse(client_fd, response);
             } else if ([&async_run] {
@@ -1068,17 +1105,19 @@ int RunServer(const Options &options)
                 auto set = camera.setParams(current_params);
                 (void)SendResponse(client_fd, set ? OkResponse(camera) : ErrorResponse(camera, set.error()));
             } else if (*command == "capture") {
-                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
+                const ImageEncodeOptions encode = ParseImageEncodeOptions(*command_text);
+                if (RejectUnsupportedEncoding(client_fd, camera, encode)) {
                     continue;
                 }
-                (void)SendResponse(client_fd, CaptureResponse(camera));
+                (void)SendResponse(client_fd, CaptureResponse(camera, encode));
             } else if (*command == "capture_heatmap") {
-                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
+                const ImageEncodeOptions encode = ParseImageEncodeOptions(*command_text);
+                if (RejectUnsupportedEncoding(client_fd, camera, encode)) {
                     continue;
                 }
                 const bool overlay = FindBool(*command_text, "overlay").value_or(true);
                 (void)SendResponse(client_fd,
-                                   CaptureHeatmapResponse(camera, orchestrator, current_params, overlay));
+                                   CaptureHeatmapResponse(camera, orchestrator, current_params, overlay, encode));
             } else if (*command == "close_lights") {
                 current_params.lights = {0, 0, 0, 0};
                 auto set = camera.setParams(current_params);
@@ -1096,10 +1135,11 @@ int RunServer(const Options &options)
                 response.at_json = "{\"finished\":false,\"need_decode\":false,\"step\":0,\"reset\":true}";
                 (void)SendResponse(client_fd, response);
             } else if (*command == "at_step") {
-                if (RejectNonPngEncoding(client_fd, camera, *command_text)) {
+                const ImageEncodeOptions encode = ParseImageEncodeOptions(*command_text);
+                if (RejectUnsupportedEncoding(client_fd, camera, encode)) {
                     continue;
                 }
-                (void)SendResponse(client_fd, AtStepResponse(camera, orchestrator, current_params));
+                (void)SendResponse(client_fd, AtStepResponse(camera, orchestrator, current_params, encode));
             } else if (*command == "shutdown") {
                 (void)SendResponse(client_fd, OkResponse(camera));
                 running = false;

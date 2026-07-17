@@ -60,7 +60,8 @@ MVP 当前使用的命令：
 - `focus`
 - `lights`: 4 个整数
 
-采图和 AT step 当前使用 `png` 编码。启用 heatmap 后，`at_step` 返回的图像会融合
+采图和 AT step / preview 默认使用 `jpeg` 编码（可用 `encoding=png` 或
+`jpeg_quality=1..100` 覆盖）。启用 heatmap 后，`at_step` 返回的图像会融合
 heatmap 伪彩色并绘制 ROI，便于观察 AT 过程；`capture` 仍返回当前相机图像。
 `capture_heatmap` 只采当前帧并执行 heatmap 推理，不推进 AT 状态，适合采集模型验证集。
 `at_step` 的响应会包含：

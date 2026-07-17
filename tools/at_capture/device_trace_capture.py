@@ -118,15 +118,15 @@ def main() -> None:
 
     with socket.create_connection((args.host, args.port), timeout=15) as sock:
         sock.settimeout(90)
-        reset, _ = request(sock, {"command": "reset_at", "exposure_us": 1000, "gain": 50,
-                                  "focus": 30, "lights": [1, 1, 1, 1]})
+        reset, _ = request(sock, {"command": "reset_at", "exposure_us": 1000, "gain": 10,
+                                  "focus": 0, "lights": [1, 1, 1, 1]})
         if not reset.get("ok"):
             raise RuntimeError(reset)
 
         records: list[dict[str, Any]] = []
         for _ in range(args.max_steps):
             step_start = time.perf_counter()
-            response, image_bytes = request(sock, {"command": "at_step", "encoding": "png"})
+            response, image_bytes = request(sock, {"command": "at_step", "encoding": "jpeg"})
             host_request_ms = (time.perf_counter() - step_start) * 1000.0
             if not response.get("ok"):
                 raise RuntimeError(response)
