@@ -20,6 +20,7 @@ struct YoloDetectConfig {
     bool overlay = true;
 };
 
+// 会话级生命周期：AT Init（点击）时异步加载，provider 销毁时释放，不跨 AT 常驻。
 class YoloDetectProvider final : public HeatmapProvider {
 public:
     explicit YoloDetectProvider(YoloDetectConfig config);

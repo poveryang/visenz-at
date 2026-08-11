@@ -15,9 +15,9 @@ namespace {
 // 面向解码的自动图像调节流程（v5.4，阶段枚举与公共接口不变）
 //
 // FocusTuneWithCoarseExposure 内部细分为四个子阶段：
-//   CoarseSweep  对焦前先把亮度收敛到就绪窗口中值（比例式 AE），
-//                然后整遍等距粗对焦扫描（不依赖检测模块，普通设备可用）；
-//                全程每帧检测码区，稳定命中即锁定并立即转入 FineSweep。
+//   CoarseSweep  对焦前先把亮度收敛到就绪窗口中值（比例式 AE）；
+//                然后从当前焦点（不复位全行程）短距探方向 → 主方向粗扫 →
+//                若主扫全程无码则从原点反方向补扫；稳定命中即锁定并转入 FineSweep。
 //   FineSweep    围绕最佳清晰度位置做窗口精扫；已锁定时先基于 ROI 测光
 //                收敛曝光，再按 ROI 清晰度精调。
 //   ProbeDark    精扫结束仍未锁定且设备具备检测能力时，把亮度压到暗区
@@ -30,17 +30,27 @@ namespace {
 // 状态复用约束（include/at_*.h 冻结，不得新增成员）：
 //   state_.focus_tune_index    = 对焦子阶段编码（FocusStage）
 //   state_.exposure_tune_index = 子阶段内步数计数（进入曝光阶段后恢复原义）
-//   state_.light_profile_index = 精扫期间暂存精扫中心（center+1，0=未设置；
-//                                进入曝光阶段时清零恢复原义）
+//   state_.light_profile_index = CoarseSweep 期间打包 origin/方向/子相；
+//                                FineSweep 期间暂存精扫中心（center+1）；
+//                                进入曝光阶段时清零恢复原义
 //   previous_roi_              = 锁定的码区 ROI
 //   探针驻留帧数、连续曝光调整数等从 candidates_ 尾部派生。
 // ============================================================================
 
 // ---- 码区锁定判据 ----
 constexpr double kRoiLockIoU = 0.5;
-constexpr int kRoiLockHits = 3;
+constexpr int kRoiLockHits = 2;            // 连续 2 帧即可提前精搜
+constexpr double kRoiLockHighConf = 0.9;   // 单帧高置信也可锁
 // 锁定 ROI 与新检测框的平滑权重（新框占比）。
 constexpr double kRoiBlend = 0.5;
+
+// ---- 粗扫元数据打包（复用 light_profile_index，仅 CoarseSweep）----
+constexpr int kCoarseOriginMask = 0x0FFF;
+constexpr int kCoarseDirNegBit = 0x1000;
+constexpr int kCoarsePhaseShift = 13;
+constexpr int kCoarsePhaseProbe = 1;
+constexpr int kCoarsePhasePrimary = 2;
+constexpr int kCoarsePhaseOpposite = 3;
 
 // ---- 比例式 AE ----
 // 亮度近似正比于 exp_time × gain：单步按 target/brightness 比例更新，
@@ -152,6 +162,7 @@ cv::Rect BlendRect(const cv::Rect &previous, const cv::Rect &current)
 }
 
 // 对焦阶段清晰度最优的候选帧；prefer_detected 时优先只看有检测的帧（ROI 清晰度）。
+// 跳过纯曝光 settle 帧，避免初值钳位后的 AE 帧（错误焦点）污染精扫中心。
 const CandidateRecord *BestFocusCandidate(const std::vector<CandidateRecord> &candidates,
                                           bool prefer_detected)
 {
@@ -161,12 +172,15 @@ const CandidateRecord *BestFocusCandidate(const std::vector<CandidateRecord> &ca
         if (candidate.phase != StepPhase::FocusTuneWithCoarseExposure) {
             continue;
         }
-        if (!best || candidate.quality.sharpness > best->quality.sharpness) {
-            best = &candidate;
-        }
         if (candidate.heatmap.available &&
             (!best_detected || candidate.quality.sharpness > best_detected->quality.sharpness)) {
             best_detected = &candidate;
+        }
+        if (IsExposureAction(candidate.action) && !candidate.heatmap.available) {
+            continue;
+        }
+        if (!best || candidate.quality.sharpness > best->quality.sharpness) {
+            best = &candidate;
         }
     }
     if (prefer_detected && best_detected) {
@@ -191,7 +205,9 @@ bool UpdateRoiLock(const Observation &observation,
         }
         return false;
     }
-    if (ConsecutiveRoiHits(candidates, observation.heatmap.roi) >= kRoiLockHits) {
+    const int hits = ConsecutiveRoiHits(candidates, observation.heatmap.roi);
+    if (hits >= kRoiLockHits ||
+        (hits >= 1 && observation.heatmap.confidence + 1e-9 >= kRoiLockHighConf)) {
         locked_roi = observation.heatmap.roi;
         return true;
     }
@@ -258,6 +274,54 @@ struct FocusPlan {
     std::string note;
 };
 
+int PackCoarseMeta(int origin, int dir, int phase)
+{
+    return (origin & kCoarseOriginMask) | (dir < 0 ? kCoarseDirNegBit : 0) |
+           ((phase & 0x7) << kCoarsePhaseShift);
+}
+
+int CoarseOrigin(int packed)
+{
+    return packed & kCoarseOriginMask;
+}
+
+int CoarseDir(int packed)
+{
+    return (packed & kCoarseDirNegBit) != 0 ? -1 : 1;
+}
+
+int CoarsePhase(int packed)
+{
+    return (packed >> kCoarsePhaseShift) & 0x7;
+}
+
+// 方向探针结束后：比较 home 与 +delta 两帧清晰度，清晰度升高则 + 方向。
+int ResolveProbeDirection(const std::vector<CandidateRecord> &candidates, int origin)
+{
+    double sharp_home = -1.0;
+    double sharp_plus = -1.0;
+    for (auto it = candidates.rbegin(); it != candidates.rend(); ++it) {
+        if (it->phase != StepPhase::FocusTuneWithCoarseExposure) {
+            continue;
+        }
+        if (it->action != TuneAction::AdjustFocus && it->action != TuneAction::Hold) {
+            continue;
+        }
+        if (it->params.focus_pos == origin && sharp_home < 0.0) {
+            sharp_home = it->quality.sharpness;
+        } else if (it->params.focus_pos != origin && sharp_plus < 0.0) {
+            sharp_plus = it->quality.sharpness;
+        }
+        if (sharp_home >= 0.0 && sharp_plus >= 0.0) {
+            break;
+        }
+    }
+    if (sharp_home < 0.0 || sharp_plus < 0.0) {
+        return +1;
+    }
+    return sharp_plus + 1e-9 >= sharp_home ? +1 : -1;
+}
+
 FocusPlan MakeSettlePlan(const SessionConfig &config,
                          const Observation &observation,
                          double target,
@@ -280,14 +344,14 @@ FocusPlan MakeSettlePlan(const SessionConfig &config,
     return plan;
 }
 
-// 粗对焦：step==0 时先把亮度收敛到就绪窗口，再整遍等距扫描焦点行程。
+// 粗扫：从当前焦点短距探方向，再主扫 / 必要时反扫（不复位到行程近端）。
 FocusPlan PlanCoarseSweep(const SessionConfig &config,
-                          int step,
+                          SessionState &state,
                           const std::vector<CandidateRecord> &candidates,
                           const Observation &observation,
                           bool brightness_ready)
 {
-    if (step == 0 && !brightness_ready &&
+    if (state.light_profile_index == 0 && !brightness_ready &&
         TrailingExposureTunes(candidates) < SettleBudget(config.flow)) {
         const double target = ReadyBrightnessMid(config.flow);
         FocusPlan plan = MakeSettlePlan(config, observation, target,
@@ -296,20 +360,66 @@ FocusPlan PlanCoarseSweep(const SessionConfig &config,
         if (IsExposureAction(plan.action)) {
             return plan;
         }
-        // 曝光已到边界仍不达标：放弃收敛，直接开始扫描。
+        // 曝光已到边界仍不达标：放弃收敛，直接开始探方向。
     }
 
-    const int coarse_steps = std::max(1, config.flow.focus_tune_steps);
-    const int slot = std::min(step, coarse_steps - 1);
-    const int focus_range = config.camera.max_focus_pos - config.camera.min_focus_pos;
+    const int focus_min = config.camera.min_focus_pos;
+    const int focus_max = config.camera.max_focus_pos;
+    const int focus_range = std::max(1, focus_max - focus_min);
+    const int probe_delta =
+        std::max(1, std::min(config.budget.focus_step, std::max(1, focus_range / 16)));
+    const int scan_step = std::max(probe_delta, config.budget.focus_step);
+
+    if (state.light_profile_index == 0) {
+        const int origin =
+            std::clamp(observation.current_params.focus_pos, focus_min, focus_max);
+        state.light_profile_index = PackCoarseMeta(origin, /*dir=*/+1, kCoarsePhaseProbe);
+        state.exposure_tune_index = 0;
+    }
+
+    const int origin = CoarseOrigin(state.light_profile_index);
+    const int dir = CoarseDir(state.light_profile_index);
+    const int phase = CoarsePhase(state.light_profile_index);
+    const int step = state.exposure_tune_index;
+
     FocusPlan plan;
-    plan.action = TuneAction::AdjustFocus;
     plan.next_params = observation.current_params;
-    plan.next_params.focus_pos =
-        config.camera.min_focus_pos +
-        static_cast<int>(std::lround((slot + 0.5) * focus_range /
-                                     static_cast<double>(coarse_steps)));
-    plan.note = "; coarse focus slot " + std::to_string(slot) + "/" + std::to_string(coarse_steps);
+
+    auto go_focus = [&](int target, const std::string &note) {
+        target = std::clamp(target, focus_min, focus_max);
+        plan.next_params.focus_pos = target;
+        if (target == observation.current_params.focus_pos) {
+            plan.action = TuneAction::Hold;
+            plan.note = note + "; at target";
+        } else {
+            plan.action = TuneAction::AdjustFocus;
+            plan.note = note;
+        }
+    };
+
+    if (phase == kCoarsePhaseProbe) {
+        if (step <= 0) {
+            // 采样原点（界面/初值钳位后的当前焦点），不强制甩到行程端点。
+            go_focus(origin, "; direction probe home");
+            return plan;
+        }
+        go_focus(origin + probe_delta, "; direction probe +");
+        return plan;
+    }
+
+    if (phase == kCoarsePhasePrimary) {
+        const int target = origin + dir * (step + 1) * scan_step;
+        go_focus(target,
+                 "; coarse primary dir " + std::to_string(dir) + " step " +
+                     std::to_string(step));
+        return plan;
+    }
+
+    // opposite
+    const int target = origin - dir * (step + 1) * scan_step;
+    go_focus(target,
+             "; coarse opposite dir " + std::to_string(-dir) + " step " +
+                 std::to_string(step));
     return plan;
 }
 
@@ -526,6 +636,9 @@ StepResult AtSession::ProcessStep(const FrameContext &context)
     if (decision.finished) {
         state_.finish_reason = decision.finish_reason;
     }
+    // Trace 记录本步实际决策阶段；AdvancePhaseAfterStep 会把 state_/decision.phase
+    // 推进到下一阶段，不能再用来填 trace。
+    const StepPhase step_phase = decision.phase;
     AdvancePhaseAfterStep(decision, observation);
 
     result.finished = decision.finished || state_.phase == StepPhase::Done;
@@ -534,7 +647,7 @@ StepResult AtSession::ProcessStep(const FrameContext &context)
     result.best_candidate = best_candidate_;
     result.trace.step_index = state_.step_index;
     result.trace.stage_step_count = state_.stage_step_count;
-    result.trace.phase = state_.phase;
+    result.trace.phase = step_phase;
     result.trace.action = decision.action;
     result.trace.finish_reason = decision.finish_reason;
     result.trace.quality = observation.quality;
@@ -610,7 +723,7 @@ StepDecision AtSession::Decide(const Observation &observation)
             FocusPlan plan;
             switch (DecodeFocusStage(state_.focus_tune_index)) {
                 case FocusStage::CoarseSweep:
-                    plan = PlanCoarseSweep(config_, step, candidates_, observation, ready);
+                    plan = PlanCoarseSweep(config_, state_, candidates_, observation, ready);
                     break;
                 case FocusStage::FineSweep: {
                     // 精扫中心在进入精扫时锁存（light_profile_index 暂存 center+1），
@@ -695,6 +808,11 @@ StepDecision AtSession::Decide(const Observation &observation)
             } else if (observation.decode.attempted) {
                 state_.ranking_complete = true;
                 decision.reason = "decode feedback received";
+            } else if (observation.heatmap.available && !observation.heatmap.roi.empty()) {
+                // 有码区但仍未过硬门控：软放行一次解码，避免连续 waiting decode gate。
+                decision.action = TuneAction::RequestDecode;
+                decision.need_decode = true;
+                decision.reason = "request decode (heatmap soft gate)";
             } else {
                 decision.action = TuneAction::Hold;
                 decision.reason = "waiting decode gate";
@@ -795,9 +913,15 @@ bool AtSession::ShouldRequestDecode(const Observation &observation) const
     if (!BrightnessReady(observation.quality)) {
         return false;
     }
-    if (config_.flow.enable_heatmap && observation.heatmap.available &&
-        observation.heatmap.confidence < 0.5) {
-        return false;
+    // YOLO 等检测分数在 (0,1]；旧 heatmap 灰度阈值常 >1，此时不做 conf 硬门控。
+    // 硬编码 0.5 会让常见 YOLO 分数（~0.27）整段 ranking 空转 Hold。
+    if (config_.flow.enable_heatmap && observation.heatmap.available) {
+        const double gate = (config_.heatmap.threshold > 0.0 && config_.heatmap.threshold <= 1.0)
+                                ? config_.heatmap.threshold
+                                : 0.25;
+        if (observation.heatmap.confidence + 1e-9 < gate) {
+            return false;
+        }
     }
     return true;
 }
@@ -842,8 +966,14 @@ void AtSession::AdvancePhaseAfterStep(StepDecision &decision, const Observation 
                        (!config_.heatmap.model_path.empty() || AnyDetectionSeen(candidates_));
             };
 
-            // 1) 子阶段内步数计入：扫描阶段只数焦点移动，探针阶段每帧都计。
-            if (stage == FocusStage::CoarseSweep || stage == FocusStage::FineSweep) {
+            // 1) 子阶段内步数计入：扫描阶段数焦点相关动作；探针阶段每帧都计。
+            if (stage == FocusStage::CoarseSweep) {
+                if (decision.action == TuneAction::AdjustFocus ||
+                    decision.action == TuneAction::Hold) {
+                    // Hold：探方向采样 home / 已到目标边界也推进计数。
+                    state_.exposure_tune_index += 1;
+                }
+            } else if (stage == FocusStage::FineSweep) {
                 if (decision.action == TuneAction::AdjustFocus) {
                     state_.exposure_tune_index += 1;
                 }
@@ -860,11 +990,56 @@ void AtSession::AdvancePhaseAfterStep(StepDecision &decision, const Observation 
 
             // 3) 子阶段完成判定
             switch (stage) {
-                case FocusStage::CoarseSweep:
-                    if (state_.exposure_tune_index >= coarse_steps) {
-                        enter_fine_sweep(/*prefer_detected=*/false, decision.next_params.focus_pos);
+                case FocusStage::CoarseSweep: {
+                    if (state_.light_profile_index == 0) {
+                        break;
+                    }
+                    const int origin = CoarseOrigin(state_.light_profile_index);
+                    const int dir = CoarseDir(state_.light_profile_index);
+                    const int phase = CoarsePhase(state_.light_profile_index);
+                    const bool no_move =
+                        decision.action == TuneAction::AdjustFocus &&
+                        decision.next_params.focus_pos == observation.current_params.focus_pos;
+                    const bool hit_boundary =
+                        decision.action == TuneAction::Hold &&
+                        decision.reason.find("at target") != std::string::npos &&
+                        state_.exposure_tune_index > 0;
+
+                    if (phase == kCoarsePhaseProbe) {
+                        // home + probe+ 各一帧后判定方向，进入主扫。
+                        if (state_.exposure_tune_index >= 2) {
+                            const int resolved = ResolveProbeDirection(candidates_, origin);
+                            state_.light_profile_index =
+                                PackCoarseMeta(origin, resolved, kCoarsePhasePrimary);
+                            state_.exposure_tune_index = 0;
+                        }
+                        break;
+                    }
+
+                    if (phase == kCoarsePhasePrimary) {
+                        if (state_.exposure_tune_index >= coarse_steps || no_move ||
+                            hit_boundary) {
+                            if (AnyDetectionSeen(candidates_)) {
+                                enter_fine_sweep(/*prefer_detected=*/true,
+                                                 decision.next_params.focus_pos);
+                            } else {
+                                state_.light_profile_index =
+                                    PackCoarseMeta(origin, dir, kCoarsePhaseOpposite);
+                                state_.exposure_tune_index = 0;
+                            }
+                        }
+                        break;
+                    }
+
+                    if (phase == kCoarsePhaseOpposite) {
+                        if (state_.exposure_tune_index >= coarse_steps || no_move ||
+                            hit_boundary) {
+                            enter_fine_sweep(AnyDetectionSeen(candidates_),
+                                             decision.next_params.focus_pos);
+                        }
                     }
                     break;
+                }
                 case FocusStage::FineSweep:
                     if (state_.exposure_tune_index >= fine_steps) {
                         if (locked || !probes_enabled()) {

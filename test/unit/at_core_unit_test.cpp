@@ -122,7 +122,8 @@ void TestFocusSweepAdvancesPhaseWithoutDetect()
             break;
         }
     }
-    assert(ReasonSeen(reasons, "coarse focus"));
+    assert(ReasonSeen(reasons, "direction probe") || ReasonSeen(reasons, "coarse primary") ||
+           ReasonSeen(reasons, "coarse opposite"));
     assert(ReasonSeen(reasons, "fine focus"));
     assert(!ReasonSeen(reasons, "probe"));
     assert(result.trace.phase == at::StepPhase::ExposurePerLightProfile);
@@ -331,6 +332,66 @@ void TestPipelineFinishesWithDetection()
     assert(last.best_candidate->heatmap.available);
 }
 
+// 低 YOLO 置信度（常见 ~0.27）不应在 ranking 空转 Hold；应请求解码或软门控放行。
+void TestDecodeRankingRequestsAtLowConfidence()
+{
+    at::SessionConfig config = MakeConfig();
+    config.flow.enable_decode_ranking = true;
+    config.flow.enable_heatmap = true;
+    config.flow.light_profiles = {{0, 0, 0, 0}};
+    config.flow.focus_tune_steps = 2;
+    config.flow.exposure_steps_per_profile = 1;
+    config.budget.decode_budget = 4;
+    config.heatmap.threshold = 0.25;
+    config.heatmap.model_path = "stub-model";
+
+    at::AtSession session(config);
+    const cv::Rect code_roi(40, 28, 44, 32);
+    at::FrameContext context;
+    context.image = MakeImage(120);
+    context.current_params = MakeParams();
+
+    bool saw_decode_request = false;
+    bool saw_waiting_only = true;
+    at::StepResult last;
+    for (int i = 0; i < 80 && !last.finished; ++i) {
+        context.heatmap = MakeDetection(code_roi, 0.27);
+        context.decode = {};
+        last = session.ProcessStep(context);
+        context.current_params = last.next_params;
+        if (last.trace.phase == at::StepPhase::CandidateDecodeRanking) {
+            if (last.need_decode) {
+                saw_decode_request = true;
+                saw_waiting_only = false;
+                break;
+            }
+            if (last.trace.reason.find("waiting decode gate") == std::string::npos) {
+                saw_waiting_only = false;
+            }
+        }
+    }
+    assert(saw_decode_request);
+    assert(!saw_waiting_only);
+}
+
+void TestAbortWritesInterruptedEnd()
+{
+    at::SessionConfig config = MakeConfig();
+    config.run_log.enable = true;
+    config.run_log.dir = "/tmp/visenz_at_unit_abort";
+    at::AtOrchestrator orchestrator(config);
+    orchestrator.Reset();
+
+    at::FrameContext context;
+    context.image = MakeImage(120);
+    context.current_params = MakeParams();
+    (void)orchestrator.ProcessStep(context);
+
+    orchestrator.Abort();
+    // 再次 Abort 应幂等，不抛异常。
+    orchestrator.Abort();
+}
+
 void TestGetLibVersionMatchesProject()
 {
 #ifdef AT_VERSION_STR
@@ -355,6 +416,8 @@ int main()
     TestLockedRoiSurvivesDetectionDropout();
     TestPipelineFinishesWithoutDecode();
     TestPipelineFinishesWithDetection();
+    TestDecodeRankingRequestsAtLowConfidence();
+    TestAbortWritesInterruptedEnd();
     std::cout << "at_core_unit_test: all passed\n";
     return 0;
 }
