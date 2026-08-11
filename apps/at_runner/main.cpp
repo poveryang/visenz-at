@@ -929,6 +929,8 @@ void RunAsyncAt(camcap::Camera &camera,
         }
     }
 
+    // 外部步数耗尽 / 停止：补写 run end，避免 JSONL 悬空无 end。
+    orchestrator.Abort();
     std::lock_guard<std::mutex> lock(state.mutex);
     state.running = false;
     state.finished = true;

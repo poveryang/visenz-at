@@ -144,11 +144,19 @@ struct HeatmapConfig {
     bool overlay = true;
 };
 
+/** @brief 算法运行日志（独立 JSONL，不混入宿主软件 stdout）。 */
+struct RunLogConfig {
+    bool enable = false;
+    /// 目录；空则读环境变量 AT_LOG_DIR，再回落 /tmp/visenz_at
+    std::string dir;
+};
+
 struct SessionConfig {
     CameraRange camera{};
     StrategyBudget budget{};
     FlowConfig flow{};
     HeatmapConfig heatmap{};
+    RunLogConfig run_log{};
 };
 
 struct SessionState {

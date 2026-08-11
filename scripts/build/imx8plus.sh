@@ -3,8 +3,9 @@
 #
 # 环境变量:
 #   ENABLE_AT_RUNNER   默认 ON（设备 runner）
+#   ENABLE_AT_SHARED   默认 ON（产出产品 drop-in libAT.so，含 ATInterface）
 #   SMORE_CAM_CAP_SDK_HOST  默认 ~/Projects/smore-cam-cap/release/vs1000p_2mp
-#   ENABLE_YOLO        默认 ON（构建 AT YOLO 检测 provider）
+#   ENABLE_YOLO        默认 ON（构建 AT YOLO 检测 provider；不影响 libAT.so）
 #   YOLO_REPO_HOST     默认 ~/Projects/heatmap-model（需含 cpp/ 与 deploy/）
 #   YOLO_MODEL_HOST    默认 <YOLO_REPO_HOST>/deploy/vs1000pro/yolov8n-gray/tmfile/barcode-yolov8n-gray-final-uint8.tmfile
 #   YOLO_INSTALL_RUNTIME_LIBS 默认 OFF（部署默认使用板端 Tengine/Vivante 运行库）
@@ -17,6 +18,7 @@ source "${SCRIPT_DIR}/common.sh"
 
 GCC=/opt/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin
 ENABLE_AT_RUNNER="${ENABLE_AT_RUNNER:-ON}"
+ENABLE_AT_SHARED="${ENABLE_AT_SHARED:-ON}"
 ENABLE_YOLO="${ENABLE_YOLO:-ON}"
 YOLO_INSTALL_RUNTIME_LIBS="${YOLO_INSTALL_RUNTIME_LIBS:-OFF}"
 CAMCAP_HOST="${SMORE_CAM_CAP_SDK_HOST:-${HOME}/Projects/smore-cam-cap/release/vs1000p_2mp}"
@@ -41,6 +43,8 @@ extra_cmake=(
   -DCMAKE_C_COMPILER="${GCC}/aarch64-none-linux-gnu-gcc"
   -DCMAKE_CXX_COMPILER="${GCC}/aarch64-none-linux-gnu-g++"
   -DENABLE_AT_RUNNER="${ENABLE_AT_RUNNER}"
+  -DENABLE_AT_SHARED="${ENABLE_AT_SHARED}"
+  -DENABLE_AT_COMPAT=ON
   -DENABLE_CORE_TEST=OFF
   -DYOLO_INSTALL_RUNTIME_LIBS="${YOLO_INSTALL_RUNTIME_LIBS}"
 )

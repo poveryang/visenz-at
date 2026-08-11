@@ -15,6 +15,8 @@
 | `at_session.h` | `core/at_session.cpp` | **`AtSession::ProcessStep`**（策略状态机） |
 | `at_orchestrator.h` | `orchestrator/at_orchestrator.cpp` | **`AtOrchestrator::ProcessStep`**（推荐对外入口） |
 | `at_providers.h` | `providers/null_providers.cpp` | 扩展槽默认实现 |
+| `compat/at_interface.h` 等 | `compat/at_interface_adapter.cpp` | **`AT_COMPAT`：旧 `ATInterface` 适配层** |
+| `at_run_log.h` | `core/at_run_log.cpp` | **算法运行 JSONL 日志（与宿主 stdout 隔离）** |
 
 内部（不对外）：
 
@@ -32,3 +34,6 @@
 | 仅策略 | `AtSession::ProcessStep` |
 | 可执行骨架 | `apps/at_runner/main.cpp` |
 | 单测 | `test/unit/at_core_unit_test.cpp` |
+| 兼容层单测 | `test/unit/at_compat_unit_test.cpp` |
+| 兼容层说明 | [`AT_COMPAT.md`](AT_COMPAT.md) |
+| 算法运行日志 | [`AT_RUN_LOG.md`](AT_RUN_LOG.md) |

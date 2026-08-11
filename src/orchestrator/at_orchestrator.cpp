@@ -6,6 +6,7 @@
 
 #include <filesystem>
 #include <stdexcept>
+#include <utility>
 
 namespace at {
 namespace {
@@ -39,20 +40,42 @@ std::unique_ptr<HeatmapProvider> MakeHeatmapProvider(const HeatmapConfig &config
 AtOrchestrator::AtOrchestrator(SessionConfig config,
                                std::unique_ptr<DecodeProvider> decode,
                                std::unique_ptr<PreprocessPlugin> preprocess)
-    : session_(config),
-      heatmap_(MakeHeatmapProvider(config.heatmap)),
+    : config_(std::move(config)),
+      session_(config_),
+      run_log_(config_.run_log),
+      heatmap_(MakeHeatmapProvider(config_.heatmap)),
       decode_(decode ? std::move(decode) : std::make_unique<NullDecodeProvider>()),
       preprocess_(preprocess ? std::move(preprocess) : std::make_unique<SimplePreprocessPlugin>())
 {
 }
 
+AtOrchestrator::~AtOrchestrator()
+{
+    Abort();
+}
+
 void AtOrchestrator::Reset()
 {
     session_.Reset();
+    run_log_.Begin(config_);
+}
+
+void AtOrchestrator::Abort()
+{
+    // 只收尾日志；heatmap 生命周期由 ReleaseHeatmap / 析构或下次 Init 重建负责。
+    // runner 会在同一 AtOrchestrator 上 Reset 复用，这里不能卸模型。
+    run_log_.End(nullptr);
+}
+
+void AtOrchestrator::ReleaseHeatmap()
+{
+    heatmap_ = std::make_unique<NullHeatmapProvider>();
 }
 
 StepResult AtOrchestrator::ProcessStep(FrameContext context)
 {
+    const CameraParams params_before = context.current_params;
+
     context.preprocess = preprocess_->Apply(context);
     if (!context.heatmap.available) {
         context.heatmap = heatmap_->Infer(context);
@@ -63,6 +86,11 @@ StepResult AtOrchestrator::ProcessStep(FrameContext context)
     if (result.need_decode && !context.decode.attempted) {
         context.decode = decode_->Decode(context);
         result = session_.ProcessStep(context);
+    }
+
+    run_log_.AppendStep(params_before, result);
+    if (result.finished) {
+        run_log_.End(&result);
     }
 
     return result;
